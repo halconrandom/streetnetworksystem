@@ -42,6 +42,7 @@ function App() {
                     stateManager={stateManager}
                     stateKey={stateKey}
                     passProps={passProps}
+                    errors={{}}
                 />
             )}
             <textarea
