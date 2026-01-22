@@ -7,7 +7,7 @@ import {
     SectionComponent,
     setFileType
 } from "components-sdk";
-import { getFileNameType } from 'components-sdk/src/polyfills/files';
+import { getFileNameType } from 'components-sdk';
 
 
 export const webhookImplementation = {

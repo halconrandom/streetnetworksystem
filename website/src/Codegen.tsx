@@ -6,7 +6,7 @@ import { libs } from '../libs.config';
 import { Component } from 'components-sdk';
 import { useTranslation } from 'react-i18next';
 import ejs from 'ejs';
-import { OnChangeValue } from 'react-select/dist/declarations/src/types';
+import type { OnChangeValue } from 'react-select';
 
 const indent = (text: string, depth: number, skipFirst = false) => {
     const test = text.split('\n').map((line) => (line.length ? ' '.repeat(depth) : '') + line);
@@ -16,7 +16,17 @@ const indent = (text: string, depth: number, skipFirst = false) => {
     return test.join('\n');
 };
 
-const context = require.context('./codegen', true, /\.ejs$/);
+const requireContext = require as unknown as Require & {
+    context(
+        directory: string,
+        useSubdirectories: boolean,
+        regExp: RegExp
+    ): {
+        keys(): string[];
+        (id: string): string;
+    };
+};
+const context = requireContext.context('./codegen', true, /\.ejs$/);
 const codegenModules: Record<string, string> = context.keys().reduce((acc, key) => {
     acc[key] = context(key) as string;
     return acc;
@@ -37,7 +47,7 @@ const renderTemplate = (name: string, data: Record<string, unknown>) => {
             client: true,
             strict: false,
             localsName: 'data',
-            escape: "(markup => JSON.stringify(markup))",
+            escape: (markup: string) => JSON.stringify(markup),
         });
         compiledCache.set(name, compiled);
     }
@@ -45,7 +55,11 @@ const renderTemplate = (name: string, data: Record<string, unknown>) => {
     const include = (includeName: string, includeData: Record<string, unknown>) =>
         renderTemplate(`./codegen${includeName}`, includeData);
 
-    return compiled({ ...data, indent }, undefined, include);
+    return (compiled as unknown as (payload: Record<string, unknown>) => string)({
+        ...data,
+        indent,
+        include,
+    });
 };
 
 const libComponents: { [name: string]: (data: Record<string, unknown>) => string } = {};

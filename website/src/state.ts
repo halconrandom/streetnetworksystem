@@ -1,12 +1,14 @@
-import { Component, stateKeyType, StateManager } from 'components-sdk';
-import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import {
+    Component,
+    stateKeyType,
+    StateManager,
     addKeyType,
     appendKeyType,
     deleteKeyType,
     setKeyType,
     wrapKeyType,
-} from 'components-sdk/src/polyfills/StateManager';
+} from 'components-sdk';
+import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import defaultJson from "./defaultJson"
 

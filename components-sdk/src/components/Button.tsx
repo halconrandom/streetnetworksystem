@@ -1,5 +1,5 @@
 import Styles from './Button.module.css';
-import {text_display_input} from './TextDisplay.module.css';
+import TextDisplayStyles from './TextDisplay.module.css';
 import CapsuleStyles from '../Capsule.module.css';
 import {
     Dispatch,
@@ -233,7 +233,7 @@ export function MenuLabel({state, stateKey, stateManager, setOpen, nullable = fa
             ref={ref}
             type="text"
             value={state}
-            className={text_display_input + ' ' + Styles.input}
+            className={TextDisplayStyles.text_display_input + ' ' + Styles.input}
             placeholder={placeholder || "abcdefg"}
             onChange={(ev) => stateManager.setKey({
                 key: stateKey,

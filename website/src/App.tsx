@@ -1,4 +1,4 @@
-import { Capsule, Component, ComponentType, PassProps } from 'components-sdk';
+import { Capsule, Component, ComponentType, ContainerComponent, PassProps, SectionComponent, TextDisplayComponent } from 'components-sdk';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { actions, DisplaySliceManager, RootState } from './state';
@@ -612,16 +612,22 @@ function App() {
         }
         return output;
     };
+    const isTextDisplay = (value: Component): value is TextDisplayComponent =>
+        value.type === ComponentType.TEXT_DISPLAY;
+    const isSection = (value: Component): value is SectionComponent =>
+        value.type === ComponentType.SECTION;
+    const isContainer = (value: Component): value is ContainerComponent =>
+        value.type === ComponentType.CONTAINER;
     const applyMentionsToState = useCallback((components: Component[]) => {
         const mapComponents = (items: Component[]): Component[] => {
             return items.map((item) => {
-                if (item.type === ComponentType.TEXT_DISPLAY) {
+                if (isTextDisplay(item)) {
                     return {
                         ...item,
                         content: replaceMentionsInText(item.content),
                     };
                 }
-                if (item.type === ComponentType.SECTION) {
+                if (isSection(item)) {
                     return {
                         ...item,
                         components: item.components.map((inner) => ({
@@ -630,7 +636,7 @@ function App() {
                         })),
                     };
                 }
-                if (item.type === ComponentType.CONTAINER) {
+                if (isContainer(item)) {
                     return {
                         ...item,
                         components: mapComponents(item.components),

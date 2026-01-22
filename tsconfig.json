@@ -43,10 +43,16 @@
   },
   "include": [
     "next-env.d.ts",
+    "**/*.d.ts",
     "**/*.ts",
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "components-sdk/node_modules",
+    "components-sdk/vite.config.ts",
+    "components-sdk/playground",
+    "index.tsx",
+    "index.html"
   ]
 }

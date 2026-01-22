@@ -33,7 +33,7 @@ export default function ejsTemplatePlugin(options : {
         strict: true,
         localsName: 'data',
         compileDebug: options.compileDebug,
-        escape: "(markup => JSON.stringify(markup))",
+        escape: (markup: string) => JSON.stringify(markup),
       }).toString()
       //console.log(compiled)
       return {

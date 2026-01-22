@@ -6,7 +6,7 @@ import { CapsuleInner } from '../CapsuleInner';
 import { SectionComponent } from '../utils/componentTypes';
 import { ReactNode, useMemo } from 'react';
 import { useDragLine } from '../dnd/DragLine';
-import { dragline_hor } from '../dnd/DragLine.module.css';
+import DragLineStyles from '../dnd/DragLine.module.css';
 import { DroppableID } from '../dnd/components';
 
 export function Section({ state, stateKey, stateManager, passProps, actionCallback }: ComponentsProps & { state: SectionComponent }) {
@@ -84,7 +84,9 @@ export function SectionFrame({children, stateKey, stateManager, interactiveDisab
                 interactiveDisabled={interactiveDisabled}
             />
 
-            {(!!el.current && visible?.ref.element === el.current) && <div key={'top-dragline'} className={dragline_hor} style={{right: 0, maxHeight: 50}} />}
+            {(!!el.current && visible?.ref.element === el.current) && (
+                <div key={'top-dragline'} className={DragLineStyles.dragline_hor} style={{right: 0, maxHeight: 50}} />
+            )}
         </div>
     </div>
 }

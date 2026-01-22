@@ -1,7 +1,17 @@
 {
   "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/users": "pages/users.js",
-  "/audit": "pages/audit.js"
+  "/404": "pages/404.html",
+  "/": "pages/index.html",
+  "/audit": "pages/audit.html",
+  "/login": "pages/login.html",
+  "/message-builder/[[...slug]]": "pages/message-builder/[[...slug]].html",
+  "/not-found": "pages/not-found.html",
+  "/settings": "pages/settings.html",
+  "/screenshot-editor": "pages/screenshot-editor.html",
+  "/tickets": "pages/tickets.html",
+  "/tickets/[id]": "pages/tickets/[id].html",
+  "/verify": "pages/verify.html",
+  "/users": "pages/users.html",
+  "/_error": "pages/_error.js"
 }
