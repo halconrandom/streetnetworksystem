@@ -21,6 +21,8 @@ function App() {
         () => ({
             getFile: undefined,
             setFile: undefined,
+            getFileName: undefined,
+            interactiveDisabled: false,
             BetterInput: DummyBetterInput,
             EmojiPicker: DummyEmojiPicker,
             ColorPicker: DummyColorPicker,
