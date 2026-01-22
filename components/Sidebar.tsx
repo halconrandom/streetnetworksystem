@@ -7,7 +7,8 @@ import {
   Activity, 
   LogOut,
   Shield,
-  PenTool
+  PenTool,
+  Image
 } from './Icons';
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tickets', label: 'Transcripts', icon: MessageSquare },
     { id: 'v2_builder', label: 'Message Builder', icon: PenTool },
+    { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'audit', label: 'Audit Logs', icon: Activity },
     { id: 'settings', label: 'Settings', icon: Settings },

@@ -1,12 +1,24 @@
 import 'dotenv/config';
+import argon2 from 'argon2';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import express from 'express';
 import pg from 'pg';
+import crypto from 'crypto';
 
 const { Pool } = pg;
 
 const PORT = Number(process.env.PORT || 8788);
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const API_KEY = process.env.API_KEY || '';
+const APP_BASE_URL = process.env.APP_BASE_URL || '';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || APP_BASE_URL;
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sn_session';
+const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS || 24 * 7);
+const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION === 'true';
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
+const DISCORD_CALLBACK_URL = process.env.DISCORD_CALLBACK_URL || (APP_BASE_URL ? `${APP_BASE_URL}/api/auth/discord/callback` : '');
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -16,6 +28,16 @@ if (!DATABASE_URL) {
 const pool = new Pool({ connectionString: DATABASE_URL });
 const app = express();
 
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || !FRONTEND_ORIGIN) return callback(null, true);
+    const allowed = FRONTEND_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean);
+    if (allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+app.use(cookieParser());
 app.use(express.json({ limit: '2mb' }));
 
 const toIsoUtc = (value) => {
@@ -58,12 +80,124 @@ const normalizeNote = (row) => ({
   created_at: toIsoUtc(row.created_at),
 });
 
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const isSecureCookie = () => (APP_BASE_URL || '').startsWith('https://');
+
+const setSessionCookie = (res, token) => {
+  res.cookie(SESSION_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureCookie(),
+    maxAge: SESSION_TTL_HOURS * 60 * 60 * 1000,
+    path: '/',
+  });
+};
+
+const clearSessionCookie = (res) => {
+  res.clearCookie(SESSION_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureCookie(),
+    path: '/',
+  });
+};
+
+const loginAttempts = new Map();
+const MAX_ATTEMPTS = 8;
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
+
+const getAttemptKey = (email, ip) => `${email || 'unknown'}::${ip || 'unknown'}`;
+
+const recordAttempt = (key, success) => {
+  const now = Date.now();
+  const entry = loginAttempts.get(key) || { count: 0, last: now };
+  if (now - entry.last > ATTEMPT_WINDOW_MS) {
+    entry.count = 0;
+  }
+  entry.last = now;
+  if (!success) entry.count += 1;
+  if (success) entry.count = 0;
+  loginAttempts.set(key, entry);
+  return entry;
+};
+
+const isRateLimited = (key) => {
+  const entry = loginAttempts.get(key);
+  if (!entry) return false;
+  if (Date.now() - entry.last > ATTEMPT_WINDOW_MS) return false;
+  return entry.count >= MAX_ATTEMPTS;
+};
+
+const passwordMeetsPolicy = (password) => {
+  if (typeof password !== 'string') return false;
+  if (password.length < 12) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^A-Za-z0-9]/.test(password);
+  return hasUpper && hasLower && hasNumber && hasSymbol;
+};
+
+const createSession = async ({ userId, ip, userAgent }) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000);
+  await pool.query(
+    `insert into public.sn_sessions (user_id, token_hash, expires_at, ip, user_agent)
+     values ($1, $2, $3, $4, $5)`,
+    [userId, tokenHash, expiresAt, ip || null, userAgent || null]
+  );
+  return token;
+};
+
+const getUserFlags = async (userId) => {
+  const result = await pool.query(
+    `select flag from public.sn_user_flags where user_id = $1 order by flag asc`,
+    [userId]
+  );
+  return result.rows.map((row) => row.flag);
+};
+
+const loadSessionUser = async (req) => {
+  const token = req.cookies?.[SESSION_COOKIE_NAME];
+  if (!token) return null;
+  const tokenHash = hashToken(token);
+  const result = await pool.query(
+    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.role, u.is_active
+     from public.sn_sessions s
+     join public.sn_users u on u.id = s.user_id
+     where s.token_hash = $1 and s.revoked_at is null and s.expires_at > now()
+     limit 1`,
+    [tokenHash]
+  );
+  if (!result.rowCount) return null;
+  await pool.query(`update public.sn_sessions set last_used_at = now() where id = $1`, [result.rows[0].session_id]);
+  return result.rows[0];
+};
+
+const auditLog = async ({ actorUserId, action, targetUserId, metadata, ip, userAgent }) => {
+  try {
+    await pool.query(
+      `insert into public.sn_audit_logs (actor_user_id, action, target_user_id, metadata, ip, user_agent)
+       values ($1, $2, $3, $4::jsonb, $5, $6)`,
+      [actorUserId || null, action, targetUserId || null, metadata ? JSON.stringify(metadata) : null, ip || null, userAgent || null]
+    );
+  } catch (err) {
+    console.error('audit log failed', err);
+  }
+};
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/message-builder/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/tickets/health', (_req, res) => res.json({ ok: true }));
 
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.path.startsWith('/api/auth')) return next();
+  if (req.path === '/health') return next();
   if (!API_KEY) return next();
   const headerKey = req.get('x-api-key');
   if (headerKey !== API_KEY) {
@@ -73,6 +207,281 @@ app.use((req, res, next) => {
 });
 
 const isNumericId = (value) => /^\d+$/.test(String(value || '').trim());
+
+const getRequestIp = (req) => {
+  const forwarded = (req.headers['x-forwarded-for'] || '').toString().split(',')[0]?.trim();
+  return forwarded || req.socket?.remoteAddress || '';
+};
+
+const buildUserPayload = async (userRow) => {
+  const flags = await getUserFlags(userRow.id);
+  return {
+    id: userRow.id,
+    email: userRow.email,
+    role: userRow.role,
+    flags,
+  };
+};
+
+app.post('/api/auth/register', async (req, res) => {
+  if (!ALLOW_REGISTRATION) {
+    return res.status(403).json({ error: 'Registration disabled' });
+  }
+  const { email, password } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+  if (!passwordMeetsPolicy(password)) {
+    return res.status(400).json({
+      error: 'Password must be at least 12 characters and include upper, lower, number, and symbol.',
+    });
+  }
+  try {
+    const hashed = await argon2.hash(password, { type: argon2.argon2id });
+    const result = await pool.query(
+      `insert into public.sn_users (email, password_hash, role)
+       values ($1, $2, 'user')
+       returning id, email, role, is_active`,
+      [normalizedEmail, hashed]
+    );
+    await auditLog({
+      action: 'user.register',
+      targetUserId: result.rows[0].id,
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { method: 'password' },
+    });
+    return res.status(201).json(await buildUserPayload(result.rows[0]));
+  } catch (err) {
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: 'Email already in use' });
+    }
+    console.error('register failed', err);
+    return res.status(500).json({ error: 'Failed to register' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  const normalizedEmail = normalizeEmail(email);
+  const ip = getRequestIp(req);
+  const attemptKey = getAttemptKey(normalizedEmail, ip);
+  if (isRateLimited(attemptKey)) {
+    return res.status(429).json({ error: 'Too many attempts, try again later' });
+  }
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+  try {
+    const result = await pool.query(
+      `select id, email, role, password_hash, is_active
+       from public.sn_users
+       where email = $1
+       limit 1`,
+      [normalizedEmail]
+    );
+    if (!result.rowCount) {
+      recordAttempt(attemptKey, false);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    const user = result.rows[0];
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'User disabled' });
+    }
+    if (!user.password_hash) {
+      recordAttempt(attemptKey, false);
+      return res.status(401).json({ error: 'Password login not available' });
+    }
+    const ok = await argon2.verify(user.password_hash, password);
+    if (!ok) {
+      recordAttempt(attemptKey, false);
+      await auditLog({
+        actorUserId: user.id,
+        action: 'auth.login_failed',
+        ip,
+        userAgent: req.get('user-agent'),
+        metadata: { method: 'password' },
+      });
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    recordAttempt(attemptKey, true);
+    const token = await createSession({ userId: user.id, ip, userAgent: req.get('user-agent') });
+    setSessionCookie(res, token);
+    await pool.query(`update public.sn_users set last_login_at = now() where id = $1`, [user.id]);
+    await auditLog({
+      actorUserId: user.id,
+      action: 'auth.login',
+      ip,
+      userAgent: req.get('user-agent'),
+      metadata: { method: 'password' },
+    });
+    return res.json(await buildUserPayload(user));
+  } catch (err) {
+    console.error('login failed', err);
+    return res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const token = req.cookies?.[SESSION_COOKIE_NAME];
+    if (token) {
+      const tokenHash = hashToken(token);
+      await pool.query(`update public.sn_sessions set revoked_at = now() where token_hash = $1`, [tokenHash]);
+    }
+    clearSessionCookie(res);
+    await auditLog({
+      action: 'auth.logout',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+    });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('logout failed', err);
+    return res.status(500).json({ error: 'Failed to logout' });
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const sessionUser = await loadSessionUser(req);
+    if (!sessionUser) return res.status(401).json({ error: 'Unauthorized' });
+    const payload = await buildUserPayload(sessionUser);
+    return res.json(payload);
+  } catch (err) {
+    console.error('auth me failed', err);
+    return res.status(500).json({ error: 'Failed to fetch session' });
+  }
+});
+
+app.get('/api/auth/discord/start', (req, res) => {
+  if (!DISCORD_CLIENT_ID || !DISCORD_CALLBACK_URL) {
+    return res.status(500).json({ error: 'Discord OAuth not configured' });
+  }
+  const state = crypto.randomBytes(16).toString('hex');
+  res.cookie('sn_discord_state', state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureCookie(),
+    maxAge: 10 * 60 * 1000,
+  });
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    redirect_uri: DISCORD_CALLBACK_URL,
+    response_type: 'code',
+    scope: 'identify email',
+    state,
+    prompt: 'consent',
+  });
+  return res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
+});
+
+app.get('/api/auth/discord/callback', async (req, res) => {
+  const { code, state } = req.query || {};
+  if (!code || !state) {
+    return res.status(400).json({ error: 'Missing code/state' });
+  }
+  const expectedState = req.cookies?.sn_discord_state;
+  if (!expectedState || expectedState !== state) {
+    return res.status(400).json({ error: 'Invalid state' });
+  }
+  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_CALLBACK_URL) {
+    return res.status(500).json({ error: 'Discord OAuth not configured' });
+  }
+
+  try {
+    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        client_secret: DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code: String(code),
+        redirect_uri: DISCORD_CALLBACK_URL,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errText = await tokenResponse.text();
+      console.error('discord token failed', errText);
+      return res.status(500).json({ error: 'Discord token exchange failed' });
+    }
+
+    const tokenData = await tokenResponse.json();
+    const userResponse = await fetch('https://discord.com/api/users/@me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    if (!userResponse.ok) {
+      const errText = await userResponse.text();
+      console.error('discord user failed', errText);
+      return res.status(500).json({ error: 'Discord user fetch failed' });
+    }
+
+    const discordUser = await userResponse.json();
+    const discordId = String(discordUser.id || '');
+    const normalizedEmail = normalizeEmail(discordUser.email);
+    if (!discordId || !normalizedEmail || discordUser.verified === false) {
+      return res.status(400).json({ error: 'Discord account missing email' });
+    }
+
+    let userRow;
+    const byDiscord = await pool.query(
+      `select id, email, role, is_active from public.sn_users where discord_id = $1 limit 1`,
+      [discordId]
+    );
+    if (byDiscord.rowCount) {
+      userRow = byDiscord.rows[0];
+    } else {
+      const byEmail = await pool.query(
+        `select id, email, role, is_active from public.sn_users where email = $1 limit 1`,
+        [normalizedEmail]
+      );
+      if (byEmail.rowCount) {
+        userRow = byEmail.rows[0];
+        await pool.query(
+          `update public.sn_users set discord_id = $1, updated_at = now() where id = $2`,
+          [discordId, userRow.id]
+        );
+      } else {
+        const created = await pool.query(
+          `insert into public.sn_users (email, discord_id, role)
+           values ($1, $2, 'user')
+           returning id, email, role, is_active`,
+          [normalizedEmail, discordId]
+        );
+        userRow = created.rows[0];
+      }
+    }
+
+    if (!userRow.is_active) {
+      return res.status(403).json({ error: 'User disabled' });
+    }
+
+    const ip = getRequestIp(req);
+    const token = await createSession({ userId: userRow.id, ip, userAgent: req.get('user-agent') });
+    setSessionCookie(res, token);
+    await pool.query(`update public.sn_users set last_login_at = now() where id = $1`, [userRow.id]);
+    await auditLog({
+      actorUserId: userRow.id,
+      action: 'auth.login',
+      ip,
+      userAgent: req.get('user-agent'),
+      metadata: { method: 'discord' },
+    });
+
+    if (APP_BASE_URL) {
+      return res.redirect(`${APP_BASE_URL}/`);
+    }
+    return res.json(await buildUserPayload(userRow));
+  } catch (err) {
+    console.error('discord callback failed', err);
+    return res.status(500).json({ error: 'Discord authentication failed' });
+  }
+});
 
 app.get('/api/tickets', async (_req, res) => {
   try {

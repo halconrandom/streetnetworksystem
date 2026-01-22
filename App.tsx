@@ -4,9 +4,10 @@ import { DashboardView } from './views/Dashboard';
 import { TicketList } from './views/TicketList';
 import { TranscriptView } from './views/TranscriptView';
 import { V2BuilderView } from './views/V2BuilderView';
+import { ScreenshotEditorView } from './views/ScreenshotEditorView';
 import { Menu, Bell, User } from './components/Icons';
 
-type ViewState = 'dashboard' | 'tickets' | 'transcript_detail' | 'v2_builder' | 'users' | 'settings' | 'audit';
+type ViewState = 'dashboard' | 'tickets' | 'transcript_detail' | 'v2_builder' | 'screenshot_editor' | 'users' | 'settings' | 'audit';
 
 function App() {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
@@ -31,6 +32,8 @@ function App() {
         return <TranscriptView ticketId={selectedTicketId} onBack={() => setCurrentView('tickets')} />;
       case 'v2_builder':
         return <V2BuilderView />;
+      case 'screenshot_editor':
+        return <ScreenshotEditorView />;
       case 'users':
       case 'settings':
       case 'audit':
