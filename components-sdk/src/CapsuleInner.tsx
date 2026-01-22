@@ -8,7 +8,7 @@ import { Component, ComponentType, PassProps } from './utils/componentTypes';
 import TimesSolid from './icons/times-solid.svg';
 import { DragLines, useDragLine } from './dnd/DragLine';
 import { DroppableID } from './dnd/components';
-import { dragline } from './dnd/DragLine.module.css';
+import DragLineStyles from './dnd/DragLine.module.css';
 import { flattenErrors } from './errors';
 import { useRandomString } from './utils/useRegenerate';
 
@@ -45,7 +45,7 @@ export function CapsuleInner(props: props) {
 
         <div ref={el} style={{ position: 'relative' }}>
             {!!el.current && visible?.ref.element === el.current && (
-                <div key={'top-dragline'} className={dragline} style={{ top: -6 }} />
+                <div key={'top-dragline'} className={DragLineStyles.dragline} style={{ top: -6 }} />
             )}
         </div>
         {state.map((component, i) => <CapsuleInnerItemMemo
