@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { 
   LayoutDashboard, 
   MessageSquare, 
@@ -13,19 +15,28 @@ import {
 
 interface SidebarProps {
   currentView: string;
-  onChangeView: (view: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
+  const router = useRouter();
+  const currentPath = router.asPath;
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'tickets', label: 'Transcripts', icon: MessageSquare },
-    { id: 'v2_builder', label: 'Message Builder', icon: PenTool },
-    { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'audit', label: 'Audit Logs', icon: Activity },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets' },
+    { id: 'v2_builder', label: 'Message Builder', icon: PenTool, path: '/message-builder' },
+    { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor' },
+    { id: 'users', label: 'Users', icon: Users, path: '/users' },
+    { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit' },
+    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
   ];
+
+  const isActive = (itemId: string, path: string) => {
+    if (currentView === itemId) return true;
+    if (itemId === 'tickets' && currentPath.startsWith('/tickets')) return true;
+    if (itemId === 'v2_builder' && currentPath.startsWith('/message-builder')) return true;
+    if (itemId === 'screenshot_editor' && currentPath.startsWith('/screenshot-editor')) return true;
+    return currentPath === path;
+  };
 
   return (
     <aside className="w-64 bg-terminal-panel border-r border-terminal-border flex flex-col hidden md:flex">
@@ -43,20 +54,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView }) =
       {/* Navigation */}
       <nav className="flex-1 py-6 px-3 space-y-1">
         {menuItems.map((item) => {
-          const isActive = currentView === item.id || (currentView === 'transcript_detail' && item.id === 'tickets');
+          const active = isActive(item.id, item.path);
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onChangeView(item.id)}
+              href={item.path}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group
-                ${isActive 
-                  ? 'bg-terminal-accent/10 text-terminal-accent shadow-sm border border-terminal-accent/20' 
+                ${active
+                  ? 'bg-terminal-accent/10 text-terminal-accent shadow-sm border border-terminal-accent/20'
                   : 'text-terminal-muted hover:text-white hover:bg-white/5 border border-transparent'
                 }`}
             >
-              <item.icon size={18} className={isActive ? 'text-terminal-accent' : 'text-terminal-muted group-hover:text-white'} />
+              <item.icon size={18} className={active ? 'text-terminal-accent' : 'text-terminal-muted group-hover:text-white'} />
               {item.label}
-            </button>
+            </Link>
           );
         })}
       </nav>

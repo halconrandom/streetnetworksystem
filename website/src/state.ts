@@ -54,7 +54,9 @@ export const displaySlice = createSlice({
     initialState: () => ({
         data: defaultJson as Component[],
         isDefault: true,
-        webhookUrl: localStorage.getItem("discord.builders__webhookToken") || "", // Toolkit run this function so type is string
+        webhookUrl: typeof window !== 'undefined'
+            ? (window.localStorage.getItem("discord.builders__webhookToken") || "")
+            : "",
         webhookResponse: null as object | null,
         showThread: false
     }),
@@ -231,4 +233,3 @@ export class DisplaySliceManager implements StateManager {
         // console.log("wrapKey", props);
     }
 }
-

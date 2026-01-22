@@ -12,10 +12,12 @@ import { getFileNameType } from 'components-sdk/src/polyfills/files';
 
 export const webhookImplementation = {
     getProxyBase(): string {
-        const metaBase = (import.meta as any)?.env?.VITE_BACKEND_PROXY_BASE;
-        if (typeof metaBase === 'string' && metaBase.trim().length > 0) return metaBase.trim();
-        const windowBase = (window as any)?.__VITE_BACKEND_PROXY_BASE__;
-        if (typeof windowBase === 'string' && windowBase.trim().length > 0) return windowBase.trim();
+        const envBase = process.env.NEXT_PUBLIC_BACKEND_PROXY_BASE;
+        if (typeof envBase === 'string' && envBase.trim().length > 0) return envBase.trim();
+        if (typeof window !== 'undefined') {
+            const windowBase = (window as any)?.__VITE_BACKEND_PROXY_BASE__;
+            if (typeof windowBase === 'string' && windowBase.trim().length > 0) return windowBase.trim();
+        }
         return 'http://localhost:8787/api/discord';
     },
 
@@ -42,11 +44,14 @@ export const webhookImplementation = {
         }
     },
     getFile: ((name) => {
+        if (typeof window === 'undefined') return null;
         return window.uploadedFiles[name];
     }) as getFileType,
 
     setFile: (async (name, file) => {
-        window.uploadedFiles[name] = file
+        if (typeof window !== 'undefined') {
+            window.uploadedFiles[name] = file
+        }
         return `attachment://${name}`
     }) as setFileType,
 
@@ -83,11 +88,13 @@ export const webhookImplementation = {
     },
 
     init() {
+        if (typeof window === 'undefined') return;
         if (!window.uploadedFiles) window.uploadedFiles = {}
     },
 
 
     clean(state: Component[]) {
+        if (typeof window === 'undefined') return;
         const files = this.scrapFiles(state);
         for (const file of Object.keys(window.uploadedFiles)) {
             if (!files.includes(file)) delete window.uploadedFiles[file];
@@ -108,7 +115,7 @@ export const webhookImplementation = {
         const form = new FormData();
         form.append('payload_json', data);
         files.map((filename, idx) => {
-            let blob = window.uploadedFiles[filename];
+            let blob = typeof window !== 'undefined' ? window.uploadedFiles[filename] : null;
             if (!blob) blob = new File([], filename, {type: "application/octet-stream"});
             form.append(`files[${idx}]`, blob, filename);
         })

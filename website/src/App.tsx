@@ -14,9 +14,6 @@ import { Trans, useTranslation } from 'react-i18next';
 import i18next from 'i18next';
 import { supportedLngs } from '../libs.config';
 
-
-webhookImplementation.init();
-
 function getThreadId(webhookUrl: string) {
     try {
         const parsed_url = new URL(webhookUrl);
@@ -68,18 +65,27 @@ function App() {
     const [newMentionName, setNewMentionName] = useState('');
     const [colorPickerOpen, setColorPickerOpen] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            webhookImplementation.init();
+        }
+    }, []);
     const apiBase = useMemo(() => {
-        const metaBase = (import.meta as any)?.env?.VITE_MESSAGE_BUILDER_API;
-        if (typeof metaBase === 'string' && metaBase.trim()) return metaBase.replace(/\/$/, '');
-        const windowBase = (window as any)?.__VITE_MESSAGE_BUILDER_API__;
-        if (typeof windowBase === 'string' && windowBase.trim()) return windowBase.replace(/\/$/, '');
+        const envBase = process.env.NEXT_PUBLIC_MESSAGE_BUILDER_API;
+        if (typeof envBase === 'string' && envBase.trim()) return envBase.replace(/\/$/, '');
+        if (typeof window !== 'undefined') {
+            const windowBase = (window as any)?.__VITE_MESSAGE_BUILDER_API__;
+            if (typeof windowBase === 'string' && windowBase.trim()) return windowBase.replace(/\/$/, '');
+        }
         return '';
     }, []);
     const apiKey = useMemo(() => {
-        const metaKey = (import.meta as any)?.env?.VITE_MESSAGE_BUILDER_API_KEY;
-        if (typeof metaKey === 'string' && metaKey.trim().length > 0) return metaKey;
-        const windowKey = (window as any)?.__VITE_MESSAGE_BUILDER_API_KEY__;
-        if (typeof windowKey === 'string' && windowKey.trim().length > 0) return windowKey;
+        const envKey = process.env.NEXT_PUBLIC_MESSAGE_BUILDER_API_KEY;
+        if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey;
+        if (typeof window !== 'undefined') {
+            const windowKey = (window as any)?.__VITE_MESSAGE_BUILDER_API_KEY__;
+            if (typeof windowKey === 'string' && windowKey.trim().length > 0) return windowKey;
+        }
         return '';
     }, []);
     useEffect(() => {
@@ -110,10 +116,12 @@ function App() {
         }
     };
     const proxyKey = useMemo(() => {
-        const metaKey = (import.meta as any)?.env?.VITE_BACKEND_PROXY_KEY;
-        if (typeof metaKey === 'string' && metaKey.trim().length > 0) return metaKey;
-        const windowKey = (window as any)?.__VITE_BACKEND_PROXY_KEY__;
-        if (typeof windowKey === 'string' && windowKey.trim().length > 0) return windowKey;
+        const envKey = process.env.NEXT_PUBLIC_BACKEND_PROXY_KEY;
+        if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey;
+        if (typeof window !== 'undefined') {
+            const windowKey = (window as any)?.__VITE_BACKEND_PROXY_KEY__;
+            if (typeof windowKey === 'string' && windowKey.trim().length > 0) return windowKey;
+        }
         return '';
     }, []);
 
@@ -280,7 +288,7 @@ function App() {
     const sendMessage = async () => {
         if (!requestUrl) return;
         if (!proxyKey) {
-            dispatch(actions.setWebhookResponse({ message: 'Missing VITE_BACKEND_PROXY_KEY' }));
+            dispatch(actions.setWebhookResponse({ message: 'Missing BACKEND_PROXY_KEY' }));
             return;
         }
         const preparedState = applyMentionsToState(state);
@@ -309,7 +317,7 @@ function App() {
 
         if (!requestUrl) return;
         if (!proxyKey) {
-            dispatch(actions.setWebhookResponse({ message: 'Missing VITE_BACKEND_PROXY_KEY' }));
+            dispatch(actions.setWebhookResponse({ message: 'Missing BACKEND_PROXY_KEY' }));
             return;
         }
         const preparedState = applyMentionsToState(state);
@@ -331,7 +339,9 @@ function App() {
     const mentionsDialog = useRef<HTMLDialogElement>(null);
 
     if (page === '404.not-found') {
-        if (!window.location.href.includes('/not-found')) window.location.href = '/not-found';
+        if (typeof window !== 'undefined' && !window.location.href.includes('/not-found')) {
+            window.location.href = '/not-found';
+        }
         return <div><meta name="robots" content="noindex" /><h1>404 — Page not found</h1></div>;
     }
     

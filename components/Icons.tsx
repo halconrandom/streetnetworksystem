@@ -53,7 +53,9 @@ import {
   FileText,
   Calendar,
   BookOpen,
-  HelpCircle
+  HelpCircle,
+  Lock,
+  Terminal
 } from 'lucide-react';
 
 export { 
@@ -110,5 +112,7 @@ export {
   FileText,
   Calendar,
   BookOpen,
-  HelpCircle
+  HelpCircle,
+  Lock,
+  Terminal
 };

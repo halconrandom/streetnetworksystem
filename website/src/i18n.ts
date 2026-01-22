@@ -27,21 +27,30 @@ const Backend: BackendModule = {
     },
 }
 
+if (typeof window !== 'undefined') {
+    i18next.use(LanguageDetector);
+}
+
 i18next
     .use(Backend)
-    .use(LanguageDetector)
     .use(initReactI18next)
     .init({
         ns: ['website', 'components-sdk'],
         defaultNS: 'website',
         supportedLngs: supportedLngs,
 
-        detection: {
-            caches: ['cookie'],
-            order: ['path', 'cookie', 'navigator'],
-            lookupCookie: 'lang',
-            lookupQuerystring: 'lang',
-        },
+        ...(typeof window !== 'undefined'
+            ? {
+                detection: {
+                    caches: ['cookie'],
+                    order: ['path', 'cookie', 'navigator'],
+                    lookupCookie: 'lang',
+                    lookupQuerystring: 'lang',
+                },
+              }
+            : {
+                lng: 'en',
+              }),
         react: {
             useSuspense: false,
         },
@@ -59,5 +68,7 @@ i18next
     });
 
 i18next.on('languageChanged', (lng) => {
-    document.documentElement.setAttribute('lang', lng);
+    if (typeof document !== 'undefined') {
+        document.documentElement.setAttribute('lang', lng);
+    }
 });

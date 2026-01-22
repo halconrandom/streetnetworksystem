@@ -2,33 +2,61 @@ import { CodeBlock, dracula } from 'react-code-blocks';
 import Styles from './App.module.css';
 import Select, { Props } from 'react-select';
 import { select_styles } from './Select';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { libs } from '../libs.config';
-import { ClientFunction, IncludeCallback } from 'ejs';
-import { RootState } from './state';
-import { OnChangeValue } from 'react-select/dist/declarations/src/types';
 import { Component } from 'components-sdk';
 import { useTranslation } from 'react-i18next';
+import ejs from 'ejs';
+import { OnChangeValue } from 'react-select/dist/declarations/src/types';
 
-const codegenModules: {
-    [name: string]: { default: ClientFunction };
-} = import.meta.glob('./codegen/**/*.ejs', { eager: true });
+const indent = (text: string, depth: number, skipFirst = false) => {
+    const test = text.split('\n').map((line) => (line.length ? ' '.repeat(depth) : '') + line);
+    if (skipFirst) {
+        test[0] = test[0].trimStart();
+    }
+    return test.join('\n');
+};
 
-const libComponents: {[name: string]: ClientFunction} = {};
+const context = require.context('./codegen', true, /\.ejs$/);
+const codegenModules: Record<string, string> = context.keys().reduce((acc, key) => {
+    acc[key] = context(key) as string;
+    return acc;
+}, {} as Record<string, string>);
+
+const compiledCache = new Map<string, ejs.TemplateFunction>();
+
+const getTemplate = (name: string) => codegenModules[name];
+
+const renderTemplate = (name: string, data: Record<string, unknown>) => {
+    const template = getTemplate(name);
+    if (!template) {
+        throw new Error(`Component ${name} doesn't exist.`);
+    }
+    let compiled = compiledCache.get(name);
+    if (!compiled) {
+        compiled = ejs.compile(template, {
+            client: true,
+            strict: false,
+            localsName: 'data',
+            escape: "(markup => JSON.stringify(markup))",
+        });
+        compiledCache.set(name, compiled);
+    }
+
+    const include = (includeName: string, includeData: Record<string, unknown>) =>
+        renderTemplate(`./codegen${includeName}`, includeData);
+
+    return compiled({ ...data, indent }, undefined, include);
+};
+
+const libComponents: { [name: string]: (data: Record<string, unknown>) => string } = {};
 
 for (const key of Object.keys(codegenModules)) {
     const match = key.match(/^\.\/codegen\/([^/]+)\/main(?:\.[^/]*)?\.ejs$/);
     if (match) {
         const group = match[1];
-        libComponents[group] = codegenModules[key].default;
+        libComponents[group] = (data) => renderTemplate(key, data);
     }
 }
-
-const importCallback: IncludeCallback = (name, data) => {
-    const mainDart = codegenModules['./codegen' + name]?.default;
-    if (typeof mainDart === "undefined") throw Error(`Component ${name} doesn't exist.`)
-    return mainDart(data, undefined, importCallback);
-};
 
 type selectOption = {
     label: string;
@@ -62,7 +90,7 @@ export function Codegen({state, page, setPage} : {
 
     if (Object.keys(libComponents).includes(libSelected)) {
         const renderer = libComponents[libSelected];
-        data = renderer({components: state}, undefined, importCallback);
+        data = renderer({ components: state });
         language = libs[libSelected]?.language || 'json';
     } else {
         data = JSON.stringify(state, undefined, 4)

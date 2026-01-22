@@ -16,9 +16,6 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || APP_BASE_URL;
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sn_session';
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS || 24 * 7);
 const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION === 'true';
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
-const DISCORD_CALLBACK_URL = process.env.DISCORD_CALLBACK_URL || (APP_BASE_URL ? `${APP_BASE_URL}/api/auth/discord/callback` : '');
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -28,11 +25,38 @@ if (!DATABASE_URL) {
 const pool = new Pool({ connectionString: DATABASE_URL });
 const app = express();
 
+const buildAllowedOrigins = () => {
+  const raw = [FRONTEND_ORIGIN, APP_BASE_URL]
+    .flatMap((value) => (value ? value.split(',') : []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const expanded = raw.flatMap((value) => {
+    if (value.startsWith('http://') || value.startsWith('https://')) return [value];
+    return [`https://${value}`, `http://${value}`];
+  });
+  return Array.from(new Set(expanded));
+};
+
+const allowedOrigins = buildAllowedOrigins();
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || !FRONTEND_ORIGIN) return callback(null, true);
-    const allowed = FRONTEND_ORIGIN.split(',').map((value) => value.trim()).filter(Boolean);
-    if (allowed.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true);
+    if (!allowedOrigins.length) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    try {
+      const originUrl = new URL(origin);
+      const match = allowedOrigins.some((allowed) => {
+        try {
+          return new URL(allowed).host === originUrl.host;
+        } catch {
+          return false;
+        }
+      });
+      if (match) return callback(null, true);
+    } catch {
+      // ignore invalid origin
+    }
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -166,7 +190,7 @@ const loadSessionUser = async (req) => {
   if (!token) return null;
   const tokenHash = hashToken(token);
   const result = await pool.query(
-    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.role, u.is_active
+    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.role, u.is_active, u.is_verified
      from public.sn_sessions s
      join public.sn_users u on u.id = s.user_id
      where s.token_hash = $1 and s.revoked_at is null and s.expires_at > now()
@@ -219,6 +243,7 @@ const buildUserPayload = async (userRow) => {
     id: userRow.id,
     email: userRow.email,
     role: userRow.role,
+    isVerified: userRow.is_verified,
     flags,
   };
 };
@@ -242,7 +267,7 @@ app.post('/api/auth/register', async (req, res) => {
     const result = await pool.query(
       `insert into public.sn_users (email, password_hash, role)
        values ($1, $2, 'user')
-       returning id, email, role, is_active`,
+       returning id, email, role, is_active, is_verified`,
       [normalizedEmail, hashed]
     );
     await auditLog({
@@ -275,7 +300,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `select id, email, role, password_hash, is_active
+      `select id, email, role, password_hash, is_active, is_verified
        from public.sn_users
        where email = $1
        limit 1`,
@@ -356,132 +381,6 @@ app.get('/api/auth/me', async (req, res) => {
   }
 });
 
-app.get('/api/auth/discord/start', (req, res) => {
-  if (!DISCORD_CLIENT_ID || !DISCORD_CALLBACK_URL) {
-    return res.status(500).json({ error: 'Discord OAuth not configured' });
-  }
-  const state = crypto.randomBytes(16).toString('hex');
-  res.cookie('sn_discord_state', state, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: isSecureCookie(),
-    maxAge: 10 * 60 * 1000,
-  });
-  const params = new URLSearchParams({
-    client_id: DISCORD_CLIENT_ID,
-    redirect_uri: DISCORD_CALLBACK_URL,
-    response_type: 'code',
-    scope: 'identify email',
-    state,
-    prompt: 'consent',
-  });
-  return res.redirect(`https://discord.com/api/oauth2/authorize?${params.toString()}`);
-});
-
-app.get('/api/auth/discord/callback', async (req, res) => {
-  const { code, state } = req.query || {};
-  if (!code || !state) {
-    return res.status(400).json({ error: 'Missing code/state' });
-  }
-  const expectedState = req.cookies?.sn_discord_state;
-  if (!expectedState || expectedState !== state) {
-    return res.status(400).json({ error: 'Invalid state' });
-  }
-  if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET || !DISCORD_CALLBACK_URL) {
-    return res.status(500).json({ error: 'Discord OAuth not configured' });
-  }
-
-  try {
-    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: DISCORD_CLIENT_ID,
-        client_secret: DISCORD_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code: String(code),
-        redirect_uri: DISCORD_CALLBACK_URL,
-      }),
-    });
-
-    if (!tokenResponse.ok) {
-      const errText = await tokenResponse.text();
-      console.error('discord token failed', errText);
-      return res.status(500).json({ error: 'Discord token exchange failed' });
-    }
-
-    const tokenData = await tokenResponse.json();
-    const userResponse = await fetch('https://discord.com/api/users/@me', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
-    });
-
-    if (!userResponse.ok) {
-      const errText = await userResponse.text();
-      console.error('discord user failed', errText);
-      return res.status(500).json({ error: 'Discord user fetch failed' });
-    }
-
-    const discordUser = await userResponse.json();
-    const discordId = String(discordUser.id || '');
-    const normalizedEmail = normalizeEmail(discordUser.email);
-    if (!discordId || !normalizedEmail || discordUser.verified === false) {
-      return res.status(400).json({ error: 'Discord account missing email' });
-    }
-
-    let userRow;
-    const byDiscord = await pool.query(
-      `select id, email, role, is_active from public.sn_users where discord_id = $1 limit 1`,
-      [discordId]
-    );
-    if (byDiscord.rowCount) {
-      userRow = byDiscord.rows[0];
-    } else {
-      const byEmail = await pool.query(
-        `select id, email, role, is_active from public.sn_users where email = $1 limit 1`,
-        [normalizedEmail]
-      );
-      if (byEmail.rowCount) {
-        userRow = byEmail.rows[0];
-        await pool.query(
-          `update public.sn_users set discord_id = $1, updated_at = now() where id = $2`,
-          [discordId, userRow.id]
-        );
-      } else {
-        const created = await pool.query(
-          `insert into public.sn_users (email, discord_id, role)
-           values ($1, $2, 'user')
-           returning id, email, role, is_active`,
-          [normalizedEmail, discordId]
-        );
-        userRow = created.rows[0];
-      }
-    }
-
-    if (!userRow.is_active) {
-      return res.status(403).json({ error: 'User disabled' });
-    }
-
-    const ip = getRequestIp(req);
-    const token = await createSession({ userId: userRow.id, ip, userAgent: req.get('user-agent') });
-    setSessionCookie(res, token);
-    await pool.query(`update public.sn_users set last_login_at = now() where id = $1`, [userRow.id]);
-    await auditLog({
-      actorUserId: userRow.id,
-      action: 'auth.login',
-      ip,
-      userAgent: req.get('user-agent'),
-      metadata: { method: 'discord' },
-    });
-
-    if (APP_BASE_URL) {
-      return res.redirect(`${APP_BASE_URL}/`);
-    }
-    return res.json(await buildUserPayload(userRow));
-  } catch (err) {
-    console.error('discord callback failed', err);
-    return res.status(500).json({ error: 'Discord authentication failed' });
-  }
-});
 
 app.get('/api/tickets', async (_req, res) => {
   try {
