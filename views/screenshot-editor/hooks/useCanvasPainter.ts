@@ -1,0 +1,319 @@
+import { useEffect, useRef } from 'react';
+import { defaultTextSettings, DEFAULT_COLOR } from '../constants';
+import type { ChatLine, EditorSettings, OverlayImage, TextBlock } from '../types';
+import { colorWithAlpha, parseChatLines } from '../utils';
+
+type RenderLine = {
+  text: string;
+  color: string;
+};
+
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
+  if (!text) return [''];
+  if (maxWidth <= 0) return [text];
+
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+
+  const pushCurrent = () => {
+    if (current) lines.push(current);
+    current = '';
+  };
+
+  const splitWord = (word: string) => {
+    let chunk = '';
+    for (const char of word) {
+      const test = chunk + char;
+      if (ctx.measureText(test).width > maxWidth && chunk) {
+        lines.push(chunk);
+        chunk = char;
+      } else {
+        chunk = test;
+      }
+    }
+    return chunk;
+  };
+
+  words.forEach((word) => {
+    if (!current) {
+      if (ctx.measureText(word).width <= maxWidth) {
+        current = word;
+      } else {
+        current = splitWord(word);
+      }
+      return;
+    }
+
+    const test = `${current} ${word}`;
+    if (ctx.measureText(test).width <= maxWidth) {
+      current = test;
+    } else {
+      pushCurrent();
+      if (ctx.measureText(word).width <= maxWidth) {
+        current = word;
+      } else {
+        current = splitWord(word);
+      }
+    }
+  });
+
+  pushCurrent();
+  return lines.length > 0 ? lines : [''];
+};
+
+const wrapChatLines = (ctx: CanvasRenderingContext2D, lines: ChatLine[], maxWidth: number): RenderLine[] => {
+  const wrapped: RenderLine[] = [];
+  lines.forEach((line) => {
+    wrapText(ctx, line.text, maxWidth).forEach((text) => {
+      wrapped.push({ text, color: line.color });
+    });
+  });
+  return wrapped;
+};
+
+type UseCanvasPainterProps = {
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+  imageDataUrl: string | null;
+  settings: EditorSettings;
+  textBlocks: TextBlock[];
+  visibleLines: ChatLine[];
+  overlays: OverlayImage[];
+  layerOrder?: string[];
+};
+
+export const useCanvasPainter = ({
+  canvasRef,
+  imageDataUrl,
+  settings,
+  textBlocks,
+  visibleLines,
+  overlays,
+  layerOrder,
+}: UseCanvasPainterProps) => {
+  const overlayImageCacheRef = useRef<Record<string, HTMLImageElement>>({});
+
+  useEffect(() => {
+    const drawCanvas = () => {
+      const canvas = canvasRef.current;
+      if (!canvas || !imageDataUrl) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const image = new window.Image();
+      image.onload = () => {
+        canvas.width = settings.width;
+        canvas.height = settings.height;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const canvasRatio = settings.width / settings.height;
+        const imageRatio = image.width / image.height;
+
+        let drawWidth = settings.width;
+        let drawHeight = settings.height;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (settings.fitMode === 'crop') {
+          drawWidth = image.width * settings.imageScale;
+          drawHeight = image.height * settings.imageScale;
+          offsetX = (settings.width - drawWidth) / 2 + settings.imageOffsetX;
+          offsetY = (settings.height - drawHeight) / 2 + settings.imageOffsetY;
+        } else if (settings.fitMode === 'contain') {
+          if (imageRatio > canvasRatio) {
+            drawWidth = settings.width;
+            drawHeight = settings.width / imageRatio;
+            offsetY = (settings.height - drawHeight) / 2;
+          } else {
+            drawHeight = settings.height;
+            drawWidth = settings.height * imageRatio;
+            offsetX = (settings.width - drawWidth) / 2;
+          }
+        } else if (settings.fitMode === 'cover') {
+          if (imageRatio > canvasRatio) {
+            drawHeight = settings.height;
+            drawWidth = settings.height * imageRatio;
+            offsetX = (settings.width - drawWidth) / 2;
+          } else {
+            drawWidth = settings.width;
+            drawHeight = settings.width / imageRatio;
+            offsetY = (settings.height - drawHeight) / 2;
+          }
+        }
+
+        ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+        // Pre-calculate lines per block to avoid doing it inside the loop
+        const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {
+          const key = line.blockId ?? 'default';
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(line);
+          return acc;
+        }, {});
+
+        const renderOverlay = (overlay: OverlayImage) => {
+          if (overlay.visible === false) return; // Explicit check for false, undefined defaults to true
+
+          let overlayImage = overlayImageCacheRef.current[overlay.id];
+          if (!overlayImage) {
+            overlayImage = new window.Image();
+            overlayImage.onload = () => drawCanvas();
+            overlayImage.src = overlay.dataUrl;
+            overlayImageCacheRef.current[overlay.id] = overlayImage;
+          }
+          if (!overlayImage.complete) return;
+          const drawW = overlay.width * overlay.scale;
+          const drawH = overlay.height * overlay.scale;
+          const rotation = (overlay.rotation * Math.PI) / 180;
+          ctx.save();
+          ctx.globalAlpha = overlay.opacity;
+          ctx.translate(overlay.x, overlay.y);
+          ctx.rotate(rotation);
+          ctx.drawImage(overlayImage, -drawW / 2, -drawH / 2, drawW, drawH);
+          ctx.restore();
+        };
+
+        const renderTextBlock = (block: TextBlock) => {
+          if (block.visible === false) return;
+
+          const blockSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
+          const blockLines = linesByBlock[block.id] ?? parseChatLines(block.text, DEFAULT_COLOR, block.id);
+          if (blockLines.length === 0) return;
+
+          ctx.save();
+          ctx.font = `${blockSettings.fontWeight} ${blockSettings.fontSize}px ${blockSettings.fontFamily}`;
+          ctx.textBaseline = 'top';
+          if (blockSettings.shadowEnabled) {
+            ctx.shadowColor = blockSettings.shadowColor;
+            ctx.shadowBlur = blockSettings.shadowBlur;
+            ctx.shadowOffsetX = blockSettings.shadowOffsetX;
+            ctx.shadowOffsetY = blockSettings.shadowOffsetY;
+          } else {
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+          }
+          ctx.lineWidth = blockSettings.strokeWidth;
+          ctx.strokeStyle = blockSettings.strokeColor;
+
+          const startX = blockSettings.paddingX;
+          let startY = blockSettings.textPosition === 'bottom-left'
+            ? settings.height - blockSettings.paddingY
+            : blockSettings.paddingY;
+          startY += blockSettings.textOffsetY;
+          const baseX = startX + blockSettings.textOffsetX;
+          const availableWidth = Math.max(0, settings.width - baseX);
+          const maxWidth = Math.max(0, Math.min(blockSettings.textBoxWidth, availableWidth));
+          const effectiveLineHeight = blockSettings.backdropMode === 'text'
+            ? blockSettings.lineHeight + 2
+            : blockSettings.lineHeight;
+          const fontMetrics = ctx.measureText('Mg');
+          const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent || blockSettings.fontSize;
+          const renderLines = wrapChatLines(ctx, blockLines, maxWidth);
+          if (renderLines.length === 0) {
+            ctx.restore();
+            return;
+          }
+
+          const rotationRadians = (blockSettings.textRotation * Math.PI) / 180;
+          const localBaseX = rotationRadians !== 0 ? 0 : baseX;
+          const localStartY = rotationRadians !== 0 ? 0 : startY;
+          if (rotationRadians !== 0) {
+            ctx.translate(baseX, startY);
+            ctx.rotate(rotationRadians);
+          }
+
+          const totalHeight = renderLines.length > 1 ? (renderLines.length - 1) * effectiveLineHeight : 0;
+          if (blockSettings.textPosition === 'bottom-left') {
+            const bottomStartY = settings.height - blockSettings.paddingY - totalHeight - fontHeight;
+            if (rotationRadians !== 0) {
+              ctx.translate(0, bottomStartY - startY);
+            } else {
+              startY = bottomStartY;
+            }
+          }
+
+          if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'all') {
+            const maxLineWidth = renderLines.reduce(
+              (max, line) => Math.max(max, Math.min(ctx.measureText(line.text).width, maxWidth)),
+              0
+            );
+            const blockHeight = (renderLines.length - 1) * effectiveLineHeight + fontHeight;
+            const backdropHeight = blockHeight + blockSettings.backdropPadding * 2;
+            const backdropWidth = Math.max(0, Math.min(maxLineWidth, maxWidth));
+            ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
+            ctx.fillRect(
+              localBaseX - blockSettings.backdropPadding,
+              localStartY - blockSettings.backdropPadding,
+              backdropWidth + blockSettings.backdropPadding * 2,
+              backdropHeight
+            );
+          }
+
+          renderLines.forEach((line, index) => {
+            const lineTopY = localStartY + index * effectiveLineHeight;
+            const lineMetrics = ctx.measureText(line.text);
+            if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
+              const textWidth = Math.min(lineMetrics.width, maxWidth);
+              const backdropWidth = Math.max(0, textWidth);
+              const backdropHeight = fontHeight + blockSettings.backdropPadding * 2;
+              const backdropY = lineTopY - blockSettings.backdropPadding;
+              ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
+              ctx.fillRect(
+                localBaseX - blockSettings.backdropPadding,
+                backdropY,
+                backdropWidth + blockSettings.backdropPadding * 2,
+                backdropHeight
+              );
+            }
+            ctx.fillStyle = line.color;
+            if (blockSettings.strokeWidth > 0) {
+              ctx.strokeText(line.text, localBaseX, lineTopY);
+            }
+            ctx.fillText(line.text, localBaseX, lineTopY);
+          });
+          ctx.restore();
+        };
+
+        // Render based on layerOrder or fall back to Overlay -> Text
+        if (layerOrder && layerOrder.length > 0) {
+          layerOrder.forEach(id => {
+            // Try identifying if it's overlay or text. 
+            // We could check overlays first or rely on the fact IDs should indicate type or we just check both.
+            // Optimization: maintain a map, but array find is cheap enough for now.
+            const overlay = overlays.find(o => o.id === id);
+            if (overlay) {
+              renderOverlay(overlay);
+              return;
+            }
+            const block = textBlocks.find(b => b.id === id);
+            if (block) {
+              renderTextBlock(block);
+              return;
+            }
+          });
+
+          // Fallback: If for some reason we have orphaned items not in layerOrder (sync issues), we should maybe render them on top? 
+          // Or just assume layerOrder is source of truth for rendering.
+          // Let's stick to layerOrder being strictly what's rendered to avoid ghosts.
+        } else {
+          // Legacy Rendering
+          overlays.forEach(renderOverlay);
+          textBlocks.forEach(renderTextBlock);
+        }
+      };
+
+      image.src = imageDataUrl;
+    };
+
+    drawCanvas();
+  }, [imageDataUrl, settings, textBlocks, visibleLines, overlays, layerOrder]);
+
+  return {
+    invalidateCache: (id: string) => {
+      delete overlayImageCacheRef.current[id];
+    }
+  }
+};

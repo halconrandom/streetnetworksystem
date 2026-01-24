@@ -16,15 +16,16 @@ export const defaultSettings: EditorSettings = {
 
 export const defaultTextSettings: TextBlockSettings = {
   fontFamily: 'Arial, Helvetica, sans-serif',
-  fontWeight: 500,
+  fontWeight: 700,
   fontSize: 18,
-  lineHeight: 18,
+  lineHeight: 22,
   strokeWidth: 2,
   strokeColor: '#000000',
   shadowBlur: 4,
   shadowOffsetX: 1,
   shadowOffsetY: 1,
   shadowColor: '#000000',
+  shadowEnabled: true,
   paddingX: 24,
   paddingY: 24,
   textPosition: 'top-left',
@@ -36,5 +37,5 @@ export const defaultTextSettings: TextBlockSettings = {
   backdropMode: 'text',
   backdropPadding: 6,
   backdropColor: '#000000',
-  backdropOpacity: 0.45,
+  backdropOpacity: 0.25,
 };

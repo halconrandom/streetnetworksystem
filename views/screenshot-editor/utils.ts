@@ -94,5 +94,18 @@ export const readCache = (cacheKey: string): CacheItem[] => {
 };
 
 export const writeCache = (cacheKey: string, items: CacheItem[]) => {
-  localStorage.setItem(cacheKey, JSON.stringify(items.slice(0, 5)));
+  const maxItems = Math.min(5, items.length);
+  for (let limit = maxItems; limit >= 1; limit -= 1) {
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(items.slice(0, limit)));
+      return;
+    } catch {
+      // try again with fewer items
+    }
+  }
+  try {
+    localStorage.removeItem(cacheKey);
+  } catch {
+    // ignore
+  }
 };

@@ -104,6 +104,11 @@ const normalizeNote = (row) => ({
   created_at: toIsoUtc(row.created_at),
 });
 
+const normalizeAudit = (row) => ({
+  ...row,
+  created_at: toIsoUtc(row.created_at),
+});
+
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -221,6 +226,7 @@ app.get('/api/tickets/health', (_req, res) => res.json({ ok: true }));
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.path.startsWith('/api/auth')) return next();
+  if (req.path.startsWith('/api/admin')) return next();
   if (req.path === '/health') return next();
   if (!API_KEY) return next();
   const headerKey = req.get('x-api-key');
@@ -246,6 +252,40 @@ const buildUserPayload = async (userRow) => {
     isVerified: userRow.is_verified,
     flags,
   };
+};
+
+const ADMIN_FLAGS = [
+  'dashboard',
+  'tickets',
+  'transcripts',
+  'message_builder',
+  'screenshot_editor',
+  'users',
+  'audit_logs',
+  'settings',
+  'admin_panel',
+];
+
+const normalizeFlags = (flags) => {
+  if (!Array.isArray(flags)) return [];
+  const filtered = flags
+    .map((flag) => String(flag || '').trim())
+    .filter((flag) => ADMIN_FLAGS.includes(flag));
+  return Array.from(new Set(filtered));
+};
+
+const requireAdmin = async (req, res, next) => {
+  try {
+    const sessionUser = await loadSessionUser(req);
+    if (!sessionUser) return res.status(401).json({ error: 'Unauthorized' });
+    if (!sessionUser.is_active) return res.status(403).json({ error: 'User disabled' });
+    if (sessionUser.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    req.adminUser = sessionUser;
+    return next();
+  } catch (err) {
+    console.error('admin auth failed', err);
+    return res.status(500).json({ error: 'Failed to authorize' });
+  }
 };
 
 app.post('/api/auth/register', async (req, res) => {
@@ -379,6 +419,162 @@ app.get('/api/auth/me', async (req, res) => {
     console.error('auth me failed', err);
     return res.status(500).json({ error: 'Failed to fetch session' });
   }
+});
+
+app.get('/api/admin/flags', requireAdmin, (_req, res) => {
+  return res.json({ flags: ADMIN_FLAGS });
+});
+
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  const page = Math.max(1, Number(req.query.page || 1));
+  const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 25)));
+  const search = String(req.query.q || '').trim();
+  const params = [];
+  const conditions = [];
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`(u.email ilike $${params.length} or u.id::text ilike $${params.length})`);
+  }
+  const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
+  const countResult = await pool.query(`select count(*)::int as total from public.sn_users u ${where}`, params);
+  const total = countResult.rows[0]?.total ?? 0;
+  params.push(pageSize);
+  params.push((page - 1) * pageSize);
+  const rowsResult = await pool.query(
+    `select u.id, u.email, u.role, u.is_active, u.is_verified, u.created_at, u.updated_at, u.last_login_at
+     from public.sn_users u
+     ${where}
+     order by u.created_at desc
+     limit $${params.length - 1} offset $${params.length}`,
+    params
+  );
+  const users = rowsResult.rows;
+  const ids = users.map((row) => row.id);
+  let flagsByUser = {};
+  if (ids.length) {
+    const flagsResult = await pool.query(
+      `select user_id, flag from public.sn_user_flags where user_id = any($1::uuid[]) order by flag asc`,
+      [ids]
+    );
+    flagsByUser = flagsResult.rows.reduce((acc, row) => {
+      if (!acc[row.user_id]) acc[row.user_id] = [];
+      acc[row.user_id].push(row.flag);
+      return acc;
+    }, {});
+  }
+  const payload = users.map((row) => ({
+    ...row,
+    created_at: toIsoUtc(row.created_at),
+    updated_at: toIsoUtc(row.updated_at),
+    last_login_at: toIsoUtc(row.last_login_at),
+    flags: flagsByUser[row.id] || [],
+  }));
+  return res.json({ rows: payload, total, page, pageSize });
+});
+
+app.patch('/api/admin/users/:id', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const { role, is_active, is_verified } = req.body || {};
+  const nextRole = typeof role === 'string' ? role.trim() : undefined;
+  if (nextRole && !['admin', 'user'].includes(nextRole)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  try {
+    const result = await pool.query(
+      `update public.sn_users
+       set role = coalesce($2, role),
+           is_active = coalesce($3, is_active),
+           is_verified = coalesce($4, is_verified),
+           updated_at = now()
+       where id = $1
+       returning id, email, role, is_active, is_verified, created_at, updated_at, last_login_at`,
+      [
+        id,
+        nextRole || null,
+        typeof is_active === 'boolean' ? is_active : null,
+        typeof is_verified === 'boolean' ? is_verified : null,
+      ]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'User not found' });
+    await auditLog({
+      actorUserId: req.adminUser?.id,
+      targetUserId: id,
+      action: 'admin.user.update',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { role: nextRole, is_active, is_verified },
+    });
+    const row = result.rows[0];
+    return res.json({
+      ...row,
+      created_at: toIsoUtc(row.created_at),
+      updated_at: toIsoUtc(row.updated_at),
+      last_login_at: toIsoUtc(row.last_login_at),
+    });
+  } catch (err) {
+    console.error('admin user update failed', err);
+    return res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+app.put('/api/admin/users/:id/flags', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const flags = normalizeFlags(req.body?.flags);
+  try {
+    await pool.query('begin');
+    await pool.query(`delete from public.sn_user_flags where user_id = $1`, [id]);
+    if (flags.length) {
+      const values = flags.map((flag, idx) => `($1, $${idx + 2}, $${flags.length + 2})`).join(', ');
+      await pool.query(
+        `insert into public.sn_user_flags (user_id, flag, granted_by)
+         values ${values}`,
+        [id, ...flags, req.adminUser?.id || null]
+      );
+    }
+    await pool.query('commit');
+    await auditLog({
+      actorUserId: req.adminUser?.id,
+      targetUserId: id,
+      action: 'admin.flags.update',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { flags },
+    });
+    return res.json({ ok: true, flags });
+  } catch (err) {
+    await pool.query('rollback');
+    console.error('admin flags update failed', err);
+    return res.status(500).json({ error: 'Failed to update flags' });
+  }
+});
+
+app.get('/api/admin/audit', requireAdmin, async (req, res) => {
+  const page = Math.max(1, Number(req.query.page || 1));
+  const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 25)));
+  const params = [];
+  const where = [];
+  if (req.query.userId) {
+    params.push(String(req.query.userId));
+    where.push(`(a.actor_user_id = $${params.length} or a.target_user_id = $${params.length})`);
+  }
+  const whereSql = where.length ? `where ${where.join(' and ')}` : '';
+  const countResult = await pool.query(`select count(*)::int as total from public.sn_audit_logs a ${whereSql}`, params);
+  const total = countResult.rows[0]?.total ?? 0;
+  params.push(pageSize);
+  params.push((page - 1) * pageSize);
+  const rowsResult = await pool.query(
+    `select a.id, a.action, a.metadata, a.created_at, a.ip, a.user_agent,
+            actor.email as actor_email, target.email as target_email
+     from public.sn_audit_logs a
+     left join public.sn_users actor on actor.id = a.actor_user_id
+     left join public.sn_users target on target.id = a.target_user_id
+     ${whereSql}
+     order by a.created_at desc
+     limit $${params.length - 1} offset $${params.length}`,
+    params
+  );
+  const rows = rowsResult.rows.map(normalizeAudit);
+  return res.json({ rows, total, page, pageSize });
 });
 
 

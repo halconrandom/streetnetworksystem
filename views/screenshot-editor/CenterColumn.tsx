@@ -26,7 +26,6 @@ type OverlayDragState = {
 };
 
 type CenterColumnProps = {
-  previewMode: PreviewMode;
   imageDataUrl: string | null;
   canvasRef: React.RefObject<HTMLCanvasElement>;
   previewRef: React.RefObject<HTMLDivElement>;
@@ -39,6 +38,10 @@ type CenterColumnProps = {
   onFit: () => void;
   spaceDown: boolean;
   isPanning: boolean;
+  isDragging: boolean;
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave: () => void;
+  onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onPreviewEnter: () => void;
   onPreviewLeave: () => void;
   onPanStart: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -56,17 +59,12 @@ type CenterColumnProps = {
   imageDragState: ImageDragState | null;
   setImageDragState: (next: ImageDragState | null) => void;
   onUpdateImagePosition: (update: { imageOffsetX: number; imageOffsetY: number }) => void;
-  rawTextFile: string;
-  onRawTextChange: (value: string) => void;
-  onRemoveTimestamps: () => void;
-  onApplyChatLines: () => void;
   onDownload: () => void;
   onCopy: () => void;
   onSaveCache: () => void;
 };
 
 export const CenterColumn: React.FC<CenterColumnProps> = ({
-  previewMode,
   imageDataUrl,
   canvasRef,
   previewRef,
@@ -79,6 +77,10 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
   onFit,
   spaceDown,
   isPanning,
+  isDragging,
+  onDragOver,
+  onDragLeave,
+  onDrop,
   onPreviewEnter,
   onPreviewLeave,
   onPanStart,
@@ -96,10 +98,6 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
   imageDragState,
   setImageDragState,
   onUpdateImagePosition,
-  rawTextFile,
-  onRawTextChange,
-  onRemoveTimestamps,
-  onApplyChatLines,
   onDownload,
   onCopy,
   onSaveCache,
@@ -125,195 +123,171 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
 
   return (
     <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 flex flex-col gap-4 min-h-0 h-full min-w-0 w-full">
-      {previewMode === 'canvas' ? (
-        <>
-          <div className="flex items-center justify-between">
-            <div className="text-white font-semibold">Canvas Preview</div>
-            <div className="flex items-center gap-2 text-xs text-terminal-muted">
-              <button onClick={onZoomOut} className="p-1 border border-terminal-border rounded">
-                <Minus size={14} />
-              </button>
-              <span>{Math.round(zoom * 100)}%</span>
-              <button onClick={onZoomIn} className="p-1 border border-terminal-border rounded">
-                <Plus size={14} />
-              </button>
-              <button
-                onClick={onFit}
-                className={`px-2 py-1 border rounded ${autoFit ? 'border-terminal-accent text-terminal-accent' : 'border-terminal-border'}`}
-              >
-                Fit
-              </button>
-            </div>
-          </div>
-          <div
-            ref={previewRef}
-            className="flex-1 min-h-0 min-w-0 w-full max-w-full overflow-auto bg-terminal-dark rounded-lg border border-terminal-border p-4"
-            style={{
-              cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : undefined,
-              height: 'calc(100% - 150px)',
-            }}
-            onMouseEnter={onPreviewEnter}
-            onMouseLeave={onPreviewLeave}
-            onMouseDown={onPanStart}
-            onMouseMove={onPanMove}
-            onMouseUp={onPanEnd}
+      <div className="flex items-center justify-between">
+        <div className="text-white font-semibold">Canvas Preview</div>
+        <div className="flex items-center gap-2 text-xs text-terminal-muted">
+          <button onClick={onZoomOut} className="p-1 border border-terminal-border rounded">
+            <Minus size={14} />
+          </button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button onClick={onZoomIn} className="p-1 border border-terminal-border rounded">
+            <Plus size={14} />
+          </button>
+          <button
+            onClick={onFit}
+            className={`px-2 py-1 border rounded ${autoFit ? 'border-terminal-accent text-terminal-accent' : 'border-terminal-border'}`}
           >
-            {imageDataUrl ? (
-              <div className="inline-flex">
-                <canvas
-                  ref={canvasRef}
-                  className="border border-terminal-border"
-                  style={{
-                    width: `${Math.max(1, Math.round(settings.width * zoom))}px`,
-                    height: `${Math.max(1, Math.round(settings.height * zoom))}px`,
-                    cursor: activeBlockId ? 'grab' : 'not-allowed',
-                  }}
-                  onMouseDown={(event) => {
-                    if (!canvasRef.current) return;
-                    if (fitMode === 'crop' && event.altKey) {
-                      setImageDragState({
-                        startX: event.clientX,
-                        startY: event.clientY,
-                        baseX: settings.imageOffsetX,
-                        baseY: settings.imageOffsetY,
-                      });
-                      return;
-                    }
-                    const rect = canvasRef.current.getBoundingClientRect();
-                    const scaleX = settings.width / rect.width;
-                    const scaleY = settings.height / rect.height;
-                    const x = (event.clientX - rect.left) * scaleX;
-                    const y = (event.clientY - rect.top) * scaleY;
-                    const hitOverlay = hitTestOverlay(x, y);
-                    if (hitOverlay) {
-                      setOverlayDragState({
-                        startX: x,
-                        startY: y,
-                        baseX: hitOverlay.x,
-                        baseY: hitOverlay.y,
-                        overlayId: hitOverlay.id,
-                      });
-                      return;
-                    }
-                    if (!activeBlockId) return;
-                    const blockSettings = getBlockSettings(activeBlockId);
-                    setDragState({
-                      startX: x,
-                      startY: y,
-                      baseX: blockSettings.textOffsetX,
-                      baseY: blockSettings.textOffsetY,
-                      blockId: activeBlockId,
-                    });
-                  }}
-                  onMouseLeave={() => {
-                    setDragState(null);
-                    setOverlayDragState(null);
-                    setImageDragState(null);
-                  }}
-                  onMouseUp={() => {
-                    setDragState(null);
-                    setOverlayDragState(null);
-                    setImageDragState(null);
-                  }}
-                  onMouseMove={(event) => {
-                    if (imageDragState) {
-                      const deltaX = event.clientX - imageDragState.startX;
-                      const deltaY = event.clientY - imageDragState.startY;
-                      onUpdateImagePosition({
-                        imageOffsetX: Math.round(imageDragState.baseX + deltaX),
-                        imageOffsetY: Math.round(imageDragState.baseY + deltaY),
-                      });
-                      return;
-                    }
-                    if (overlayDragState && canvasRef.current) {
-                      const rect = canvasRef.current.getBoundingClientRect();
-                      const scaleX = settings.width / rect.width;
-                      const scaleY = settings.height / rect.height;
-                      const x = (event.clientX - rect.left) * scaleX;
-                      const y = (event.clientY - rect.top) * scaleY;
-                      const nextX = overlayDragState.baseX + (x - overlayDragState.startX);
-                      const nextY = overlayDragState.baseY + (y - overlayDragState.startY);
-                      onUpdateOverlay(overlayDragState.overlayId, {
-                        x: Math.round(nextX),
-                        y: Math.round(nextY),
-                      });
-                      return;
-                    }
-                    if (!dragState || !canvasRef.current) return;
-                    const rect = canvasRef.current.getBoundingClientRect();
-                    const scaleX = settings.width / rect.width;
-                    const scaleY = settings.height / rect.height;
-                    const x = (event.clientX - rect.left) * scaleX;
-                    const y = (event.clientY - rect.top) * scaleY;
-                    const nextX = dragState.baseX + (x - dragState.startX);
-                    const nextY = dragState.baseY + (y - dragState.startY);
-                    onUpdateBlockSettings(dragState.blockId, {
-                      textOffsetX: Math.max(-settings.width, Math.min(settings.width, Math.round(nextX))),
-                      textOffsetY: Math.max(-settings.height, Math.min(settings.height, Math.round(nextY))),
-                    });
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-terminal-muted text-sm">
-                <ImageIcon size={32} className="mb-3" />
-                Upload an image to start editing.
-              </div>
-            )}
+            Fit
+          </button>
+        </div>
+      </div>
+      <div
+        ref={previewRef}
+        className="relative flex-1 min-h-0 min-w-0 w-full max-w-full overflow-auto bg-terminal-dark rounded-lg border border-terminal-border p-4"
+        style={{
+          cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : undefined,
+          height: 'calc(100% - 150px)',
+        }}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+        onMouseEnter={onPreviewEnter}
+        onMouseLeave={onPreviewLeave}
+        onMouseDown={onPanStart}
+        onMouseMove={onPanMove}
+        onMouseUp={onPanEnd}
+      >
+        {isDragging && (
+          <div className="absolute inset-6 border-2 border-dashed border-terminal-accent rounded-lg bg-terminal-accent/10 pointer-events-none flex items-center justify-center text-sm text-white">
+            Drop image or .txt here
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onDownload}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 rounded-md"
-            >
-              <Download size={14} />
-              Save PNG
-            </button>
-            <button
-              onClick={onCopy}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-            >
-              <Copy size={14} />
-              Copy to Clipboard
-            </button>
-            <button
-              onClick={onSaveCache}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-            >
-              <Save size={14} />
-              Save to Cache
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <div className="text-white font-semibold">Text File Preview</div>
-            <button
-              onClick={onRemoveTimestamps}
-              className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-            >
-              Remove Timestamps
-            </button>
-          </div>
-          <div className="flex-1 overflow-auto bg-terminal-dark rounded-lg border border-terminal-border p-4">
-            <textarea
-              value={rawTextFile}
-              onChange={(event) => onRawTextChange(event.target.value)}
-              rows={18}
-              className="w-full bg-terminal-dark text-sm text-white border border-terminal-border rounded-md p-3 focus:outline-none"
+        )}
+        {imageDataUrl ? (
+          <div className="inline-flex">
+            <canvas
+              ref={canvasRef}
+              className="border border-terminal-border"
+              style={{
+                width: `${Math.max(1, Math.round(settings.width * zoom))}px`,
+                height: `${Math.max(1, Math.round(settings.height * zoom))}px`,
+                cursor: activeBlockId ? 'grab' : 'not-allowed',
+              }}
+              onMouseDown={(event) => {
+                if (!canvasRef.current) return;
+                if (fitMode === 'crop' && event.altKey) {
+                  setImageDragState({
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    baseX: settings.imageOffsetX,
+                    baseY: settings.imageOffsetY,
+                  });
+                  return;
+                }
+                const rect = canvasRef.current.getBoundingClientRect();
+                const scaleX = settings.width / rect.width;
+                const scaleY = settings.height / rect.height;
+                const x = (event.clientX - rect.left) * scaleX;
+                const y = (event.clientY - rect.top) * scaleY;
+                const hitOverlay = hitTestOverlay(x, y);
+                if (hitOverlay) {
+                  setOverlayDragState({
+                    startX: x,
+                    startY: y,
+                    baseX: hitOverlay.x,
+                    baseY: hitOverlay.y,
+                    overlayId: hitOverlay.id,
+                  });
+                  return;
+                }
+                if (!activeBlockId) return;
+                const blockSettings = getBlockSettings(activeBlockId);
+                setDragState({
+                  startX: x,
+                  startY: y,
+                  baseX: blockSettings.textOffsetX,
+                  baseY: blockSettings.textOffsetY,
+                  blockId: activeBlockId,
+                });
+              }}
+              onMouseLeave={() => {
+                setDragState(null);
+                setOverlayDragState(null);
+                setImageDragState(null);
+              }}
+              onMouseUp={() => {
+                setDragState(null);
+                setOverlayDragState(null);
+                setImageDragState(null);
+              }}
+              onMouseMove={(event) => {
+                if (imageDragState) {
+                  const deltaX = event.clientX - imageDragState.startX;
+                  const deltaY = event.clientY - imageDragState.startY;
+                  onUpdateImagePosition({
+                    imageOffsetX: Math.round(imageDragState.baseX + deltaX),
+                    imageOffsetY: Math.round(imageDragState.baseY + deltaY),
+                  });
+                  return;
+                }
+                if (overlayDragState && canvasRef.current) {
+                  const rect = canvasRef.current.getBoundingClientRect();
+                  const scaleX = settings.width / rect.width;
+                  const scaleY = settings.height / rect.height;
+                  const x = (event.clientX - rect.left) * scaleX;
+                  const y = (event.clientY - rect.top) * scaleY;
+                  const nextX = overlayDragState.baseX + (x - overlayDragState.startX);
+                  const nextY = overlayDragState.baseY + (y - overlayDragState.startY);
+                  onUpdateOverlay(overlayDragState.overlayId, {
+                    x: Math.round(nextX),
+                    y: Math.round(nextY),
+                  });
+                  return;
+                }
+                if (!dragState || !canvasRef.current) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const scaleX = settings.width / rect.width;
+                const scaleY = settings.height / rect.height;
+                const x = (event.clientX - rect.left) * scaleX;
+                const y = (event.clientY - rect.top) * scaleY;
+                const nextX = dragState.baseX + (x - dragState.startX);
+                const nextY = dragState.baseY + (y - dragState.startY);
+                onUpdateBlockSettings(dragState.blockId, {
+                  textOffsetX: Math.max(-settings.width, Math.min(settings.width, Math.round(nextX))),
+                  textOffsetY: Math.max(-settings.height, Math.min(settings.height, Math.round(nextY))),
+                });
+              }}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onApplyChatLines}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 rounded-md"
-            >
-              Apply to Chat Lines
-            </button>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-terminal-muted text-sm">
+            <ImageIcon size={32} className="mb-3" />
+            Upload an image to start editing.
           </div>
-        </>
-      )}
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={onDownload}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 rounded-md"
+        >
+          <Download size={14} />
+          Save PNG
+        </button>
+        <button
+          onClick={onCopy}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
+        >
+          <Copy size={14} />
+          Copy to Clipboard
+        </button>
+        <button
+          onClick={onSaveCache}
+          className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
+        >
+          <Save size={14} />
+          Save to Cache
+        </button>
+      </div>
     </div>
   );
 };

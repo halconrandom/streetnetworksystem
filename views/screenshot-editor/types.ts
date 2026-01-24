@@ -16,6 +16,7 @@ export type CacheItem = {
   overlays?: OverlayImage[];
   lines: ChatLine[];
   settings: EditorSettings;
+  layerOrder?: string[];
 };
 
 export type FitMode = 'contain' | 'cover' | 'stretch' | 'crop';
@@ -34,6 +35,7 @@ export type TextBlockSettings = {
   shadowOffsetX: number;
   shadowOffsetY: number;
   shadowColor: string;
+  shadowEnabled: boolean;
   paddingX: number;
   paddingY: number;
   textPosition: TextPosition;
@@ -55,6 +57,9 @@ export type TextBlock = {
   collapsed: boolean;
   settingsOpen: boolean;
   advancedOpen: boolean;
+  visible?: boolean;
+  locked?: boolean;
+  name?: string;
 };
 
 export type OverlayImage = {
@@ -68,6 +73,13 @@ export type OverlayImage = {
   scale: number;
   rotation: number;
   opacity: number;
+  visible?: boolean;
+  locked?: boolean;
+};
+
+export type LayerItem = {
+  id: string;
+  type: 'text' | 'overlay';
 };
 
 export type EditorSettings = {

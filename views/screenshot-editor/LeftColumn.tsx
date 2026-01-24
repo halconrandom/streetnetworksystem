@@ -1,14 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image as ImageIcon, FileText, Trash2, Plus, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight } from '../../components/Icons';
 import { defaultTextSettings } from './constants';
-import type { OverlayImage, PreviewMode, TextBlock, TextBlockSettings, TextPosition } from './types';
+import type { OverlayImage, TextBlock, TextBlockSettings, TextPosition } from './types';
 
 type LeftColumnProps = {
-  previewMode: PreviewMode;
-  onPreviewModeChange: (mode: PreviewMode) => void;
-  isDragging: boolean;
-  setIsDragging: (value: boolean) => void;
-  onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onImageFile: (file: File) => void;
   onChatFile: (file: File) => void;
   overlays: OverlayImage[];
@@ -36,11 +31,6 @@ type LeftColumnProps = {
 };
 
 export const LeftColumn: React.FC<LeftColumnProps> = ({
-  previewMode,
-  onPreviewModeChange,
-  isDragging,
-  setIsDragging,
-  onDrop,
   onImageFile,
   onChatFile,
   overlays,
@@ -66,6 +56,10 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
   onParseChat,
   onClearBlocks,
 }) => {
+  const [imageFileName, setImageFileName] = useState('');
+  const [chatFileName, setChatFileName] = useState('');
+  const [overlayFileName, setOverlayFileName] = useState('');
+
   return (
     <div className="space-y-6 min-h-0">
       <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-4">
@@ -73,66 +67,59 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
           <ImageIcon size={18} className="text-terminal-accent" />
           Screenshot Source
         </div>
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <button
-            onClick={() => onPreviewModeChange('canvas')}
-            className={`px-3 py-2 rounded-md border ${
-              previewMode === 'canvas'
-                ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-            }`}
-          >
-            Canvas Preview
-          </button>
-          <button
-            onClick={() => onPreviewModeChange('text')}
-            className={`px-3 py-2 rounded-md border ${
-              previewMode === 'text'
-                ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-            }`}
-          >
-            Text File Preview
-          </button>
-        </div>
-        <div
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={onDrop}
-          className={`border border-dashed rounded-lg p-4 text-sm text-terminal-muted transition-colors ${
-            isDragging ? 'border-terminal-accent bg-terminal-accent/5 text-white' : 'border-terminal-border'
-          }`}
-        >
-          Drag & drop an image here (or .txt for chat).
-        </div>
         <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
+          <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
             Image
-            <input
-              type="file"
-              accept="image/*"
-              className="text-xs text-terminal-muted"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onImageFile(file);
-              }}
-            />
-          </label>
-          <label className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
+            <label htmlFor="screenshot-image" className="flex items-center gap-2">
+              <input
+                id="screenshot-image"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    setImageFileName(file.name);
+                    onImageFile(file);
+                  }
+                }}
+              />
+              <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
+                Choose file
+              </span>
+              {imageFileName && (
+                <span className="text-[11px] text-terminal-muted truncate" title={imageFileName}>
+                  {imageFileName}
+                </span>
+              )}
+            </label>
+          </div>
+          <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
             Chat .txt
-            <input
-              type="file"
-              accept=".txt,text/plain"
-              className="text-xs text-terminal-muted"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onChatFile(file);
-              }}
-            />
-          </label>
+            <label htmlFor="screenshot-chat" className="flex items-center gap-2">
+              <input
+                id="screenshot-chat"
+                type="file"
+                accept=".txt,text/plain"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    setChatFileName(file.name);
+                    onChatFile(file);
+                  }
+                }}
+              />
+              <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
+                Choose file
+              </span>
+              {chatFileName && (
+                <span className="text-[11px] text-terminal-muted truncate" title={chatFileName}>
+                  {chatFileName}
+                </span>
+              )}
+            </label>
+          </div>
         </div>
         <div className="text-xs text-terminal-muted">
           Prefix a line with <span className="text-white">(#RRGGBB)</span> or <span className="text-white">(#RRGGBBAA)</span> to set a custom color.
@@ -144,18 +131,32 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
           <ImageIcon size={18} className="text-terminal-accent" />
           Image Overlays
         </div>
-        <label className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
+        <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
           Agregar imagen
-          <input
-            type="file"
-            accept="image/*"
-            className="text-xs text-terminal-muted"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onOverlayFile(file);
-            }}
-          />
-        </label>
+          <label htmlFor="overlay-image" className="flex items-center gap-2">
+            <input
+              id="overlay-image"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  setOverlayFileName(file.name);
+                  onOverlayFile(file);
+                }
+              }}
+            />
+            <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
+              Choose file
+            </span>
+            {overlayFileName && (
+              <span className="text-[11px] text-terminal-muted truncate" title={overlayFileName}>
+                {overlayFileName}
+              </span>
+            )}
+          </label>
+        </div>
         {overlays.length === 0 ? (
           <div className="text-xs text-terminal-muted">No hay imagenes superpuestas.</div>
         ) : (
@@ -451,6 +452,28 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                           </div>
                         )}
                         <div className="flex items-center justify-between text-xs text-terminal-muted border border-terminal-border rounded-md px-3 py-2 bg-terminal-dark">
+                          <span className="uppercase tracking-wide" title="Activa o desactiva la sombra del texto.">Shadow Blur</span>
+                          <button
+                            onClick={() =>
+                              onUpdateBlockSettings(block.id, { shadowEnabled: !blockSettings.shadowEnabled })
+                            }
+                            className="flex items-center gap-2 text-xs text-terminal-muted"
+                            title="Activa o desactiva la sombra del texto."
+                          >
+                            {blockSettings.shadowEnabled ? (
+                              <>
+                                <span className="text-terminal-accent">On</span>
+                                <ToggleRight size={18} className="text-terminal-accent" />
+                              </>
+                            ) : (
+                              <>
+                                <span>Off</span>
+                                <ToggleLeft size={18} />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-terminal-muted border border-terminal-border rounded-md px-3 py-2 bg-terminal-dark">
                           <span className="uppercase tracking-wide" title="Muestra opciones adicionales para el texto.">Opciones Avanzadas</span>
                           <button
                             onClick={() => onToggleBlockAdvanced(block.id)}
@@ -573,67 +596,75 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                                   className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
                                 />
                               </label>
-                              <label
-                                title="Desenfoque de la sombra."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Shadow Blur
-                                <input
-                                  type="number"
-                                  value={blockSettings.shadowBlur}
-                                  min={0}
-                                  max={20}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { shadowBlur: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Desplazamiento horizontal de la sombra."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Shadow X
-                                <input
-                                  type="number"
-                                  value={blockSettings.shadowOffsetX}
-                                  min={-10}
-                                  max={10}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { shadowOffsetX: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Desplazamiento vertical de la sombra."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Shadow Y
-                                <input
-                                  type="number"
-                                  value={blockSettings.shadowOffsetY}
-                                  min={-10}
-                                  max={10}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { shadowOffsetY: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Color de la sombra."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
-                              >
-                                Shadow Color
-                                <input
-                                  value={blockSettings.shadowColor}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { shadowColor: event.target.value })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
+                              {blockSettings.shadowEnabled && (
+                                <label
+                                  title="Desenfoque de la sombra."
+                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
+                                >
+                                  Shadow Blur
+                                  <input
+                                    type="number"
+                                    value={blockSettings.shadowBlur}
+                                    min={0}
+                                    max={20}
+                                    onChange={(event) =>
+                                      onUpdateBlockSettings(block.id, { shadowBlur: Number(event.target.value) })
+                                    }
+                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                  />
+                                </label>
+                              )}
+                              {blockSettings.shadowEnabled && (
+                                <label
+                                  title="Desplazamiento horizontal de la sombra."
+                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
+                                >
+                                  Shadow X
+                                  <input
+                                    type="number"
+                                    value={blockSettings.shadowOffsetX}
+                                    min={-10}
+                                    max={10}
+                                    onChange={(event) =>
+                                      onUpdateBlockSettings(block.id, { shadowOffsetX: Number(event.target.value) })
+                                    }
+                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                  />
+                                </label>
+                              )}
+                              {blockSettings.shadowEnabled && (
+                                <label
+                                  title="Desplazamiento vertical de la sombra."
+                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
+                                >
+                                  Shadow Y
+                                  <input
+                                    type="number"
+                                    value={blockSettings.shadowOffsetY}
+                                    min={-10}
+                                    max={10}
+                                    onChange={(event) =>
+                                      onUpdateBlockSettings(block.id, { shadowOffsetY: Number(event.target.value) })
+                                    }
+                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                  />
+                                </label>
+                              )}
+                              {blockSettings.shadowEnabled && (
+                                <label
+                                  title="Color de la sombra."
+                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
+                                >
+                                  Shadow Color
+                                  <input
+                                    value={blockSettings.shadowColor}
+                                    onChange={(event) =>
+                                      onUpdateBlockSettings(block.id, { shadowColor: event.target.value })
+                                    }
+                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                  />
+                                </label>
+                              )}
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                               <label

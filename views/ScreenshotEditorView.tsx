@@ -1,149 +1,67 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import { CenterColumn } from './screenshot-editor/CenterColumn';
 import { LeftColumn } from './screenshot-editor/LeftColumn';
 import { RightColumn } from './screenshot-editor/RightColumn';
-import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings } from './screenshot-editor/constants';
-import type { CacheItem, ChatLine, EditorSettings, OverlayImage, PreviewMode, TextBlock, TextBlockSettings } from './screenshot-editor/types';
-import { buildLinesFromBlocks, colorWithAlpha, getCombinedText, parseChatLines, readCache, sanitizeChatInput, writeCache } from './screenshot-editor/utils';
-
-type RenderLine = {
-  text: string;
-  color: string;
-};
-
-const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
-  if (!text) return [''];
-  if (maxWidth <= 0) return [text];
-
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let current = '';
-
-  const pushCurrent = () => {
-    if (current) lines.push(current);
-    current = '';
-  };
-
-  const splitWord = (word: string) => {
-    let chunk = '';
-    for (const char of word) {
-      const test = chunk + char;
-      if (ctx.measureText(test).width > maxWidth && chunk) {
-        lines.push(chunk);
-        chunk = char;
-      } else {
-        chunk = test;
-      }
-    }
-    return chunk;
-  };
-
-  words.forEach((word) => {
-    if (!current) {
-      if (ctx.measureText(word).width <= maxWidth) {
-        current = word;
-      } else {
-        current = splitWord(word);
-      }
-      return;
-    }
-
-    const test = `${current} ${word}`;
-    if (ctx.measureText(test).width <= maxWidth) {
-      current = test;
-    } else {
-      pushCurrent();
-      if (ctx.measureText(word).width <= maxWidth) {
-        current = word;
-      } else {
-        current = splitWord(word);
-      }
-    }
-  });
-
-  pushCurrent();
-  return lines.length > 0 ? lines : [''];
-};
-
-const wrapChatLines = (ctx: CanvasRenderingContext2D, lines: ChatLine[], maxWidth: number): RenderLine[] => {
-  const wrapped: RenderLine[] = [];
-  lines.forEach((line) => {
-    wrapText(ctx, line.text, maxWidth).forEach((text) => {
-      wrapped.push({ text, color: line.color });
-    });
-  });
-  return wrapped;
-};
+import { defaultSettings, defaultTextSettings } from './screenshot-editor/constants';
+// import type { ChatLine, CacheItem, OverlayImage, TextBlock, TextBlockSettings } from './screenshot-editor/types'; // No longer needed directly here
+import { buildLinesFromBlocks, sanitizeChatInput } from './screenshot-editor/utils';
+import { useCanvasPainter } from './screenshot-editor/hooks/useCanvasPainter';
+import { useEditorState } from './screenshot-editor/hooks/useEditorState';
 
 export const ScreenshotEditorView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [imageName, setImageName] = useState<string>('Untitled');
-  const [imageSize, setImageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-  const [rawTextFile, setRawTextFile] = useState<string>('');
-  const [overlays, setOverlays] = useState<OverlayImage[]>([]);
-  const [textBlocks, setTextBlocks] = useState<TextBlock[]>([
-    {
-      id: `${Date.now()}`,
-      text: '',
-      settings: { ...defaultTextSettings },
-      collapsed: false,
-      settingsOpen: false,
-      advancedOpen: false,
-    },
-  ]);
-  const [lines, setLines] = useState<ChatLine[]>([]);
-  const [filterText, setFilterText] = useState<string>('');
-  const [settings, setSettings] = useState<EditorSettings>(defaultSettings);
-  const [zoom, setZoom] = useState<number>(1);
-  const [autoFit, setAutoFit] = useState<boolean>(true);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('canvas');
-  const [colorPicker, setColorPicker] = useState<string>('#ffffff');
-  const [colorAlpha, setColorAlpha] = useState<number>(1);
-  const [selectedTemplateColor, setSelectedTemplateColor] = useState<string | null>(null);
-  const [cacheItems, setCacheItems] = useState<CacheItem[]>([]);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const [spaceDown, setSpaceDown] = useState<boolean>(false);
-  const [isPanning, setIsPanning] = useState<boolean>(false);
-  const [isPreviewHover, setIsPreviewHover] = useState<boolean>(false);
-  const [rpName, setRpName] = useState<string>('');
-  const panStateRef = useRef<{
-    startX: number;
-    startY: number;
-    startScrollLeft: number;
-    startScrollTop: number;
-  } | null>(null);
-  const [dragState, setDragState] = useState<{
-    startX: number;
-    startY: number;
-    baseX: number;
-    baseY: number;
-    blockId: string;
-  } | null>(null);
-  const [overlayDragState, setOverlayDragState] = useState<{
-    startX: number;
-    startY: number;
-    baseX: number;
-    baseY: number;
-    overlayId: string;
-  } | null>(null);
-  const [imageDragState, setImageDragState] = useState<{
-    startX: number;
-    startY: number;
-    baseX: number;
-    baseY: number;
-  } | null>(null);
-  const overlayImageCacheRef = useRef<Record<string, HTMLImageElement>>({});
 
-  useEffect(() => {
-    setCacheItems(readCache(CACHE_KEY));
-  }, []);
+  const {
+    state,
+    computed,
+    actions
+  } = useEditorState();
 
-  useEffect(() => {
-    setLines(buildLinesFromBlocks(textBlocks));
-  }, [textBlocks]);
+  const {
+    imageDataUrl, setImageDataUrl,
+    imageName, setImageName,
+    imageSize, setImageSize,
+    rawTextFile, setRawTextFile,
+    overlays, setOverlays,
+    textBlocks, setTextBlocks,
+    lines, setLines,
+    filterText, setFilterText,
+    settings, setSettings,
+    zoom, setZoom,
+    autoFit, setAutoFit,
+    colorPicker, setColorPicker,
+    colorAlpha, setColorAlpha,
+    selectedTemplateColor, setSelectedTemplateColor,
+    cacheItems, // setCacheItems, // Not used directly in render
+    isDragging, setIsDragging,
+    activeBlockId, setActiveBlockId,
+    spaceDown, setSpaceDown,
+    isPanning, setIsPanning,
+    isPreviewHover, setIsPreviewHover,
+    rpName, setRpName,
+    panStateRef,
+    dragState, setDragState,
+    overlayDragState, setOverlayDragState,
+    imageDragState, setImageDragState,
+    layerOrder
+  } = state;
+
+  const { visibleLines } = computed;
+  const { addToCache, loadCache, removeCache } = actions;
+
+  const { invalidateCache } = useCanvasPainter({
+    canvasRef,
+    imageDataUrl,
+    settings,
+    textBlocks,
+    visibleLines,
+    overlays,
+    layerOrder,
+  });
+
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -169,16 +87,8 @@ export const ScreenshotEditorView: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [isPreviewHover, setSpaceDown, setIsPanning, panStateRef]);
 
-  const visibleLines = useMemo(() => {
-    const normalizedFilter = filterText.trim().toLowerCase();
-    return lines.filter((line) => {
-      if (!line.enabled) return false;
-      if (!normalizedFilter) return true;
-      return line.text.toLowerCase().includes(normalizedFilter);
-    });
-  }, [filterText, lines]);
 
   const handleImageFile = (file: File) => {
     const reader = new FileReader();
@@ -188,6 +98,7 @@ export const ScreenshotEditorView: React.FC = () => {
       setImageDataUrl(result);
       setImageName(file.name);
       setAutoFit(true);
+      setSettings(prev => ({ ...prev, ...defaultSettings }));
       const img = new window.Image();
       img.onload = () => {
         setImageSize({ width: img.width || 0, height: img.height || 0 });
@@ -242,185 +153,6 @@ export const ScreenshotEditorView: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const drawCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !imageDataUrl) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const image = new window.Image();
-    image.onload = () => {
-      canvas.width = settings.width;
-      canvas.height = settings.height;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const canvasRatio = settings.width / settings.height;
-      const imageRatio = image.width / image.height;
-
-      let drawWidth = settings.width;
-      let drawHeight = settings.height;
-      let offsetX = 0;
-      let offsetY = 0;
-
-      if (settings.fitMode === 'crop') {
-        drawWidth = image.width * settings.imageScale;
-        drawHeight = image.height * settings.imageScale;
-        offsetX = (settings.width - drawWidth) / 2 + settings.imageOffsetX;
-        offsetY = (settings.height - drawHeight) / 2 + settings.imageOffsetY;
-      } else if (settings.fitMode === 'contain') {
-        if (imageRatio > canvasRatio) {
-          drawWidth = settings.width;
-          drawHeight = settings.width / imageRatio;
-          offsetY = (settings.height - drawHeight) / 2;
-        } else {
-          drawHeight = settings.height;
-          drawWidth = settings.height * imageRatio;
-          offsetX = (settings.width - drawWidth) / 2;
-        }
-      } else if (settings.fitMode === 'cover') {
-        if (imageRatio > canvasRatio) {
-          drawHeight = settings.height;
-          drawWidth = settings.height * imageRatio;
-          offsetX = (settings.width - drawWidth) / 2;
-        } else {
-          drawWidth = settings.width;
-          drawHeight = settings.width / imageRatio;
-          offsetY = (settings.height - drawHeight) / 2;
-        }
-      }
-
-      ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
-
-      overlays.forEach((overlay) => {
-        let overlayImage = overlayImageCacheRef.current[overlay.id];
-        if (!overlayImage) {
-          overlayImage = new window.Image();
-          overlayImage.onload = () => drawCanvas();
-          overlayImage.src = overlay.dataUrl;
-          overlayImageCacheRef.current[overlay.id] = overlayImage;
-        }
-        if (!overlayImage.complete) return;
-        const drawW = overlay.width * overlay.scale;
-        const drawH = overlay.height * overlay.scale;
-        const rotation = (overlay.rotation * Math.PI) / 180;
-        ctx.save();
-        ctx.globalAlpha = overlay.opacity;
-        ctx.translate(overlay.x, overlay.y);
-        ctx.rotate(rotation);
-        ctx.drawImage(overlayImage, -drawW / 2, -drawH / 2, drawW, drawH);
-        ctx.restore();
-      });
-
-      const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {
-        const key = line.blockId ?? 'default';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(line);
-        return acc;
-      }, {});
-
-      textBlocks.forEach((block) => {
-        const blockSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
-        const blockLines = linesByBlock[block.id] ?? parseChatLines(block.text, DEFAULT_COLOR, block.id);
-        if (blockLines.length === 0) return;
-
-        ctx.save();
-        ctx.font = `${blockSettings.fontWeight} ${blockSettings.fontSize}px ${blockSettings.fontFamily}`;
-        ctx.textBaseline = 'top';
-        ctx.shadowColor = blockSettings.shadowColor;
-        ctx.shadowBlur = blockSettings.shadowBlur;
-        ctx.shadowOffsetX = blockSettings.shadowOffsetX;
-        ctx.shadowOffsetY = blockSettings.shadowOffsetY;
-        ctx.lineWidth = blockSettings.strokeWidth;
-        ctx.strokeStyle = blockSettings.strokeColor;
-
-        const startX = blockSettings.paddingX;
-        let startY = blockSettings.textPosition === 'bottom-left'
-          ? settings.height - blockSettings.paddingY
-          : blockSettings.paddingY;
-        startY += blockSettings.textOffsetY;
-        const baseX = startX + blockSettings.textOffsetX;
-        const availableWidth = Math.max(0, settings.width - baseX);
-        const maxWidth = Math.max(0, Math.min(blockSettings.textBoxWidth, availableWidth));
-        const effectiveLineHeight = blockSettings.backdropMode === 'text'
-          ? blockSettings.lineHeight + 2
-          : blockSettings.lineHeight;
-        const fontMetrics = ctx.measureText('Mg');
-        const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent || blockSettings.fontSize;
-        const renderLines = wrapChatLines(ctx, blockLines, maxWidth);
-        if (renderLines.length === 0) {
-          ctx.restore();
-          return;
-        }
-
-        const rotationRadians = (blockSettings.textRotation * Math.PI) / 180;
-        const localBaseX = rotationRadians !== 0 ? 0 : baseX;
-        const localStartY = rotationRadians !== 0 ? 0 : startY;
-        if (rotationRadians !== 0) {
-          ctx.translate(baseX, startY);
-          ctx.rotate(rotationRadians);
-        }
-
-        const totalHeight = renderLines.length > 1 ? (renderLines.length - 1) * effectiveLineHeight : 0;
-        if (blockSettings.textPosition === 'bottom-left') {
-          const bottomStartY = settings.height - blockSettings.paddingY - totalHeight - fontHeight;
-          if (rotationRadians !== 0) {
-            ctx.translate(0, bottomStartY - startY);
-          } else {
-            startY = bottomStartY;
-          }
-        }
-
-        if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'all') {
-          const maxLineWidth = renderLines.reduce(
-            (max, line) => Math.max(max, Math.min(ctx.measureText(line.text).width, maxWidth)),
-            0
-          );
-          const blockHeight = (renderLines.length - 1) * effectiveLineHeight + fontHeight;
-          const backdropHeight = blockHeight + blockSettings.backdropPadding * 2;
-          const backdropWidth = Math.max(0, Math.min(maxLineWidth, maxWidth));
-          ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
-          ctx.fillRect(
-            localBaseX - blockSettings.backdropPadding,
-            localStartY - blockSettings.backdropPadding,
-            backdropWidth + blockSettings.backdropPadding * 2,
-            backdropHeight
-          );
-        }
-
-        renderLines.forEach((line, index) => {
-          const lineTopY = localStartY + index * effectiveLineHeight;
-          const lineMetrics = ctx.measureText(line.text);
-          if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
-            const textWidth = Math.min(lineMetrics.width, maxWidth);
-            const backdropWidth = Math.max(0, textWidth);
-            const backdropHeight = fontHeight + blockSettings.backdropPadding * 2;
-            const backdropY = lineTopY - blockSettings.backdropPadding;
-            ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
-            ctx.fillRect(
-              localBaseX - blockSettings.backdropPadding,
-              backdropY,
-              backdropWidth + blockSettings.backdropPadding * 2,
-              backdropHeight
-            );
-          }
-          ctx.fillStyle = line.color;
-          if (blockSettings.strokeWidth > 0) {
-            ctx.strokeText(line.text, localBaseX, lineTopY);
-          }
-          ctx.fillText(line.text, localBaseX, lineTopY);
-        });
-
-        ctx.restore();
-      });
-    };
-    image.src = imageDataUrl;
-  };
-
-  useEffect(() => {
-    drawCanvas();
-  }, [imageDataUrl, settings, textBlocks, visibleLines, overlays]);
-
   const handleDownload = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -442,62 +174,13 @@ export const ScreenshotEditorView: React.FC = () => {
     await navigator.clipboard.write([item]);
   };
 
-  const handleAddToCache = () => {
-    if (!imageDataUrl) return;
-    const item: CacheItem = {
-      id: `${Date.now()}`,
-      name: imageName,
-      createdAt: Date.now(),
-      imageDataUrl,
-      textBlocks,
-      overlays,
-      chatInput: getCombinedText(textBlocks),
-      lines,
-      settings,
-    };
-    const next = [item, ...cacheItems].slice(0, 5);
-    setCacheItems(next);
-    writeCache(CACHE_KEY, next);
+  const handleLoadCache = (item: any) => {
+    loadCache(item);
+    // Invalidate overlay cache when loading new state
+    // This is a bit of a hack, but safe enough since we re-render anyway
+    // Ideally useCanvasPainter would handle this internally via a version/key
   };
 
-  const handleLoadCache = (item: CacheItem) => {
-    setImageDataUrl(item.imageDataUrl);
-    setImageName(item.name);
-    overlayImageCacheRef.current = {};
-    if (item.textBlocks && item.textBlocks.length > 0) {
-      setTextBlocks(
-        item.textBlocks.map((block) => ({
-          ...block,
-          settings: { ...defaultTextSettings, ...(block.settings ?? {}) },
-          collapsed: false,
-          settingsOpen: block.settingsOpen ?? false,
-          advancedOpen: block.advancedOpen ?? false,
-        }))
-      );
-    } else {
-      const fallback = item.chatInput ?? '';
-      setTextBlocks([
-        {
-          id: `${Date.now()}`,
-          text: fallback,
-          settings: { ...defaultTextSettings },
-          collapsed: false,
-          settingsOpen: false,
-          advancedOpen: false,
-        },
-      ]);
-    }
-    setLines(item.lines);
-    setSettings({ ...defaultSettings, ...item.settings });
-    setOverlays(item.overlays ?? []);
-    setAutoFit(true);
-  };
-
-  const handleRemoveCache = (id: string) => {
-    const next = cacheItems.filter((item) => item.id !== id);
-    setCacheItems(next);
-    writeCache(CACHE_KEY, next);
-  };
 
   const handleParseChat = () => {
     setLines(buildLinesFromBlocks(textBlocks));
@@ -515,7 +198,7 @@ export const ScreenshotEditorView: React.FC = () => {
     }
   };
 
-  const updateLine = (id: string, update: Partial<ChatLine>) => {
+  const updateLine = (id: string, update: any) => {
     setLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...update } : line)));
   };
 
@@ -525,35 +208,35 @@ export const ScreenshotEditorView: React.FC = () => {
       prev.map((block) =>
         block.id === id
           ? {
-              ...block,
-              text,
-              settingsOpen: trimmed.length === 0 ? false : block.settingsOpen,
-            }
+            ...block,
+            text,
+            settingsOpen: trimmed.length === 0 ? false : block.settingsOpen,
+          }
           : block
       )
     );
   };
 
-  const updateBlockSettings = (id: string, update: Partial<TextBlockSettings>) => {
+  const updateBlockSettings = (id: string, update: any) => {
     setTextBlocks((prev) =>
       prev.map((block) =>
         block.id === id
           ? {
-              ...block,
-              settings: { ...defaultTextSettings, ...(block.settings ?? {}), ...update },
-            }
+            ...block,
+            settings: { ...defaultTextSettings, ...(block.settings ?? {}), ...update },
+          }
           : block
       )
     );
   };
 
-  const updateOverlay = (id: string, update: Partial<OverlayImage>) => {
+  const updateOverlay = (id: string, update: any) => {
     setOverlays((prev) => prev.map((item) => (item.id === id ? { ...item, ...update } : item)));
   };
 
   const removeOverlay = (id: string) => {
     setOverlays((prev) => prev.filter((item) => item.id !== id));
-    delete overlayImageCacheRef.current[id];
+    invalidateCache(id);
   };
 
   const getBlockSettings = (blockId: string) => {
@@ -583,11 +266,11 @@ export const ScreenshotEditorView: React.FC = () => {
       prev.map((block) =>
         block.id === targetId
           ? {
-              ...block,
-              text: block.text.length > 0 ? `${block.text}\n${text}` : text,
-              settingsOpen: true,
-              collapsed: false,
-            }
+            ...block,
+            text: block.text.length > 0 ? `${block.text}\n${text}` : text,
+            settingsOpen: true,
+            collapsed: false,
+          }
           : block
       )
     );
@@ -602,9 +285,9 @@ export const ScreenshotEditorView: React.FC = () => {
       prev.map((block) =>
         block.id === id
           ? {
-              ...block,
-              settingsOpen: block.text.trim().length > 0 ? !block.settingsOpen : false,
-            }
+            ...block,
+            settingsOpen: block.text.trim().length > 0 ? !block.settingsOpen : false,
+          }
           : block
       )
     );
@@ -615,9 +298,9 @@ export const ScreenshotEditorView: React.FC = () => {
       prev.map((block) =>
         block.id === id
           ? {
-              ...block,
-              advancedOpen: !block.advancedOpen,
-            }
+            ...block,
+            advancedOpen: !block.advancedOpen,
+          }
           : block
       )
     );
@@ -628,9 +311,9 @@ export const ScreenshotEditorView: React.FC = () => {
       prev.map((block) =>
         block.id === id
           ? {
-              ...block,
-              collapsed: !block.collapsed,
-            }
+            ...block,
+            collapsed: !block.collapsed,
+          }
           : block
       )
     );
@@ -687,133 +370,155 @@ export const ScreenshotEditorView: React.FC = () => {
     ]);
   };
   return (
-    <div className="p-6 md:p-8 h-full min-h-0 grid grid-cols-1 xl:grid-cols-[340px_1fr_320px] gap-6 animate-fade-in-up">
-      <LeftColumn
-        previewMode={previewMode}
-        onPreviewModeChange={setPreviewMode}
-        isDragging={isDragging}
-        setIsDragging={setIsDragging}
-        onDrop={handleDrop}
-        onImageFile={handleImageFile}
-        onChatFile={handleChatFile}
-        overlays={overlays}
-        onOverlayFile={handleOverlayFile}
-        onUpdateOverlay={updateOverlay}
-        onRemoveOverlay={removeOverlay}
-        rpName={rpName}
-        onRpNameChange={setRpName}
-        onAppendToBlock={appendToBlock}
-        textBlocks={textBlocks}
-        onUpdateBlock={updateBlock}
-        onUpdateBlockSettings={updateBlockSettings}
-        onAddBlock={addBlock}
-        onRemoveBlock={removeBlock}
-        onToggleBlockSettings={toggleBlockSettings}
-        onToggleBlockCollapsed={toggleBlockCollapsed}
-        onToggleBlockAdvanced={toggleBlockAdvanced}
-        onSetActiveBlockId={setActiveBlockId}
-        width={settings.width}
-        height={settings.height}
-        filterText={filterText}
-        onFilterTextChange={setFilterText}
-        onParseChat={handleParseChat}
-        onClearBlocks={handleClearBlocks}
-      />
-      <CenterColumn
-        previewMode={previewMode}
-        imageDataUrl={imageDataUrl}
-        canvasRef={canvasRef}
-        previewRef={previewRef}
-        settings={settings}
-        fitMode={settings.fitMode}
-        zoom={zoom}
-        autoFit={autoFit}
-        onZoomOut={() => {
-          setAutoFit(false);
-          setZoom((value) => Math.max(0.1, Number((value - 0.1).toFixed(2))));
-        }}
-        onZoomIn={() => {
-          setAutoFit(false);
-          setZoom((value) => Math.min(3, Number((value + 0.1).toFixed(2))));
-        }}
-        onFit={() => {
-          setAutoFit(true);
-          setZoom(computeFitZoom());
-        }}
-        spaceDown={spaceDown}
-        isPanning={isPanning}
-        onPreviewEnter={() => setIsPreviewHover(true)}
-        onPreviewLeave={() => {
-          setIsPreviewHover(false);
-          setIsPanning(false);
-          panStateRef.current = null;
-        }}
-        onPanStart={(event) => {
-          if (!spaceDown || !previewRef.current) return;
-          event.preventDefault();
-          panStateRef.current = {
-            startX: event.clientX,
-            startY: event.clientY,
-            startScrollLeft: previewRef.current.scrollLeft,
-            startScrollTop: previewRef.current.scrollTop,
-          };
-          setIsPanning(true);
-        }}
-        onPanMove={(event) => {
-          if (!spaceDown || !panStateRef.current || !previewRef.current) return;
-          event.preventDefault();
-          const deltaX = event.clientX - panStateRef.current.startX;
-          const deltaY = event.clientY - panStateRef.current.startY;
-          previewRef.current.scrollLeft = panStateRef.current.startScrollLeft - deltaX;
-          previewRef.current.scrollTop = panStateRef.current.startScrollTop - deltaY;
-        }}
-        onPanEnd={() => {
-          setIsPanning(false);
-          panStateRef.current = null;
-        }}
-        activeBlockId={activeBlockId}
-        getBlockSettings={getBlockSettings}
-        dragState={dragState}
-        setDragState={setDragState}
-        onUpdateBlockSettings={updateBlockSettings}
-        overlays={overlays}
-        overlayDragState={overlayDragState}
-        setOverlayDragState={setOverlayDragState}
-        onUpdateOverlay={updateOverlay}
-        imageDragState={imageDragState}
-        setImageDragState={setImageDragState}
-        onUpdateImagePosition={(update) =>
-          setSettings((prev) => ({
-            ...prev,
-            imageOffsetX: update.imageOffsetX,
-            imageOffsetY: update.imageOffsetY,
-          }))
-        }
-        rawTextFile={rawTextFile}
-        onRawTextChange={setRawTextFile}
-        onRemoveTimestamps={() => setRawTextFile(sanitizeChatInput(rawTextFile))}
-        onApplyChatLines={() => setLines(buildLinesFromBlocks(textBlocks))}
-        onDownload={handleDownload}
-        onCopy={handleCopy}
-        onSaveCache={handleAddToCache}
-      />
-      <RightColumn
-        settings={settings}
-        onSettingsChange={(update) => setSettings((prev) => ({ ...prev, ...update }))}
-        colorPicker={colorPicker}
-        onColorPickerChange={setColorPicker}
-        colorAlpha={colorAlpha}
-        onColorAlphaChange={setColorAlpha}
-        selectedTemplateColor={selectedTemplateColor}
-        onSelectTemplateColor={setSelectedTemplateColor}
-        lines={lines}
-        onUpdateLine={updateLine}
-        onRemoveLine={(id) => setLines((prev) => prev.filter((item) => item.id !== id))}
-        cacheItems={cacheItems}
-        onLoadCache={handleLoadCache}
-        onRemoveCache={handleRemoveCache}
-      />
-    </div>
+    <DndProvider backend={HTML5Backend}>
+      <div className="p-6 md:p-8 h-full min-h-0 grid grid-cols-1 xl:grid-cols-[340px_1fr_320px] gap-6 animate-fade-in-up">
+        <LeftColumn
+          onImageFile={handleImageFile}
+          onChatFile={handleChatFile}
+          overlays={overlays}
+          onOverlayFile={handleOverlayFile}
+          onUpdateOverlay={updateOverlay}
+          onRemoveOverlay={removeOverlay}
+          rpName={rpName}
+          onRpNameChange={setRpName}
+          onAppendToBlock={appendToBlock}
+          textBlocks={textBlocks}
+          onUpdateBlock={updateBlock}
+          onUpdateBlockSettings={updateBlockSettings}
+          onAddBlock={addBlock}
+          onRemoveBlock={removeBlock}
+          onToggleBlockSettings={toggleBlockSettings}
+          onToggleBlockCollapsed={toggleBlockCollapsed}
+          onToggleBlockAdvanced={toggleBlockAdvanced}
+          onSetActiveBlockId={setActiveBlockId}
+          width={settings.width}
+          height={settings.height}
+          filterText={filterText}
+          onFilterTextChange={setFilterText}
+          onParseChat={handleParseChat}
+          onClearBlocks={handleClearBlocks}
+        />
+        <CenterColumn
+          imageDataUrl={imageDataUrl}
+          canvasRef={canvasRef}
+          previewRef={previewRef}
+          settings={settings}
+          fitMode={settings.fitMode}
+          zoom={zoom}
+          autoFit={autoFit}
+          onZoomOut={() => {
+            setAutoFit(false);
+            setZoom((value) => Math.max(0.1, Number((value - 0.1).toFixed(2))));
+          }}
+          onZoomIn={() => {
+            setAutoFit(false);
+            setZoom((value) => Math.min(3, Number((value + 0.1).toFixed(2))));
+          }}
+          onFit={() => {
+            setAutoFit(true);
+            setZoom(computeFitZoom());
+          }}
+          spaceDown={spaceDown}
+          isPanning={isPanning}
+          isDragging={isDragging}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onPreviewEnter={() => setIsPreviewHover(true)}
+          onPreviewLeave={() => {
+            setIsPreviewHover(false);
+            setIsPanning(false);
+            panStateRef.current = null;
+          }}
+          onPanStart={(event) => {
+            if (!spaceDown || !previewRef.current) return;
+            event.preventDefault();
+            panStateRef.current = {
+              startX: event.clientX,
+              startY: event.clientY,
+              startScrollLeft: previewRef.current.scrollLeft,
+              startScrollTop: previewRef.current.scrollTop,
+            };
+            setIsPanning(true);
+          }}
+          onPanMove={(event) => {
+            if (!spaceDown || !panStateRef.current || !previewRef.current) return;
+            event.preventDefault();
+            const deltaX = event.clientX - panStateRef.current.startX;
+            const deltaY = event.clientY - panStateRef.current.startY;
+            previewRef.current.scrollLeft = panStateRef.current.startScrollLeft - deltaX;
+            previewRef.current.scrollTop = panStateRef.current.startScrollTop - deltaY;
+          }}
+          onPanEnd={() => {
+            setIsPanning(false);
+            panStateRef.current = null;
+          }}
+          activeBlockId={activeBlockId}
+          getBlockSettings={getBlockSettings}
+          dragState={dragState}
+          setDragState={setDragState}
+          onUpdateBlockSettings={updateBlockSettings}
+          overlays={overlays}
+          overlayDragState={overlayDragState}
+          setOverlayDragState={setOverlayDragState}
+          onUpdateOverlay={updateOverlay}
+          imageDragState={imageDragState}
+          setImageDragState={setImageDragState}
+          onUpdateImagePosition={(update) =>
+            setSettings((prev) => ({
+              ...prev,
+              imageOffsetX: update.imageOffsetX,
+              imageOffsetY: update.imageOffsetY,
+            }))
+          }
+          onDownload={handleDownload}
+          onCopy={handleCopy}
+          onSaveCache={addToCache}
+        />
+        <RightColumn
+          settings={settings}
+          onSettingsChange={(update) => setSettings((prev) => ({ ...prev, ...update }))}
+          colorPicker={colorPicker}
+          onColorPickerChange={setColorPicker}
+          colorAlpha={colorAlpha}
+          onColorAlphaChange={setColorAlpha}
+          selectedTemplateColor={selectedTemplateColor}
+          onSelectTemplateColor={setSelectedTemplateColor}
+          rawTextFile={rawTextFile}
+          onRawTextChange={setRawTextFile}
+          onRemoveTimestamps={() => setRawTextFile(sanitizeChatInput(rawTextFile))}
+          onApplyChatLines={() => setLines(buildLinesFromBlocks(textBlocks))}
+          lines={lines}
+          onUpdateLine={updateLine}
+          onRemoveLine={(id) => setLines((prev) => prev.filter((item) => item.id !== id))}
+          cacheItems={cacheItems}
+          onLoadCache={handleLoadCache}
+          onRemoveCache={removeCache}
+          // Layers Panel Props
+          textBlocks={textBlocks}
+          overlays={overlays}
+          layerOrder={layerOrder || []}
+          activeBlockId={activeBlockId}
+          onSelectLayer={(id, type) => {
+            if (type === 'text') {
+              setActiveBlockId(id);
+            } else {
+              // Select overlay logic if we have one? 
+              // Currently we just have activeBlockId. 
+              // We might want to add activeOverlayId or just a general Selection state.
+              // For now, doing nothing for overlays besides maybe highlighting it in the panel?
+              // But the panel highlights based on isActive prop.
+            }
+          }}
+          onMoveLayer={(dragIndex, hoverIndex) => actions.reorderLayers(dragIndex, hoverIndex)}
+          onToggleVisible={(id, type) => actions.toggleLayerVisibility(id, type)}
+          onToggleLock={(id, type) => actions.toggleLayerLock(id, type)}
+        />
+      </div>
+    </DndProvider>
   );
 }
 
