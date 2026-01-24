@@ -1,35 +1,78 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings } from '../constants';
 import type { CacheItem, ChatLine, EditorSettings, OverlayImage, TextBlock, TextBlockSettings } from '../types';
 import { buildLinesFromBlocks, getCombinedText, readCache, writeCache } from '../utils';
+import { useHistory } from './useHistory';
+
+export type EditorSnapshot = {
+    textBlocks: TextBlock[];
+    overlays: OverlayImage[];
+    settings: EditorSettings;
+    layerOrder: string[];
+};
 
 export const useEditorState = () => {
     const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
     const [imageName, setImageName] = useState<string>('Untitled');
     const [imageSize, setImageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [rawTextFile, setRawTextFile] = useState<string>('');
-    const [overlays, setOverlays] = useState<OverlayImage[]>([]);
 
-    // Initialize with one block and sync layerOrder
+    // History-managed state
     const initialBlockId = useMemo(() => `${Date.now()}`, []);
-    const [textBlocks, setTextBlocks] = useState<TextBlock[]>([
-        {
-            id: initialBlockId,
-            text: '',
-            settings: { ...defaultTextSettings },
-            collapsed: false,
-            settingsOpen: false,
-            advancedOpen: false,
-            visible: true,
-            locked: false,
-            name: 'Text Block 1',
-        },
-    ]);
-    const [layerOrder, setLayerOrder] = useState<string[]>([initialBlockId]);
+    const initialSnapshot: EditorSnapshot = {
+        textBlocks: [
+            {
+                id: initialBlockId,
+                text: '',
+                settings: { ...defaultTextSettings },
+                collapsed: false,
+                settingsOpen: false,
+                advancedOpen: false,
+                visible: true,
+                locked: false,
+                name: 'Text Block 1',
+            },
+        ],
+        overlays: [],
+        settings: defaultSettings,
+        layerOrder: [initialBlockId],
+    };
+
+    const {
+        state: historyState,
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+        push: pushHistory,
+        reset: resetHistory,
+    } = useHistory<EditorSnapshot>(initialSnapshot);
+
+    // Snapshot state (synced with history)
+    const [textBlocks, setTextBlocks] = useState<TextBlock[]>(initialSnapshot.textBlocks);
+    const [overlays, setOverlays] = useState<OverlayImage[]>(initialSnapshot.overlays);
+    const [settings, setSettings] = useState<EditorSettings>(initialSnapshot.settings);
+    const [layerOrder, setLayerOrder] = useState<string[]>(initialSnapshot.layerOrder);
 
     const [lines, setLines] = useState<ChatLine[]>([]);
     const [filterText, setFilterText] = useState<string>('');
-    const [settings, setSettings] = useState<EditorSettings>(defaultSettings);
+
+    // Sync from history when undo/redo occurs
+    useEffect(() => {
+        setTextBlocks(historyState.textBlocks);
+        setOverlays(historyState.overlays);
+        setSettings(historyState.settings);
+        setLayerOrder(historyState.layerOrder);
+    }, [historyState]);
+
+    const commitHistory = useCallback(() => {
+        pushHistory({
+            textBlocks,
+            overlays,
+            settings,
+            layerOrder,
+        });
+    }, [textBlocks, overlays, settings, layerOrder, pushHistory]);
     const [zoom, setZoom] = useState<number>(1);
     const [autoFit, setAutoFit] = useState<boolean>(true);
     const [colorPicker, setColorPicker] = useState<string>('#ffffff');
@@ -41,7 +84,10 @@ export const useEditorState = () => {
     const [spaceDown, setSpaceDown] = useState<boolean>(false);
     const [isPanning, setIsPanning] = useState<boolean>(false);
     const [isPreviewHover, setIsPreviewHover] = useState<boolean>(false);
-    const [rpName, setRpName] = useState<string>('');
+    const [nameInputs, setNameInputs] = useState<{ id: string; name: string }[]>([
+        { id: 'default', name: '' }
+    ]);
+    const [activeCropOverlayId, setActiveCropOverlayId] = useState<string | null>(null);
 
     const panStateRef = useRef<{
         startX: number;
@@ -232,6 +278,34 @@ export const useEditorState = () => {
         }
     };
 
+    const updateOverlay = (id: string, update: Partial<OverlayImage>) => {
+        setOverlays(prev => prev.map(o => o.id === id ? { ...o, ...update } : o));
+    };
+
+    const updateTextBlock = (id: string, update: Partial<TextBlock>) => {
+        setTextBlocks(prev => prev.map(b => b.id === id ? { ...b, ...update } : b));
+    };
+
+    // Helper for updating settings specifically, though updateTextBlock could handle it if we passed the whole settings object
+    const updateTextBlockSettings = (id: string, settingsUpdate: Partial<TextBlock['settings']>) => {
+        setTextBlocks(prev => prev.map(b => b.id === id ? {
+            ...b,
+            settings: { ...defaultTextSettings, ...(b.settings ?? {}), ...settingsUpdate }
+        } : b));
+    };
+
+    const addNameInput = () => {
+        setNameInputs(prev => [...prev, { id: `${Date.now()}`, name: '' }]);
+    };
+
+    const removeNameInput = (id: string) => {
+        setNameInputs(prev => prev.filter(n => n.id !== id));
+    };
+
+    const updateNameInput = (id: string, name: string) => {
+        setNameInputs(prev => prev.map(n => n.id === id ? { ...n, name } : n));
+    };
+
     return {
         state: {
             imageDataUrl, setImageDataUrl,
@@ -255,11 +329,13 @@ export const useEditorState = () => {
             spaceDown, setSpaceDown,
             isPanning, setIsPanning,
             isPreviewHover, setIsPreviewHover,
-            rpName, setRpName,
+            nameInputs, setNameInputs,
+            activeCropOverlayId, setActiveCropOverlayId,
             panStateRef,
             dragState, setDragState,
             overlayDragState, setOverlayDragState,
-            imageDragState, setImageDragState
+            imageDragState, setImageDragState,
+            canUndo, canRedo
         },
         computed: {
             visibleLines
@@ -270,11 +346,20 @@ export const useEditorState = () => {
             removeCache,
             addOverlay,
             removeOverlay,
+            updateOverlay,
             addTextBlock,
             removeTextBlock,
+            updateTextBlock,
+            updateTextBlockSettings,
             reorderLayers,
             toggleLayerVisibility,
-            toggleLayerLock
+            toggleLayerLock,
+            addNameInput,
+            removeNameInput,
+            updateNameInput,
+            undo,
+            redo,
+            commitHistory
         }
     };
 };

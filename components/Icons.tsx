@@ -59,7 +59,14 @@ import {
   RefreshCw,
   EyeOff,
   Unlock,
-  GripVertical
+  GripVertical,
+  Crop,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  Move,
+  Undo,
+  Redo
 } from 'lucide-react';
 
 export {
@@ -122,5 +129,12 @@ export {
   RefreshCw,
   EyeOff,
   Unlock,
-  GripVertical
+  GripVertical,
+  Crop,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  Move,
+  Undo,
+  Redo
 };

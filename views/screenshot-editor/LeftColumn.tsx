@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image as ImageIcon, FileText, Trash2, Plus, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight } from '../../components/Icons';
+import { Image as ImageIcon, FileText, Trash2, Plus, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Crop } from '../../components/Icons';
 import { defaultTextSettings } from './constants';
+import { CropModal } from './CropModal';
 import type { OverlayImage, TextBlock, TextBlockSettings, TextPosition } from './types';
 
 type LeftColumnProps = {
@@ -10,9 +11,13 @@ type LeftColumnProps = {
   onOverlayFile: (file: File) => void;
   onUpdateOverlay: (id: string, update: Partial<OverlayImage>) => void;
   onRemoveOverlay: (id: string) => void;
-  rpName: string;
-  onRpNameChange: (value: string) => void;
+  nameInputs: { id: string; name: string }[];
+  onAddNameInput: () => void;
+  onRemoveNameInput: (id: string) => void;
+  onUpdateNameInput: (id: string, name: string) => void;
   onAppendToBlock: (text: string) => void;
+  activeCropOverlayId: string | null;
+  onSetActiveCropOverlayId: (id: string | null) => void;
   textBlocks: TextBlock[];
   onUpdateBlock: (id: string, text: string) => void;
   onUpdateBlockSettings: (id: string, update: Partial<TextBlockSettings>) => void;
@@ -37,9 +42,13 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
   onOverlayFile,
   onUpdateOverlay,
   onRemoveOverlay,
-  rpName,
-  onRpNameChange,
+  nameInputs,
+  onAddNameInput,
+  onRemoveNameInput,
+  onUpdateNameInput,
   onAppendToBlock,
+  activeCropOverlayId,
+  onSetActiveCropOverlayId,
   textBlocks,
   onUpdateBlock,
   onUpdateBlockSettings,
@@ -59,6 +68,7 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
   const [imageFileName, setImageFileName] = useState('');
   const [chatFileName, setChatFileName] = useState('');
   const [overlayFileName, setOverlayFileName] = useState('');
+  const [cropModalOverlayId, setCropModalOverlayId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6 min-h-0">
@@ -227,6 +237,28 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                       className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
                     />
                   </label>
+
+                  <div className="col-span-2 flex justify-end">
+                    <button
+                      onClick={() => onSetActiveCropOverlayId(overlay.id)}
+                      className={`flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wide border rounded-md ${activeCropOverlayId === overlay.id
+                        ? 'bg-terminal-accent/20 border-terminal-accent text-terminal-accent'
+                        : 'bg-terminal-dark border-terminal-border text-terminal-muted hover:text-white'
+                        }`}
+                    >
+                      <Crop size={14} />
+                      Crop
+                    </button>
+                  </div>
+
+                  {cropModalOverlayId === overlay.id && (
+                    <CropModal
+                      overlay={overlay}
+                      isOpen={true}
+                      onClose={() => setCropModalOverlayId(null)}
+                      onConfirm={(crop) => onUpdateOverlay(overlay.id, { crop })}
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -242,36 +274,106 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
           <FileText size={18} className="text-terminal-accent" />
           Chat Input
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={rpName}
-            onChange={(event) => onRpNameChange(event.target.value)}
-            placeholder="Ingrese nombre apellido"
-            className="flex-1 min-w-[160px] bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-          />
+        <div className="flex flex-col gap-3">
+          <datalist id="saved-names">
+            {(JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]') as string[]).map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+
+          {nameInputs.map((input, index) => (
+            <div key={input.id} className="flex flex-col gap-2 p-3 rounded-md border border-terminal-border bg-terminal-dark/30">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-terminal-muted w-4 flex-shrink-0">{index + 1}</span>
+                <input
+                  value={input.name}
+                  onChange={(event) => onUpdateNameInput(input.id, event.target.value)}
+                  placeholder="Nombre"
+                  list="saved-names"
+                  className="flex-1 min-w-[100px] bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                />
+                <button
+                  onClick={() => {
+                    if (!input.name.trim()) return;
+                    const saved = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+                    if (!saved.includes(input.name.trim())) {
+                      const newSaved = [...saved, input.name.trim()];
+                      localStorage.setItem('streetnetwork_saved_names', JSON.stringify(newSaved));
+                      setOverlayFileName(prev => prev + ' ');
+                    }
+                  }}
+                  className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md flex-shrink-0"
+                  title="Guardar"
+                >
+                  <Plus size={12} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (!input.name.trim()) return;
+                    const saved = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+                    const newSaved = saved.filter((n: string) => n !== input.name.trim());
+                    localStorage.setItem('streetnetwork_saved_names', JSON.stringify(newSaved));
+                    setOverlayFileName(prev => prev + ' ');
+                  }}
+                  className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-red-400 rounded-md flex-shrink-0"
+                  title="Borrar de lista"
+                >
+                  <Trash2 size={12} />
+                </button>
+                {nameInputs.length > 1 && (
+                  <button
+                    onClick={() => onRemoveNameInput(input.id)}
+                    className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-red-500 hover:bg-red-500/10 rounded-md flex-shrink-0"
+                    title="Quitar fila"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() =>
+                    onAppendToBlock(`(#bd9dd4)* ${input.name || '[Nombre]'} `)
+                  }
+                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                >
+                  /me
+                </button>
+                <button
+                  onClick={() =>
+                    onAppendToBlock(`(#8fbe2e)* (( ${input.name || '[Nombre]'} )) `)
+                  }
+                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                >
+                  /do
+                </button>
+                <button
+                  onClick={() =>
+                    onAppendToBlock(`(#b4b401)${input.name || '[Nombre]'} dice (phone): `)
+                  }
+                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                >
+                  Call
+                </button>
+                <button
+                  onClick={() =>
+                    onAppendToBlock(`${input.name || '[Nombre]'} dice: `)
+                  }
+                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                >
+                  Dialog
+                </button>
+              </div>
+            </div>
+          ))}
+
           <button
-            onClick={() =>
-              onAppendToBlock(`(#bd9dd4)* ${rpName || '[Nombre y Apellido]'} `)
-            }
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
+            onClick={onAddNameInput}
+            className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent rounded-md hover:bg-terminal-accent/20"
           >
-            /me
-          </button>
-          <button
-            onClick={() =>
-              onAppendToBlock(`(#8fbe2e)* (( ${rpName || '[Nombre y Apellido]'} )) `)
-            }
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-          >
-            /do
-          </button>
-          <button
-            onClick={() =>
-              onAppendToBlock(`(#b4b401)${rpName || '[Nombre y Apellido]'} dice (phone): `)
-            }
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-          >
-            Call
+            <Plus size={14} />
+            Add Another Character
           </button>
         </div>
         <div className="space-y-3">
@@ -428,22 +530,20 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                             <div className="col-span-2 flex items-center gap-2 text-xs">
                               <button
                                 onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'text' })}
-                                className={`px-3 py-2 rounded-md border ${
-                                  blockSettings.backdropMode === 'text'
-                                    ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                                    : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-                                }`}
+                                className={`px-3 py-2 rounded-md border ${blockSettings.backdropMode === 'text'
+                                  ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
+                                  : 'bg-terminal-dark text-terminal-muted border-terminal-border'
+                                  }`}
                                 title="Fondo solo detras del texto de cada linea."
                               >
                                 Just Text
                               </button>
                               <button
                                 onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'all' })}
-                                className={`px-3 py-2 rounded-md border ${
-                                  blockSettings.backdropMode === 'all'
-                                    ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                                    : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-                                }`}
+                                className={`px-3 py-2 rounded-md border ${blockSettings.backdropMode === 'all'
+                                  ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
+                                  : 'bg-terminal-dark text-terminal-muted border-terminal-border'
+                                  }`}
                                 title="Fondo que cubre todo el ancho del bloque."
                               >
                                 All Width
@@ -794,6 +894,6 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
           />
         </div>
       </div>
-    </div>
+    </div >
   );
 };

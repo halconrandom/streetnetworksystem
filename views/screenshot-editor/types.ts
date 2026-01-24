@@ -75,6 +75,12 @@ export type OverlayImage = {
   opacity: number;
   visible?: boolean;
   locked?: boolean;
+  crop?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };
 
 export type LayerItem = {

@@ -163,14 +163,35 @@ export const useCanvasPainter = ({
             overlayImageCacheRef.current[overlay.id] = overlayImage;
           }
           if (!overlayImage.complete) return;
-          const drawW = overlay.width * overlay.scale;
-          const drawH = overlay.height * overlay.scale;
+
+          // Calculate dimensions
+          const sourceX = overlay.crop?.x ?? 0;
+          const sourceY = overlay.crop?.y ?? 0;
+          const sourceW = overlay.crop?.width ?? overlayImage.width;
+          const sourceH = overlay.crop?.height ?? overlayImage.height;
+
+          // If we crop, we want to maintain the "display size" as per scale? 
+          // Usually if I crop 50% of image, I expect it to shrink on screen unless I resize.
+          // overlay.width/height updates?
+          // Let's assume overlay.width/height is ALWAYS the full original size.
+          // So drawn size should be proportional to crop.
+          const ratioW = sourceW / overlayImage.width;
+          const ratioH = sourceH / overlayImage.height;
+
+          const drawW = overlay.width * overlay.scale * ratioW;
+          const drawH = overlay.height * overlay.scale * ratioH;
+
           const rotation = (overlay.rotation * Math.PI) / 180;
           ctx.save();
           ctx.globalAlpha = overlay.opacity;
           ctx.translate(overlay.x, overlay.y);
           ctx.rotate(rotation);
-          ctx.drawImage(overlayImage, -drawW / 2, -drawH / 2, drawW, drawH);
+
+          ctx.drawImage(
+            overlayImage,
+            sourceX, sourceY, sourceW, sourceH,
+            -drawW / 2, -drawH / 2, drawW, drawH
+          );
           ctx.restore();
         };
 
