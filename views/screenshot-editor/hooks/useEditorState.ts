@@ -51,34 +51,30 @@ export const useEditorState = () => {
     } = useHistory<EditorSnapshot>(initialSnapshot);
 
     // Snapshot state (synced with history)
-    // We keep these for reactive UI, but we must ensure they are ALWAYS in sync with historyState
-    const [textBlocks, setTextBlocks] = useState<TextBlock[]>(initialSnapshot.textBlocks);
-    const [overlays, setOverlays] = useState<OverlayImage[]>(initialSnapshot.overlays);
-    const [settings, setSettings] = useState<EditorSettings>(initialSnapshot.settings);
-    const [layerOrder, setLayerOrder] = useState<string[]>(initialSnapshot.layerOrder);
-    const [redactionAreas, setRedactionAreas] = useState<RedactionArea[]>(initialSnapshot.redactionAreas);
-    const [activeTool, setActiveTool] = useState<'move' | 'redact'>('move');
+    // We derive these directly from historyState to ensure a single source of truth and avoid race conditions.
+    const {
+        textBlocks,
+        overlays,
+        settings,
+        layerOrder,
+        redactionAreas
+    } = historyState;
 
+    const [activeTool, setActiveTool] = useState<'move' | 'redact'>('move');
     const [lines, setLines] = useState<ChatLine[]>([]);
     const [filterText, setFilterText] = useState<string>('');
 
-    // Sync local state from history (Undo/Redo or Pushes)
-    useEffect(() => {
-        setTextBlocks(historyState.textBlocks);
-        setOverlays(historyState.overlays);
-        setSettings(historyState.settings);
-        setLayerOrder(historyState.layerOrder);
-        setRedactionAreas(historyState.redactionAreas);
-    }, [historyState]);
-
     /**
      * Commits the current local state to history.
-     * This should be used for CONTINUOUS updates (like dragging) AFTER they finish.
+     * This is useful if we were doing temporary updates (like dragging) 
+     * but now want to persist that state into the past.
      */
     const commitHistory = useCallback(() => {
-        // We use functional style or just hope closure is fresh enough.
-        // During a drag, closures might be stale if we don't re-render.
-        // But drag updates trigger re-renders, so closure should be fresh on MouseUp.
+        // Since we are now using historyState directly, we just push the CURRENT state.
+        // This effectively creates a point in time. 
+        // NOTE: Usually in drag scenarios, we update a "temporary" state and THEN push.
+        // But since we are pushing to historyState on every change (via performAction below),
+        // we might not even need a separate commitHistory unless we have non-history state we want to include.
         pushHistory({
             textBlocks,
             overlays,
@@ -90,7 +86,6 @@ export const useEditorState = () => {
 
     /**
      * Atomically updates state and pushes to history.
-     * Prevents race conditions with the sync useEffect.
      */
     const performAction = useCallback((update: (prev: EditorSnapshot) => EditorSnapshot) => {
         const next = update({
@@ -100,13 +95,8 @@ export const useEditorState = () => {
             layerOrder,
             redactionAreas,
         });
-        // Update local state immediately for UI snappiness
-        setTextBlocks(next.textBlocks);
-        setOverlays(next.overlays);
-        setSettings(next.settings);
-        setLayerOrder(next.layerOrder);
-        setRedactionAreas(next.redactionAreas);
-        // Push to history
+
+        // Push directly to history - React will re-render and our derived constants will reflect the new state.
         pushHistory(next);
     }, [textBlocks, overlays, settings, layerOrder, redactionAreas, pushHistory]);
 
@@ -190,13 +180,14 @@ export const useEditorState = () => {
         });
     }, [filterText, lines]);
 
-    const addToCache = () => {
+    const addToCache = (renderedDataUrl?: string) => {
         if (!imageDataUrl) return;
         const item: CacheItem = {
             id: `${Date.now()}`,
             name: imageName,
             createdAt: Date.now(),
-            imageDataUrl,
+            // Use renderedDataUrl if provided (the "snapshot"), otherwise fallback to raw image
+            imageDataUrl: renderedDataUrl || imageDataUrl,
             textBlocks,
             overlays,
             chatInput: getCombinedText(textBlocks),
@@ -205,7 +196,7 @@ export const useEditorState = () => {
             layerOrder,
             redactionAreas,
         };
-        const next = [item, ...cacheItems].slice(0, 5);
+        const next = [item, ...cacheItems].slice(0, 15); // Increased cache limit for strips
         setCacheItems(next);
         writeCache(CACHE_KEY, next);
     };
@@ -258,12 +249,6 @@ export const useEditorState = () => {
         };
 
         resetHistory(snapshot);
-        // Explicitly sync local state to avoid waiting for useEffect
-        setTextBlocks(snapshot.textBlocks);
-        setOverlays(snapshot.overlays);
-        setSettings(snapshot.settings);
-        setLayerOrder(snapshot.layerOrder);
-        setRedactionAreas(snapshot.redactionAreas);
         setLines(item.lines);
         setAutoFit(true);
     };
@@ -351,18 +336,27 @@ export const useEditorState = () => {
     };
 
     const updateOverlay = (id: string, update: Partial<OverlayImage>) => {
-        setOverlays(prev => prev.map(o => o.id === id ? { ...o, ...update } : o));
+        performAction(prev => ({
+            ...prev,
+            overlays: prev.overlays.map(o => o.id === id ? { ...o, ...update } : o)
+        }));
     };
 
     const updateTextBlock = (id: string, update: Partial<TextBlock>) => {
-        setTextBlocks(prev => prev.map(b => b.id === id ? { ...b, ...update } : b));
+        performAction(prev => ({
+            ...prev,
+            textBlocks: prev.textBlocks.map(b => b.id === id ? { ...b, ...update } : b)
+        }));
     };
 
     const updateTextBlockSettings = (id: string, settingsUpdate: Partial<TextBlock['settings']>) => {
-        setTextBlocks(prev => prev.map(b => b.id === id ? {
-            ...b,
-            settings: { ...defaultTextSettings, ...(b.settings ?? {}), ...settingsUpdate }
-        } : b));
+        performAction(prev => ({
+            ...prev,
+            textBlocks: prev.textBlocks.map(b => b.id === id ? {
+                ...b,
+                settings: { ...defaultTextSettings, ...(b.settings ?? {}), ...settingsUpdate }
+            } : b)
+        }));
     };
 
     const clearAll = () => {
@@ -407,18 +401,22 @@ export const useEditorState = () => {
     const removeNameInput = (id: string) => setNameInputs(prev => prev.filter(n => n.id !== id));
     const updateNameInput = (id: string, name: string) => setNameInputs(prev => prev.map(n => n.id === id ? { ...n, name } : n));
 
+    const updateSettings = (update: Partial<EditorSettings>) => {
+        performAction(prev => ({ ...prev, settings: { ...prev.settings, ...update } }));
+    };
+
     return {
         state: {
             imageDataUrl, setImageDataUrl,
             imageName, setImageName,
             imageSize, setImageSize,
             rawTextFile, setRawTextFile,
-            overlays, setOverlays,
-            textBlocks, setTextBlocks,
-            layerOrder, setLayerOrder,
+            overlays,
+            textBlocks,
+            layerOrder,
             lines, setLines,
             filterText, setFilterText,
-            settings, setSettings,
+            settings,
             zoom, setZoom,
             autoFit, setAutoFit,
             colorPicker, setColorPicker,
@@ -438,7 +436,7 @@ export const useEditorState = () => {
             overlayDragState, setOverlayDragState,
             imageDragState, setImageDragState,
             canUndo, canRedo,
-            redactionAreas, setRedactionAreas,
+            redactionAreas,
             activeTool, setActiveTool
         },
         computed: { visibleLines },
@@ -449,7 +447,8 @@ export const useEditorState = () => {
             reorderLayers, toggleLayerVisibility, toggleLayerLock,
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,
-            addRedactionArea, removeRedactionArea, setActiveTool
+            addRedactionArea, removeRedactionArea, setActiveTool,
+            updateSettings
         }
     };
 };

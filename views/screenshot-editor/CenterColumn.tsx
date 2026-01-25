@@ -236,7 +236,9 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    let committed = false;
     if (drawingRect) {
       const x = Math.min(drawingRect.startX, drawingRect.currentX);
       const y = Math.min(drawingRect.startY, drawingRect.currentY);
@@ -244,13 +246,19 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
       const h = Math.abs(drawingRect.currentY - drawingRect.startY);
       if (w > 5 && h > 5) {
         onAddRedactionArea({ x, y, width: w, height: h });
+        committed = true;
       }
       setDrawingRect(null);
     }
+
+    // If we were dragging something else, commit that history
+    if (!committed && (dragState || overlayDragState || imageDragState)) {
+      onCommitHistory();
+    }
+
     setDragState(null);
     setOverlayDragState(null);
     setImageDragState(null);
-    onCommitHistory();
   };
 
   return (
@@ -292,7 +300,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
         onMouseLeave={onPreviewLeave}
         onMouseDown={onPanStart}
         onMouseMove={onPanMove}
-        onMouseUp={() => { onPanEnd(); onCommitHistory(); }}
+        onMouseUp={onPanEnd}
       >
         {isDragging && (
           <div className="absolute inset-6 border-2 border-dashed border-terminal-accent rounded-lg bg-terminal-accent/10 pointer-events-none flex items-center justify-center text-sm text-white z-[100]">

@@ -29,11 +29,11 @@ export const ScreenshotEditorView: React.FC = () => {
     imageName, setImageName,
     imageSize, setImageSize,
     rawTextFile, setRawTextFile,
-    overlays, setOverlays,
-    textBlocks, setTextBlocks,
+    overlays,
+    textBlocks,
     lines, setLines,
     filterText, setFilterText,
-    settings, setSettings,
+    settings,
     zoom, setZoom,
     autoFit, setAutoFit,
     colorPicker, setColorPicker,
@@ -66,8 +66,9 @@ export const ScreenshotEditorView: React.FC = () => {
     addOverlay, removeOverlay, updateOverlay,
     addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
     addNameInput, removeNameInput, updateNameInput,
-    undo, redo, commitHistory, togglePanel,
-    addRedactionArea, removeRedactionArea, setActiveTool
+    undo, redo, commitHistory, togglePanel, clearAll,
+    addRedactionArea, removeRedactionArea, setActiveTool,
+    updateSettings
   } = actions;
 
   const { invalidateCache } = useCanvasPainter({
@@ -127,15 +128,14 @@ export const ScreenshotEditorView: React.FC = () => {
       setImageDataUrl(result);
       setImageName(file.name);
       setAutoFit(true);
-      setSettings(prev => ({ ...prev, ...defaultSettings }));
+      updateSettings(defaultSettings);
       const img = new window.Image();
       img.onload = () => {
         setImageSize({ width: img.width || 0, height: img.height || 0 });
-        setSettings((prev) => ({
-          ...prev,
-          width: img.width || prev.width,
-          height: img.height || prev.height,
-        }));
+        updateSettings({
+          width: img.width || settings.width,
+          height: img.height || settings.height,
+        });
       };
       img.src = result;
     };
@@ -520,15 +520,21 @@ export const ScreenshotEditorView: React.FC = () => {
                   imageDragState={imageDragState}
                   setImageDragState={setImageDragState}
                   onUpdateImagePosition={(update) =>
-                    setSettings((prev) => ({
-                      ...prev,
+                    updateSettings({
                       imageOffsetX: update.imageOffsetX,
                       imageOffsetY: update.imageOffsetY,
-                    }))
+                    })
                   }
                   onDownload={handleDownload}
                   onCopy={handleCopy}
-                  onSaveCache={addToCache}
+                  onSaveCache={() => {
+                    const canvas = canvasRef.current;
+                    if (canvas) {
+                      addToCache(canvas.toDataURL('image/png'));
+                    } else {
+                      addToCache();
+                    }
+                  }}
                   onCommitHistory={commitHistory}
                   activeTool={activeTool}
                   onAddRedactionArea={addRedactionArea}
@@ -543,7 +549,7 @@ export const ScreenshotEditorView: React.FC = () => {
               <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
                 <RightColumn
                   settings={settings}
-                  onSettingsChange={(update) => setSettings((prev) => ({ ...prev, ...update }))}
+                  onSettingsChange={(update) => updateSettings(update)}
                   colorPicker={colorPicker}
                   onColorPickerChange={setColorPicker}
                   colorAlpha={colorAlpha}

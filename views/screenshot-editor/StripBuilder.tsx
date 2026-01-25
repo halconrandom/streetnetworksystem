@@ -174,23 +174,38 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
     const handleCopyToClipboard = async () => {
         setGenerating(true);
         try {
-            const canvas = await generateCanvas();
-            if (canvas) {
-                canvas.toBlob(async (blob) => {
-                    if (blob) {
-                        try {
-                            const data = [new ClipboardItem({ 'image/png': blob })];
-                            await navigator.clipboard.write(data);
-                            setCopySuccess(true);
-                            setTimeout(() => setCopySuccess(false), 2000);
-                        } catch (err) {
-                            console.error('Clipboard write failed', err);
-                        }
-                    }
-                }, 'image/png');
-            }
+            // Modern browsers permit passing a Promise directly to ClipboardItem
+            // to maintain the "user gesture" during long async tasks like canvas rendering.
+            const clipboardPromise = (async () => {
+                const canvas = await generateCanvas();
+                if (!canvas) throw new Error("Could not generate canvas");
+
+                const blob = await new Promise<Blob | null>((resolve) =>
+                    canvas.toBlob(resolve, 'image/png')
+                );
+                if (!blob) throw new Error("Could not generate blob");
+                return blob;
+            })();
+
+            // Explicitly focus window before writing to clipboard to prevent Focus errors
+            window.focus();
+
+            const item = new ClipboardItem({
+                'image/png': clipboardPromise
+            });
+
+            await navigator.clipboard.write([item]);
+
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
         } catch (err) {
             console.error('Failed to copy strip', err);
+            // If it's the focus error, show a more specific message
+            if (err instanceof Error && err.name === 'NotAllowedError') {
+                alert("El navegador bloqueó el copiado porque se perdió el foco. Mantén la ventana activa y vuelve a intentarlo.");
+            } else {
+                alert("Error al generar o copiar la tira. Intenta descargarla directamente.");
+            }
         } finally {
             setGenerating(false);
         }

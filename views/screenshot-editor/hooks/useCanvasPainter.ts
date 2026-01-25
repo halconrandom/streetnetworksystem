@@ -14,14 +14,17 @@ type RenderLine = {
   redactions?: RedactionRegion[];
 };
 
-const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, size: number = 5) => {
+const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, size: number = 8) => {
   if (w <= 0 || h <= 0) return;
+
+  // Diagnostic log for the developer console
+  console.log(`Pixelating at ${x},${y} with size ${w}x${h}`);
+
   try {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
 
-    // Scale down - ensure at least 1px
     const sw = Math.max(1, Math.ceil(w / size));
     const sh = Math.max(1, Math.ceil(h / size));
     tempCanvas.width = sw;
@@ -31,6 +34,15 @@ const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: nu
     tempCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, sw, sh);
 
     ctx.save();
+    // FORCE RESET ALL STATE that could hide the draw
+    ctx.filter = 'none';
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = 'source-over';
+
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(tempCanvas, 0, 0, sw, sh, x, y, w, h);
     ctx.restore();
@@ -197,6 +209,7 @@ export const useCanvasPainter = ({
             ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           }
           ctx.restore();
+          ctx.filter = 'none'; // Ensure filter is reset
         } else if (settings.fitMode === 'contain') {
           if (imageRatio > canvasRatio) {
             drawWidth = settings.width;
@@ -212,6 +225,7 @@ export const useCanvasPainter = ({
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
           ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           ctx.restore();
+          ctx.filter = 'none'; // Ensure filter is reset
         } else if (settings.fitMode === 'cover') {
           if (imageRatio > canvasRatio) {
             drawHeight = settings.height;
@@ -227,6 +241,7 @@ export const useCanvasPainter = ({
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
           ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           ctx.restore();
+          ctx.filter = 'none'; // Ensure filter is reset
         } else {
           // Stretch
           ctx.save();
@@ -234,6 +249,7 @@ export const useCanvasPainter = ({
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
           ctx.drawImage(image, 0, 0, settings.width, settings.height);
           ctx.restore();
+          ctx.filter = 'none'; // Ensure filter is reset
         }
 
         // Apply Vignette
@@ -247,6 +263,13 @@ export const useCanvasPainter = ({
 
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, settings.width, settings.height);
+        }
+
+        // --- Render Manual Redaction Masks (ON TOP OF IMAGE, BEFORE TEXT/OVERLAYS) ---
+        if (redactionAreas && redactionAreas.length > 0) {
+          redactionAreas.forEach(area => {
+            pixelateRect(ctx, area.x, area.y, area.width, area.height, 8);
+          });
         }
 
         // Pre-calculate lines per block to avoid doing it inside the loop
@@ -438,10 +461,10 @@ export const useCanvasPainter = ({
           textBlocks.forEach(renderTextBlock);
         }
 
-        // Render manual redaction masks
+        // Render manual redaction masks (AFTER EVERYTHING)
         if (redactionAreas && redactionAreas.length > 0) {
           redactionAreas.forEach(area => {
-            pixelateRect(ctx, area.x, area.y, area.width, area.height, 8);
+            pixelateRect(ctx, area.x, area.y, area.width, area.height, 10);
           });
         }
       };
