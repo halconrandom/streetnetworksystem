@@ -321,12 +321,11 @@ export const ScreenshotEditorView: React.FC = () => {
     const scaleX = settings.width / imageSize.width;
     const scaleY = settings.height / imageSize.height;
     const coverScale = Math.max(scaleX, scaleY);
-    setSettings((prev) => ({
-      ...prev,
+    updateSettings({
       imageScale: coverScale,
       imageOffsetX: 0,
       imageOffsetY: 0,
-    }));
+    });
   }, [imageSize.height, imageSize.width, settings.fitMode, settings.height, settings.width]);
 
   const handleClearBlocks = () => {
