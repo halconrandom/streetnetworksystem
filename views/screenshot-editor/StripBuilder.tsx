@@ -99,8 +99,6 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
     const [generating, setGenerating] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
 
-    if (!isOpen) return null;
-
     const toggleItem = (id: string) => {
         setSelectedItemIds(prev =>
             prev.includes(id)
@@ -117,6 +115,8 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
             return result;
         });
     }, []);
+
+    if (!isOpen) return null;
 
     const selectedItems = selectedItemIds
         .map(id => cacheItems.find(item => item.id === id))
@@ -307,8 +307,8 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
                                 onClick={handleCopyToClipboard}
                                 disabled={selectedItems.length === 0 || generating}
                                 className={`flex-1 flex items-center justify-center gap-3 px-6 py-3 text-[11px] font-extrabold uppercase tracking-widest rounded-2xl transition-all shadow-lg transform active:scale-95 border border-white/10 ${copySuccess
-                                        ? 'bg-green-500 text-white'
-                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-white/10 text-white hover:bg-white/20'
                                     }`}
                             >
                                 {copySuccess ? (
