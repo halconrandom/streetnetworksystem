@@ -420,6 +420,67 @@ export const RightColumn: React.FC<RightColumnProps> = ({
         </div>
       )}
 
+      {/* Filters & Post-Process Module */}
+      {visiblePanels.filters && (
+        <div className="bg-terminal-panel/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4 space-y-4 shadow-xl animate-fade-in-up">
+          <div className="text-white font-semibold flex items-center gap-2">
+            <SettingsIcon size={18} className="text-terminal-accent" />
+            Post-Processing & Filters
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { label: 'Brightness', key: 'brightness', min: 0, max: 200, unit: '%' },
+              { label: 'Contrast', key: 'contrast', min: 0, max: 200, unit: '%' },
+              { label: 'Saturation', key: 'saturate', min: 0, max: 200, unit: '%' },
+              { label: 'Sepia', key: 'sepia', min: 0, max: 100, unit: '%' },
+              { label: 'Vignette', key: 'vignette', min: 0, max: 1, step: 0.05, unit: 'p' },
+            ].map((filter) => (
+              <div key={filter.key} className="space-y-1.5">
+                <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 flex justify-between items-center">
+                  {filter.label}
+                  <span className="text-[10px] font-mono text-terminal-accent">
+                    {(settings.filters as any)[filter.key]}{filter.unit === 'p' ? '' : filter.unit}
+                  </span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={filter.min}
+                    max={filter.max}
+                    step={(filter as any).step || 1}
+                    value={(settings.filters as any)[filter.key]}
+                    onChange={(e) => onSettingsChange({
+                      filters: { ...settings.filters, [filter.key]: Number(e.target.value) }
+                    })}
+                    onMouseUp={onCommitHistory}
+                    className="flex-1 accent-terminal-accent h-1"
+                  />
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => {
+                onSettingsChange({
+                  filters: {
+                    brightness: 100,
+                    contrast: 100,
+                    saturate: 100,
+                    sepia: 0,
+                    vignette: 0
+                  }
+                });
+                onCommitHistory();
+              }}
+              className="w-full py-2 text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Snapshot / History Module */}
       {visiblePanels.history && (
         <div className="bg-terminal-panel/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4 space-y-4 shadow-xl animate-fade-in-up" style={{ animationDelay: '0.3s' }}>

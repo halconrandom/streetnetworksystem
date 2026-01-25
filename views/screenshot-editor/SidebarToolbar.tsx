@@ -36,6 +36,8 @@ export const SidebarToolbar: React.FC<SidebarToolbarProps> = ({
         { id: 'colors', icon: Palette, label: 'Color Toolkit', side: 'right' },
         { id: 'content', icon: MessageSquare, label: 'Log Analysis', side: 'right' },
         { id: 'history', icon: Clock, label: 'Save Points & History', side: 'right' },
+        { id: 'filters', icon: Settings, label: 'Post-Processing', side: 'right' },
+        { id: 'stripBuilder', icon: Layers, label: 'Strip Builder', side: 'right' },
     ];
 
     return (

@@ -7,6 +7,7 @@ import { RightColumn } from './screenshot-editor/RightColumn';
 import { CropEditor } from './screenshot-editor/CropEditor';
 import { TopBar } from './screenshot-editor/TopBar';
 import { SidebarToolbar } from './screenshot-editor/SidebarToolbar';
+import { StripBuilder } from './screenshot-editor/StripBuilder';
 import { defaultSettings, defaultTextSettings } from './screenshot-editor/constants';
 // import type { ChatLine, CacheItem, OverlayImage, TextBlock, TextBlockSettings } from './screenshot-editor/types'; // No longer needed directly here
 import { buildLinesFromBlocks, sanitizeChatInput } from './screenshot-editor/utils';
@@ -581,6 +582,11 @@ export const ScreenshotEditorView: React.FC = () => {
           </div>
         </div>
       </div>
+      <StripBuilder
+        isOpen={visiblePanels.stripBuilder}
+        onClose={() => togglePanel('stripBuilder')}
+        cacheItems={cacheItems}
+      />
     </DndProvider>
   );
 };

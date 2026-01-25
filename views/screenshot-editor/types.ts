@@ -98,6 +98,14 @@ export type RedactionArea = {
   height: number;
 };
 
+export type FilterSettings = {
+  brightness: number;
+  contrast: number;
+  saturate: number;
+  vignette: number;
+  sepia: number;
+};
+
 export type EditorSettings = {
   width: number;
   height: number;
@@ -106,4 +114,5 @@ export type EditorSettings = {
   imageRotation: number;
   imageOffsetX: number;
   imageOffsetY: number;
+  filters: FilterSettings;
 };

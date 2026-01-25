@@ -1,9 +1,17 @@
-import type { EditorSettings, TextBlockSettings } from './types';
+import type { EditorSettings, FilterSettings, TextBlockSettings } from './types';
 
 export const CACHE_KEY = 'screenshot_editor_cache_v1';
 export const DEFAULT_COLOR = '#ffffff';
 export const TIMESTAMP_REGEX = /^\s*\[?\d{1,2}:\d{2}:\d{2}\]?\s*/;
 export const CHATLOG_REGEX = /\[Chatlog\]\s*/i;
+
+export const defaultFilterSettings: FilterSettings = {
+  brightness: 100,
+  contrast: 100,
+  saturate: 100,
+  vignette: 0,
+  sepia: 0,
+};
 
 export const defaultSettings: EditorSettings = {
   width: 1920,
@@ -13,6 +21,7 @@ export const defaultSettings: EditorSettings = {
   imageRotation: 0,
   imageOffsetX: 0,
   imageOffsetY: 0,
+  filters: defaultFilterSettings,
 };
 
 export const defaultTextSettings: TextBlockSettings = {

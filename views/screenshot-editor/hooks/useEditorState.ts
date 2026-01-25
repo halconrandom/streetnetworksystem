@@ -135,6 +135,8 @@ export const useEditorState = () => {
         colors: true,
         content: true,
         history: true,
+        filters: true,
+        stripBuilder: false,
     });
 
     const togglePanel = useCallback((panelId: string) => {
