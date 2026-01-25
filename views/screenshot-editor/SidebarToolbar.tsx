@@ -8,21 +8,29 @@ import {
     ChevronLeft,
     ChevronRight,
     Settings,
-    Clock
+    Clock,
+    Shield,
+    Move
 } from '../../components/Icons';
 
 type SidebarToolbarProps = {
     visiblePanels: Record<string, boolean>;
     onTogglePanel: (id: string) => void;
+    activeTool: 'move' | 'redact';
+    onSetTool: (tool: 'move' | 'redact') => void;
 };
 
 export const SidebarToolbar: React.FC<SidebarToolbarProps> = ({
     visiblePanels,
-    onTogglePanel
+    onTogglePanel,
+    activeTool,
+    onSetTool
 }) => {
     const tools = [
         { id: 'source', icon: Image, label: 'Source (Uploads)', side: 'left' },
         { id: 'textEditor', icon: Type, label: 'Text Editor', side: 'left' },
+        { id: 'move', icon: Move, label: 'Selection Tool', side: 'center', isTool: true },
+        { id: 'redact', icon: Shield, label: 'Redaction Mask', side: 'center', isTool: true },
         { id: 'layers', icon: Layers, label: 'Layers & Depth', side: 'right' },
         { id: 'canvas', icon: Settings, label: 'Canvas Configuration', side: 'right' },
         { id: 'colors', icon: Palette, label: 'Color Toolkit', side: 'right' },
@@ -35,11 +43,11 @@ export const SidebarToolbar: React.FC<SidebarToolbarProps> = ({
             <div className="flex flex-col gap-2">
                 {tools.map((tool) => {
                     const Icon = tool.icon;
-                    const isActive = visiblePanels[tool.id];
+                    const isActive = tool.isTool ? (activeTool === tool.id) : visiblePanels[tool.id];
                     return (
                         <button
                             key={tool.id}
-                            onClick={() => onTogglePanel(tool.id)}
+                            onClick={() => tool.isTool ? onSetTool(tool.id as any) : onTogglePanel(tool.id)}
                             className={`group relative p-3 rounded-xl transition-all duration-300 ${isActive
                                 ? 'bg-terminal-accent text-black shadow-[0_0_15px_rgba(var(--accent-rgb),0.4)] scale-105'
                                 : 'text-white/40 hover:text-white hover:bg-white/5'

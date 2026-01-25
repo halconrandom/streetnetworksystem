@@ -1,76 +1,137 @@
 import { useEffect, useRef } from 'react';
 import { defaultTextSettings, DEFAULT_COLOR } from '../constants';
-import type { ChatLine, EditorSettings, OverlayImage, TextBlock } from '../types';
+import type { ChatLine, EditorSettings, OverlayImage, RedactionArea, TextBlock } from '../types';
 import { colorWithAlpha, parseChatLines } from '../utils';
+
+type RedactionRegion = {
+  startX: number;
+  width: number;
+};
 
 type RenderLine = {
   text: string;
   color: string;
+  redactions?: RedactionRegion[];
 };
 
-const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number) => {
-  if (!text) return [''];
-  if (maxWidth <= 0) return [text];
+const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, size: number = 5) => {
+  if (w <= 0 || h <= 0) return;
+  try {
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
 
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let current = '';
+    // Scale down - ensure at least 1px
+    const sw = Math.max(1, Math.ceil(w / size));
+    const sh = Math.max(1, Math.ceil(h / size));
+    tempCanvas.width = sw;
+    tempCanvas.height = sh;
 
-  const pushCurrent = () => {
-    if (current) lines.push(current);
-    current = '';
-  };
+    tempCtx.imageSmoothingEnabled = false;
+    tempCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, sw, sh);
 
-  const splitWord = (word: string) => {
-    let chunk = '';
-    for (const char of word) {
-      const test = chunk + char;
-      if (ctx.measureText(test).width > maxWidth && chunk) {
-        lines.push(chunk);
-        chunk = char;
-      } else {
-        chunk = test;
-      }
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(tempCanvas, 0, 0, sw, sh, x, y, w, h);
+    ctx.restore();
+  } catch (e) {
+    console.warn('Pixelation failed', e);
+  }
+};
+
+const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number): { text: string; redactions: RedactionRegion[] }[] => {
+  if (!text) return [{ text: '', redactions: [] }];
+  if (maxWidth <= 0) return [{ text, redactions: [] }];
+
+  const MARKER = '//';
+  const words = text.split(/(\s+)/); // Keep spaces
+  const lines: { text: string; redactions: RedactionRegion[] }[] = [];
+  let currentText = '';
+  let inRedaction = false;
+  let redactionStartPos: number | null = null;
+  let currentRedactions: RedactionRegion[] = [];
+
+  const pushLine = () => {
+    lines.push({ text: currentText, redactions: [...currentRedactions] });
+    currentText = '';
+    currentRedactions = [];
+    if (inRedaction) {
+      redactionStartPos = 0;
     }
-    return chunk;
   };
 
   words.forEach((word) => {
-    if (!current) {
-      if (ctx.measureText(word).width <= maxWidth) {
-        current = word;
-      } else {
-        current = splitWord(word);
-      }
-      return;
-    }
+    if (!word) return;
 
-    const test = `${current} ${word}`;
-    if (ctx.measureText(test).width <= maxWidth) {
-      current = test;
-    } else {
-      pushCurrent();
-      if (ctx.measureText(word).width <= maxWidth) {
-        current = word;
+    for (let i = 0; i < word.length; i++) {
+      const nextTwo = word.substring(i, i + 2);
+
+      if (nextTwo === MARKER) {
+        if (!inRedaction) {
+          inRedaction = true;
+          redactionStartPos = ctx.measureText(currentText).width;
+        } else {
+          const redactionEndPos = ctx.measureText(currentText).width;
+          if (redactionEndPos > (redactionStartPos ?? 0)) {
+            currentRedactions.push({
+              startX: redactionStartPos!,
+              width: redactionEndPos - redactionStartPos!
+            });
+          }
+          inRedaction = false;
+          redactionStartPos = null;
+        }
+        i++; // skip next char of marker
+        continue;
+      }
+
+      const char = word[i];
+      const testText = currentText + char;
+
+      if (ctx.measureText(testText).width > maxWidth && currentText && !(/\s/.test(char))) {
+        if (inRedaction) {
+          const redactionEndPos = ctx.measureText(currentText).width;
+          if (redactionEndPos > (redactionStartPos ?? 0)) {
+            currentRedactions.push({
+              startX: redactionStartPos!,
+              width: redactionEndPos - redactionStartPos!
+            });
+          }
+        }
+        pushLine();
+        currentText = char;
+        if (inRedaction) redactionStartPos = 0;
       } else {
-        current = splitWord(word);
+        currentText += char;
       }
     }
   });
 
-  pushCurrent();
-  return lines.length > 0 ? lines : [''];
+  if (inRedaction) {
+    const redactionEndPos = ctx.measureText(currentText).width;
+    if (redactionEndPos > (redactionStartPos ?? 0)) {
+      currentRedactions.push({
+        startX: redactionStartPos!,
+        width: redactionEndPos - redactionStartPos!
+      });
+    }
+  }
+  pushLine();
+
+  return lines;
 };
 
-const wrapChatLines = (ctx: CanvasRenderingContext2D, lines: ChatLine[], maxWidth: number): RenderLine[] => {
+const wrapChatLines = (ctx: CanvasRenderingContext2D, chatLines: ChatLine[], maxWidth: number): RenderLine[] => {
   const wrapped: RenderLine[] = [];
-  lines.forEach((line) => {
-    wrapText(ctx, line.text, maxWidth).forEach((text) => {
-      wrapped.push({ text, color: line.color });
+  chatLines.forEach((line) => {
+    wrapText(ctx, line.text, maxWidth).forEach((res) => {
+      wrapped.push({ text: res.text, color: line.color, redactions: res.redactions });
     });
   });
   return wrapped;
 };
+
+
 
 type UseCanvasPainterProps = {
   canvasRef: React.RefObject<HTMLCanvasElement>;
@@ -80,6 +141,7 @@ type UseCanvasPainterProps = {
   visibleLines: ChatLine[];
   overlays: OverlayImage[];
   layerOrder?: string[];
+  redactionAreas: RedactionArea[];
 };
 
 export const useCanvasPainter = ({
@@ -90,6 +152,7 @@ export const useCanvasPainter = ({
   visibleLines,
   overlays,
   layerOrder,
+  redactionAreas,
 }: UseCanvasPainterProps) => {
   const overlayImageCacheRef = useRef<Record<string, HTMLImageElement>>({});
 
@@ -307,6 +370,14 @@ export const useCanvasPainter = ({
               ctx.strokeText(line.text, localBaseX, lineTopY);
             }
             ctx.fillText(line.text, localBaseX, lineTopY);
+
+            // Apply redactions (Pixelate)
+            if (line.redactions && line.redactions.length > 0) {
+              line.redactions.forEach(reg => {
+                const pixelSize = Math.max(3, Math.floor(fontHeight / 3));
+                pixelateRect(ctx, localBaseX + reg.startX, lineTopY, reg.width, fontHeight, pixelSize);
+              });
+            }
           });
           ctx.restore();
         };
@@ -337,13 +408,20 @@ export const useCanvasPainter = ({
           overlays.forEach(renderOverlay);
           textBlocks.forEach(renderTextBlock);
         }
+
+        // Render manual redaction masks
+        if (redactionAreas && redactionAreas.length > 0) {
+          redactionAreas.forEach(area => {
+            pixelateRect(ctx, area.x, area.y, area.width, area.height, 8);
+          });
+        }
       };
 
       image.src = imageDataUrl;
     };
 
     drawCanvas();
-  }, [imageDataUrl, settings, textBlocks, visibleLines, overlays, layerOrder]);
+  }, [imageDataUrl, settings, textBlocks, visibleLines, overlays, layerOrder, redactionAreas]);
 
   return {
     invalidateCache: (id: string) => {

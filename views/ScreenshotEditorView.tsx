@@ -54,7 +54,9 @@ export const ScreenshotEditorView: React.FC = () => {
     setActiveCropOverlayId,
     canUndo,
     canRedo,
-    visiblePanels
+    visiblePanels,
+    redactionAreas,
+    activeTool
   } = state;
 
   const { visibleLines } = computed;
@@ -63,7 +65,8 @@ export const ScreenshotEditorView: React.FC = () => {
     addOverlay, removeOverlay, updateOverlay,
     addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
     addNameInput, removeNameInput, updateNameInput,
-    undo, redo, commitHistory, togglePanel
+    undo, redo, commitHistory, togglePanel,
+    addRedactionArea, removeRedactionArea, setActiveTool
   } = actions;
 
   const { invalidateCache } = useCanvasPainter({
@@ -74,6 +77,7 @@ export const ScreenshotEditorView: React.FC = () => {
     visibleLines,
     overlays,
     layerOrder,
+    redactionAreas,
   });
 
 
@@ -350,6 +354,8 @@ export const ScreenshotEditorView: React.FC = () => {
           <SidebarToolbar
             visiblePanels={visiblePanels}
             onTogglePanel={togglePanel}
+            activeTool={activeTool}
+            onSetTool={setActiveTool}
           />
 
           <div
@@ -523,6 +529,10 @@ export const ScreenshotEditorView: React.FC = () => {
                   onCopy={handleCopy}
                   onSaveCache={addToCache}
                   onCommitHistory={commitHistory}
+                  activeTool={activeTool}
+                  onAddRedactionArea={addRedactionArea}
+                  onRemoveRedactionArea={removeRedactionArea}
+                  redactionAreas={redactionAreas}
                 />
               )}
             </div>

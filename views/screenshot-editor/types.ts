@@ -17,6 +17,7 @@ export type CacheItem = {
   lines: ChatLine[];
   settings: EditorSettings;
   layerOrder?: string[];
+  redactionAreas?: RedactionArea[];
 };
 
 export type FitMode = 'contain' | 'cover' | 'stretch' | 'crop';
@@ -87,6 +88,14 @@ export type OverlayImage = {
 export type LayerItem = {
   id: string;
   type: 'text' | 'overlay';
+};
+
+export type RedactionArea = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 export type EditorSettings = {

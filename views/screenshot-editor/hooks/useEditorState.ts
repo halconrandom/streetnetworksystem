@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings } from '../constants';
-import type { CacheItem, ChatLine, EditorSettings, OverlayImage, TextBlock, TextBlockSettings } from '../types';
+import type { CacheItem, ChatLine, EditorSettings, OverlayImage, RedactionArea, TextBlock, TextBlockSettings } from '../types';
 import { buildLinesFromBlocks, getCombinedText, readCache, writeCache } from '../utils';
 import { useHistory } from './useHistory';
 
@@ -9,6 +9,7 @@ export type EditorSnapshot = {
     overlays: OverlayImage[];
     settings: EditorSettings;
     layerOrder: string[];
+    redactionAreas: RedactionArea[];
 };
 
 export const useEditorState = () => {
@@ -36,6 +37,7 @@ export const useEditorState = () => {
         overlays: [],
         settings: defaultSettings,
         layerOrder: [initialBlockId],
+        redactionAreas: [],
     };
 
     const {
@@ -54,6 +56,8 @@ export const useEditorState = () => {
     const [overlays, setOverlays] = useState<OverlayImage[]>(initialSnapshot.overlays);
     const [settings, setSettings] = useState<EditorSettings>(initialSnapshot.settings);
     const [layerOrder, setLayerOrder] = useState<string[]>(initialSnapshot.layerOrder);
+    const [redactionAreas, setRedactionAreas] = useState<RedactionArea[]>(initialSnapshot.redactionAreas);
+    const [activeTool, setActiveTool] = useState<'move' | 'redact'>('move');
 
     const [lines, setLines] = useState<ChatLine[]>([]);
     const [filterText, setFilterText] = useState<string>('');
@@ -64,6 +68,7 @@ export const useEditorState = () => {
         setOverlays(historyState.overlays);
         setSettings(historyState.settings);
         setLayerOrder(historyState.layerOrder);
+        setRedactionAreas(historyState.redactionAreas);
     }, [historyState]);
 
     /**
@@ -79,8 +84,9 @@ export const useEditorState = () => {
             overlays,
             settings,
             layerOrder,
+            redactionAreas,
         });
-    }, [textBlocks, overlays, settings, layerOrder, pushHistory]);
+    }, [textBlocks, overlays, settings, layerOrder, redactionAreas, pushHistory]);
 
     /**
      * Atomically updates state and pushes to history.
@@ -91,16 +97,18 @@ export const useEditorState = () => {
             textBlocks,
             overlays,
             settings,
-            layerOrder
+            layerOrder,
+            redactionAreas,
         });
         // Update local state immediately for UI snappiness
         setTextBlocks(next.textBlocks);
         setOverlays(next.overlays);
         setSettings(next.settings);
         setLayerOrder(next.layerOrder);
+        setRedactionAreas(next.redactionAreas);
         // Push to history
         pushHistory(next);
-    }, [textBlocks, overlays, settings, layerOrder, pushHistory]);
+    }, [textBlocks, overlays, settings, layerOrder, redactionAreas, pushHistory]);
 
     const [zoom, setZoom] = useState<number>(1);
     const [autoFit, setAutoFit] = useState<boolean>(true);
@@ -193,6 +201,7 @@ export const useEditorState = () => {
             lines,
             settings,
             layerOrder,
+            redactionAreas,
         };
         const next = [item, ...cacheItems].slice(0, 5);
         setCacheItems(next);
@@ -242,7 +251,8 @@ export const useEditorState = () => {
             textBlocks: nextBlocks,
             overlays: nextOverlays,
             settings: nextSettings,
-            layerOrder: nextOrder
+            layerOrder: nextOrder,
+            redactionAreas: item.redactionAreas ?? []
         };
 
         resetHistory(snapshot);
@@ -251,6 +261,7 @@ export const useEditorState = () => {
         setOverlays(snapshot.overlays);
         setSettings(snapshot.settings);
         setLayerOrder(snapshot.layerOrder);
+        setRedactionAreas(snapshot.redactionAreas);
         setLines(item.lines);
         setAutoFit(true);
     };
@@ -371,6 +382,22 @@ export const useEditorState = () => {
             overlays: [],
             settings: defaultSettings,
             layerOrder: [id],
+            redactionAreas: [],
+        }));
+    };
+
+    const addRedactionArea = (area: Omit<RedactionArea, 'id'>) => {
+        const newArea = { ...area, id: `redact-${Date.now()}` };
+        performAction(prev => ({
+            ...prev,
+            redactionAreas: [...prev.redactionAreas, newArea]
+        }));
+    };
+
+    const removeRedactionArea = (id: string) => {
+        performAction(prev => ({
+            ...prev,
+            redactionAreas: prev.redactionAreas.filter(a => a.id !== id)
         }));
     };
 
@@ -408,7 +435,9 @@ export const useEditorState = () => {
             dragState, setDragState,
             overlayDragState, setOverlayDragState,
             imageDragState, setImageDragState,
-            canUndo, canRedo
+            canUndo, canRedo,
+            redactionAreas, setRedactionAreas,
+            activeTool, setActiveTool
         },
         computed: { visibleLines },
         actions: {
@@ -417,7 +446,8 @@ export const useEditorState = () => {
             addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
             reorderLayers, toggleLayerVisibility, toggleLayerLock,
             addNameInput, removeNameInput, updateNameInput,
-            undo, redo, commitHistory, togglePanel, clearAll
+            undo, redo, commitHistory, togglePanel, clearAll,
+            addRedactionArea, removeRedactionArea, setActiveTool
         }
     };
 };
