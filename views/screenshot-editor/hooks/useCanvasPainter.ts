@@ -120,6 +120,16 @@ export const useCanvasPainter = ({
           drawHeight = image.height * settings.imageScale;
           offsetX = (settings.width - drawWidth) / 2 + settings.imageOffsetX;
           offsetY = (settings.height - drawHeight) / 2 + settings.imageOffsetY;
+
+          if (settings.imageRotation !== 0) {
+            ctx.save();
+            ctx.translate(offsetX + drawWidth / 2, offsetY + drawHeight / 2);
+            ctx.rotate((settings.imageRotation * Math.PI) / 180);
+            ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            ctx.restore();
+          } else {
+            ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+          }
         } else if (settings.fitMode === 'contain') {
           if (imageRatio > canvasRatio) {
             drawWidth = settings.width;
@@ -130,6 +140,7 @@ export const useCanvasPainter = ({
             drawWidth = settings.height * imageRatio;
             offsetX = (settings.width - drawWidth) / 2;
           }
+          ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
         } else if (settings.fitMode === 'cover') {
           if (imageRatio > canvasRatio) {
             drawHeight = settings.height;
@@ -140,9 +151,11 @@ export const useCanvasPainter = ({
             drawHeight = settings.width / imageRatio;
             offsetY = (settings.height - drawHeight) / 2;
           }
+          ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+        } else {
+          // Stretch
+          ctx.drawImage(image, 0, 0, settings.width, settings.height);
         }
-
-        ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 
         // Pre-calculate lines per block to avoid doing it inside the loop
         const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {

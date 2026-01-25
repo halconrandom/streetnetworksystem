@@ -49,6 +49,7 @@ export const useEditorState = () => {
     } = useHistory<EditorSnapshot>(initialSnapshot);
 
     // Snapshot state (synced with history)
+    // We keep these for reactive UI, but we must ensure they are ALWAYS in sync with historyState
     const [textBlocks, setTextBlocks] = useState<TextBlock[]>(initialSnapshot.textBlocks);
     const [overlays, setOverlays] = useState<OverlayImage[]>(initialSnapshot.overlays);
     const [settings, setSettings] = useState<EditorSettings>(initialSnapshot.settings);
@@ -57,7 +58,7 @@ export const useEditorState = () => {
     const [lines, setLines] = useState<ChatLine[]>([]);
     const [filterText, setFilterText] = useState<string>('');
 
-    // Sync from history when undo/redo occurs
+    // Sync local state from history (Undo/Redo or Pushes)
     useEffect(() => {
         setTextBlocks(historyState.textBlocks);
         setOverlays(historyState.overlays);
@@ -65,7 +66,14 @@ export const useEditorState = () => {
         setLayerOrder(historyState.layerOrder);
     }, [historyState]);
 
+    /**
+     * Commits the current local state to history.
+     * This should be used for CONTINUOUS updates (like dragging) AFTER they finish.
+     */
     const commitHistory = useCallback(() => {
+        // We use functional style or just hope closure is fresh enough.
+        // During a drag, closures might be stale if we don't re-render.
+        // But drag updates trigger re-renders, so closure should be fresh on MouseUp.
         pushHistory({
             textBlocks,
             overlays,
@@ -73,6 +81,27 @@ export const useEditorState = () => {
             layerOrder,
         });
     }, [textBlocks, overlays, settings, layerOrder, pushHistory]);
+
+    /**
+     * Atomically updates state and pushes to history.
+     * Prevents race conditions with the sync useEffect.
+     */
+    const performAction = useCallback((update: (prev: EditorSnapshot) => EditorSnapshot) => {
+        const next = update({
+            textBlocks,
+            overlays,
+            settings,
+            layerOrder
+        });
+        // Update local state immediately for UI snappiness
+        setTextBlocks(next.textBlocks);
+        setOverlays(next.overlays);
+        setSettings(next.settings);
+        setLayerOrder(next.layerOrder);
+        // Push to history
+        pushHistory(next);
+    }, [textBlocks, overlays, settings, layerOrder, pushHistory]);
+
     const [zoom, setZoom] = useState<number>(1);
     const [autoFit, setAutoFit] = useState<boolean>(true);
     const [colorPicker, setColorPicker] = useState<string>('#ffffff');
@@ -88,6 +117,21 @@ export const useEditorState = () => {
         { id: 'default', name: '' }
     ]);
     const [activeCropOverlayId, setActiveCropOverlayId] = useState<string | null>(null);
+
+    // Modular Workspace State
+    const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>({
+        source: true,
+        textEditor: true,
+        layers: true,
+        canvas: true,
+        colors: true,
+        content: true,
+        history: true,
+    });
+
+    const togglePanel = useCallback((panelId: string) => {
+        setVisiblePanels(prev => ({ ...prev, [panelId]: !prev[panelId] }));
+    }, []);
 
     const panStateRef = useRef<{
         startX: number;
@@ -158,59 +202,56 @@ export const useEditorState = () => {
     const loadCache = (item: CacheItem) => {
         setImageDataUrl(item.imageDataUrl);
         setImageName(item.name);
-        if (item.textBlocks && item.textBlocks.length > 0) {
-            setTextBlocks(
-                item.textBlocks.map((block) => ({
-                    ...block,
-                    settings: { ...defaultTextSettings, ...(block.settings ?? {}) },
-                    collapsed: false,
-                    settingsOpen: block.settingsOpen ?? false,
-                    advancedOpen: block.advancedOpen ?? false,
-                    visible: block.visible ?? true,
-                    locked: block.locked ?? false,
-                    name: block.name || `Text Block`,
-                }))
-            );
-        } else {
-            const fallback = item.chatInput ?? '';
-            const newId = `${Date.now()}`;
-            setTextBlocks([
-                {
-                    id: newId,
-                    text: fallback,
-                    settings: { ...defaultTextSettings },
-                    collapsed: false,
-                    settingsOpen: false,
-                    advancedOpen: false,
-                    visible: true,
-                    locked: false,
-                    name: 'Text Block 1',
-                },
-            ]);
-            // If we are falling back, we might need to reset layerOrder, but likely item.layerOrder exists
-        }
+
+        const nextBlocks = item.textBlocks && item.textBlocks.length > 0
+            ? item.textBlocks.map((block) => ({
+                ...block,
+                settings: { ...defaultTextSettings, ...(block.settings ?? {}) },
+                collapsed: block.collapsed ?? false,
+                settingsOpen: block.settingsOpen ?? false,
+                advancedOpen: block.advancedOpen ?? false,
+                visible: block.visible ?? true,
+                locked: block.locked ?? false,
+                name: block.name || `Text Block`,
+            }))
+            : [{
+                id: `${Date.now()}`,
+                text: item.chatInput ?? '',
+                settings: { ...defaultTextSettings },
+                collapsed: false,
+                settingsOpen: false,
+                advancedOpen: false,
+                visible: true,
+                locked: false,
+                name: 'Text Block 1',
+            }];
+
+        const nextOverlays = (item.overlays ?? []).map(o => ({
+            ...o,
+            visible: o.visible ?? true,
+            locked: o.locked ?? false
+        }));
+
+        const nextSettings = { ...defaultSettings, ...item.settings };
+
+        const nextOrder = (item.layerOrder && item.layerOrder.length > 0)
+            ? item.layerOrder
+            : [...nextOverlays.map(o => o.id), ...nextBlocks.map(b => b.id)];
+
+        const snapshot: EditorSnapshot = {
+            textBlocks: nextBlocks,
+            overlays: nextOverlays,
+            settings: nextSettings,
+            layerOrder: nextOrder
+        };
+
+        resetHistory(snapshot);
+        // Explicitly sync local state to avoid waiting for useEffect
+        setTextBlocks(snapshot.textBlocks);
+        setOverlays(snapshot.overlays);
+        setSettings(snapshot.settings);
+        setLayerOrder(snapshot.layerOrder);
         setLines(item.lines);
-        setSettings({ ...defaultSettings, ...item.settings });
-        const loadedOverlays = item.overlays ?? [];
-        setOverlays(loadedOverlays.map(o => ({ ...o, visible: o.visible ?? true, locked: o.locked ?? false })));
-
-        // Restore layerOrder or rebuild it
-        if (item.layerOrder && item.layerOrder.length > 0) {
-            setLayerOrder(item.layerOrder);
-        } else {
-            // Rebuild simplistic order: Text on top, Overlays below
-            const blockIds = (item.textBlocks || []).map(b => b.id);
-            if (blockIds.length === 0 && item.chatInput) {
-                // We created a fallback block with newId, but we didn't capture it easily above. 
-                // Actually the `setTextBlocks` above uses state setter, we don't have the value immediately.
-                // This is a bit tricky. For now, valid cache should have layerOrder. 
-                // If invalid, the next render cycle might be slightly off or we just rely on future updates.
-                // Let's iterate the *source* item blocks
-            }
-            const overlayIds = (item.overlays || []).map(o => o.id);
-            setLayerOrder([...overlayIds, ...((item.textBlocks || []).map(b => b.id))]);
-        }
-
         setAutoFit(true);
     };
 
@@ -220,62 +261,80 @@ export const useEditorState = () => {
         writeCache(CACHE_KEY, next);
     };
 
-    // Actions
+    // Atomic Actions
     const addOverlay = (newOverlay: OverlayImage) => {
-        setOverlays(prev => [...prev, newOverlay]);
-        setLayerOrder(prev => [...prev, newOverlay.id]); // Add to top
+        performAction(prev => ({
+            ...prev,
+            overlays: [...prev.overlays, newOverlay],
+            layerOrder: [...prev.layerOrder, newOverlay.id]
+        }));
     };
 
     const removeOverlay = (id: string) => {
-        setOverlays(prev => prev.filter(o => o.id !== id));
-        setLayerOrder(prev => prev.filter(lid => lid !== id));
+        performAction(prev => ({
+            ...prev,
+            overlays: prev.overlays.filter(o => o.id !== id),
+            layerOrder: prev.layerOrder.filter(lid => lid !== id)
+        }));
     };
 
     const addTextBlock = () => {
-        const id = `${Date.now()}-${textBlocks.length}`;
-        const newBlock: TextBlock = {
-            id,
-            text: '',
-            settings: { ...defaultTextSettings },
-            collapsed: false,
-            settingsOpen: false,
-            advancedOpen: false,
-            visible: true,
-            locked: false,
-            name: `Text Block ${textBlocks.length + 1}`,
-        };
-        setTextBlocks(prev => [...prev, newBlock]);
-        setLayerOrder(prev => [...prev, id]);
+        performAction(prev => {
+            const id = `${Date.now()}-${prev.textBlocks.length}`;
+            const newBlock: TextBlock = {
+                id,
+                text: '',
+                settings: { ...defaultTextSettings },
+                collapsed: false,
+                settingsOpen: false,
+                advancedOpen: false,
+                visible: true,
+                locked: false,
+                name: `Text Block ${prev.textBlocks.length + 1}`,
+            };
+            return {
+                ...prev,
+                textBlocks: [...prev.textBlocks, newBlock],
+                layerOrder: [...prev.layerOrder, id]
+            };
+        });
     };
 
     const removeTextBlock = (id: string) => {
-        setTextBlocks(prev => prev.filter(b => b.id !== id));
-        setLayerOrder(prev => prev.filter(lid => lid !== id));
+        performAction(prev => ({
+            ...prev,
+            textBlocks: prev.textBlocks.filter(b => b.id !== id),
+            layerOrder: prev.layerOrder.filter(lid => lid !== id)
+        }));
     };
 
     const reorderLayers = (startIndex: number, endIndex: number) => {
-        setLayerOrder(prev => {
-            const result = Array.from(prev);
-            const [removed] = result.splice(startIndex, 1);
-            result.splice(endIndex, 0, removed);
-            return result;
+        performAction(prev => {
+            const nextOrder = Array.from(prev.layerOrder);
+            const [removed] = nextOrder.splice(startIndex, 1);
+            nextOrder.splice(endIndex, 0, removed);
+            return { ...prev, layerOrder: nextOrder };
         });
     };
 
     const toggleLayerVisibility = (id: string, type: 'text' | 'overlay') => {
-        if (type === 'text') {
-            setTextBlocks(prev => prev.map(b => b.id === id ? { ...b, visible: !(b.visible ?? true) } : b));
-        } else {
-            setOverlays(prev => prev.map(o => o.id === id ? { ...o, visible: !(o.visible ?? true) } : o));
-        }
+        performAction(prev => {
+            if (type === 'text') {
+                return { ...prev, textBlocks: prev.textBlocks.map(b => b.id === id ? { ...b, visible: !(b.visible ?? true) } : b) };
+            } else {
+                return { ...prev, overlays: prev.overlays.map(o => o.id === id ? { ...o, visible: !(o.visible ?? true) } : o) };
+            }
+        });
     };
 
     const toggleLayerLock = (id: string, type: 'text' | 'overlay') => {
-        if (type === 'text') {
-            setTextBlocks(prev => prev.map(b => b.id === id ? { ...b, locked: !(b.locked ?? false) } : b));
-        } else {
-            setOverlays(prev => prev.map(o => o.id === id ? { ...o, locked: !(o.locked ?? false) } : o));
-        }
+        performAction(prev => {
+            if (type === 'text') {
+                return { ...prev, textBlocks: prev.textBlocks.map(b => b.id === id ? { ...b, locked: !(b.locked ?? false) } : b) };
+            } else {
+                return { ...prev, overlays: prev.overlays.map(o => o.id === id ? { ...o, locked: !(o.locked ?? false) } : o) };
+            }
+        });
     };
 
     const updateOverlay = (id: string, update: Partial<OverlayImage>) => {
@@ -286,7 +345,6 @@ export const useEditorState = () => {
         setTextBlocks(prev => prev.map(b => b.id === id ? { ...b, ...update } : b));
     };
 
-    // Helper for updating settings specifically, though updateTextBlock could handle it if we passed the whole settings object
     const updateTextBlockSettings = (id: string, settingsUpdate: Partial<TextBlock['settings']>) => {
         setTextBlocks(prev => prev.map(b => b.id === id ? {
             ...b,
@@ -294,17 +352,31 @@ export const useEditorState = () => {
         } : b));
     };
 
-    const addNameInput = () => {
-        setNameInputs(prev => [...prev, { id: `${Date.now()}`, name: '' }]);
+    const clearAll = () => {
+        const id = `${Date.now()}`;
+        performAction(() => ({
+            textBlocks: [
+                {
+                    id,
+                    text: '',
+                    settings: { ...defaultTextSettings },
+                    collapsed: false,
+                    settingsOpen: false,
+                    advancedOpen: false,
+                    visible: true,
+                    locked: false,
+                    name: 'Text Block 1',
+                },
+            ],
+            overlays: [],
+            settings: defaultSettings,
+            layerOrder: [id],
+        }));
     };
 
-    const removeNameInput = (id: string) => {
-        setNameInputs(prev => prev.filter(n => n.id !== id));
-    };
-
-    const updateNameInput = (id: string, name: string) => {
-        setNameInputs(prev => prev.map(n => n.id === id ? { ...n, name } : n));
-    };
+    const addNameInput = () => setNameInputs(prev => [...prev, { id: `${Date.now()}`, name: '' }]);
+    const removeNameInput = (id: string) => setNameInputs(prev => prev.filter(n => n.id !== id));
+    const updateNameInput = (id: string, name: string) => setNameInputs(prev => prev.map(n => n.id === id ? { ...n, name } : n));
 
     return {
         state: {
@@ -331,35 +403,21 @@ export const useEditorState = () => {
             isPreviewHover, setIsPreviewHover,
             nameInputs, setNameInputs,
             activeCropOverlayId, setActiveCropOverlayId,
+            visiblePanels, setVisiblePanels,
             panStateRef,
             dragState, setDragState,
             overlayDragState, setOverlayDragState,
             imageDragState, setImageDragState,
             canUndo, canRedo
         },
-        computed: {
-            visibleLines
-        },
+        computed: { visibleLines },
         actions: {
-            addToCache,
-            loadCache,
-            removeCache,
-            addOverlay,
-            removeOverlay,
-            updateOverlay,
-            addTextBlock,
-            removeTextBlock,
-            updateTextBlock,
-            updateTextBlockSettings,
-            reorderLayers,
-            toggleLayerVisibility,
-            toggleLayerLock,
-            addNameInput,
-            removeNameInput,
-            updateNameInput,
-            undo,
-            redo,
-            commitHistory
+            addToCache, loadCache, removeCache,
+            addOverlay, removeOverlay, updateOverlay,
+            addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+            reorderLayers, toggleLayerVisibility, toggleLayerLock,
+            addNameInput, removeNameInput, updateNameInput,
+            undo, redo, commitHistory, togglePanel, clearAll
         }
     };
 };

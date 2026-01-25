@@ -43,6 +43,7 @@ export type TextBlockSettings = {
   textOffsetY: number;
   textBoxWidth: number;
   textRotation: number;
+  align: 'left' | 'center' | 'right';
   backdropEnabled: boolean;
   backdropMode: BackdropMode;
   backdropPadding: number;
@@ -93,6 +94,7 @@ export type EditorSettings = {
   height: number;
   fitMode: FitMode;
   imageScale: number;
+  imageRotation: number;
   imageOffsetX: number;
   imageOffsetY: number;
 };

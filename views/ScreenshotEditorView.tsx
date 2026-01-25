@@ -6,6 +6,7 @@ import { LeftColumn } from './screenshot-editor/LeftColumn';
 import { RightColumn } from './screenshot-editor/RightColumn';
 import { CropEditor } from './screenshot-editor/CropEditor';
 import { TopBar } from './screenshot-editor/TopBar';
+import { SidebarToolbar } from './screenshot-editor/SidebarToolbar';
 import { defaultSettings, defaultTextSettings } from './screenshot-editor/constants';
 // import type { ChatLine, CacheItem, OverlayImage, TextBlock, TextBlockSettings } from './screenshot-editor/types'; // No longer needed directly here
 import { buildLinesFromBlocks, sanitizeChatInput } from './screenshot-editor/utils';
@@ -52,7 +53,8 @@ export const ScreenshotEditorView: React.FC = () => {
     activeCropOverlayId,
     setActiveCropOverlayId,
     canUndo,
-    canRedo
+    canRedo,
+    visiblePanels
   } = state;
 
   const { visibleLines } = computed;
@@ -61,7 +63,7 @@ export const ScreenshotEditorView: React.FC = () => {
     addOverlay, removeOverlay, updateOverlay,
     addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
     addNameInput, removeNameInput, updateNameInput,
-    undo, redo, commitHistory
+    undo, redo, commitHistory, togglePanel
   } = actions;
 
   const { invalidateCache } = useCanvasPainter({
@@ -133,7 +135,6 @@ export const ScreenshotEditorView: React.FC = () => {
       img.src = result;
     };
     reader.readAsDataURL(file);
-    setTimeout(commitHistory, 100); // Small delay to let state update
   };
 
   const handleChatFile = (file: File) => {
@@ -170,7 +171,6 @@ export const ScreenshotEditorView: React.FC = () => {
           visible: true,
           locked: false
         });
-        setTimeout(commitHistory, 100);
       };
       img.src = result;
     };
@@ -325,17 +325,12 @@ export const ScreenshotEditorView: React.FC = () => {
   }, [imageSize.height, imageSize.width, settings.fitMode, settings.height, settings.width]);
 
   const handleClearBlocks = () => {
-    setTextBlocks([
-      {
-        id: `${Date.now()}`,
-        text: '',
-        settings: { ...defaultTextSettings },
-        collapsed: false,
-        settingsOpen: false,
-        advancedOpen: false,
-      },
-    ]);
+    actions.clearAll();
   };
+  // Calculate Column Visibility
+  const showLeftSidebar = visiblePanels.source || visiblePanels.textEditor;
+  const showRightSidebar = visiblePanels.layers || visiblePanels.canvas || visiblePanels.colors || visiblePanels.content || visiblePanels.history;
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="p-6 md:p-8 h-full min-h-0 flex flex-col gap-6 animate-fade-in-up">
@@ -349,195 +344,231 @@ export const ScreenshotEditorView: React.FC = () => {
             onClear={handleClearBlocks}
           />
         )}
-        <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[340px_1fr_320px] gap-6">
-          <LeftColumn
-            onImageFile={handleImageFile}
-            onChatFile={handleChatFile}
-            overlays={overlays}
-            onOverlayFile={handleOverlayFile}
-            onUpdateOverlay={(id, update) => updateOverlay(id, update)}
-            onRemoveOverlay={(id) => { removeOverlay(id); invalidateCache(id); commitHistory(); }}
-            nameInputs={nameInputs}
-            onAddNameInput={addNameInput}
-            onRemoveNameInput={removeNameInput}
-            onUpdateNameInput={updateNameInput}
-            onAppendToBlock={appendToBlock}
-            textBlocks={textBlocks}
-            onUpdateBlock={updateBlock}
-            onUpdateBlockSettings={updateBlockSettingsWrapper}
-            onAddBlock={() => { handleAddBlock(); commitHistory(); }}
-            onRemoveBlock={(id) => { removeTextBlock(id); commitHistory(); }}
-            onToggleBlockSettings={toggleBlockSettings}
-            onToggleBlockCollapsed={toggleBlockCollapsed}
-            onToggleBlockAdvanced={toggleBlockAdvanced}
-            onSetActiveBlockId={setActiveBlockId}
-            width={settings.width}
-            height={settings.height}
-            filterText={filterText}
-            onFilterTextChange={setFilterText}
-            onParseChat={handleParseChat}
-            onClearBlocks={() => { handleClearBlocks(); commitHistory(); }}
-            activeCropOverlayId={activeCropOverlayId}
-            onSetActiveCropOverlayId={setActiveCropOverlayId}
+
+        <div className="flex-1 min-h-0 flex gap-6 relative">
+          {/* Main Toolbar */}
+          <SidebarToolbar
+            visiblePanels={visiblePanels}
+            onTogglePanel={togglePanel}
           />
-          {activeCropOverlayId ? (
-            (() => {
-              const overlay = overlays.find(o => o.id === activeCropOverlayId);
-              if (!overlay) {
-                setActiveCropOverlayId(null);
-                return null;
-              }
-              return (
-                <div className="h-full min-h-0 rounded-lg overflow-hidden border border-terminal-border bg-terminal-black">
-                  <CropEditor
-                    overlay={overlay}
-                    width={1200} // Estimate or use ref to measure
-                    height={800}
-                    onApply={(crop) => {
-                      updateOverlay(overlay.id, { crop });
-                      setActiveCropOverlayId(null);
-                      commitHistory();
-                    }}
-                    onSaveAsCopy={(crop) => {
-                      const newOverlay = {
-                        ...overlay,
-                        id: `${Date.now()}-copy`,
-                        name: `${overlay.name} (Crop)`,
-                        crop,
-                        // Reset position for the new copy to center or slight offset
-                        x: settings.width / 2 + 20,
-                        y: settings.height / 2 + 20
-                      };
-                      addOverlay(newOverlay);
-                      setActiveCropOverlayId(null);
-                      commitHistory();
-                    }}
-                    onCancel={() => setActiveCropOverlayId(null)}
-                  />
-                </div>
-              );
-            })()
-          ) : (
-            <CenterColumn
-              imageDataUrl={imageDataUrl}
-              canvasRef={canvasRef}
-              previewRef={previewRef}
-              settings={settings}
-              fitMode={settings.fitMode}
-              zoom={zoom}
-              autoFit={autoFit}
-              onZoomOut={() => {
-                setAutoFit(false);
-                setZoom((value) => Math.max(0.1, Number((value - 0.1).toFixed(2))));
-              }}
-              onZoomIn={() => {
-                setAutoFit(false);
-                setZoom((value) => Math.min(3, Number((value + 0.1).toFixed(2))));
-              }}
-              onFit={() => {
-                setAutoFit(true);
-                setZoom(computeFitZoom());
-              }}
-              spaceDown={spaceDown}
-              isPanning={isPanning}
-              isDragging={isDragging}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onPreviewEnter={() => setIsPreviewHover(true)}
-              onPreviewLeave={() => {
-                setIsPreviewHover(false);
-                setIsPanning(false);
-                panStateRef.current = null;
-              }}
-              onPanStart={(event) => {
-                if (!spaceDown || !previewRef.current) return;
-                event.preventDefault();
-                panStateRef.current = {
-                  startX: event.clientX,
-                  startY: event.clientY,
-                  startScrollLeft: previewRef.current.scrollLeft,
-                  startScrollTop: previewRef.current.scrollTop,
-                };
-                setIsPanning(true);
-              }}
-              onPanMove={(event) => {
-                if (!spaceDown || !panStateRef.current || !previewRef.current) return;
-                event.preventDefault();
-                const deltaX = event.clientX - panStateRef.current.startX;
-                const deltaY = event.clientY - panStateRef.current.startY;
-                previewRef.current.scrollLeft = panStateRef.current.startScrollLeft - deltaX;
-                previewRef.current.scrollTop = panStateRef.current.startScrollTop - deltaY;
-              }}
-              onPanEnd={() => {
-                setIsPanning(false);
-                panStateRef.current = null;
-              }}
-              activeBlockId={activeBlockId}
-              getBlockSettings={getBlockSettings}
-              dragState={dragState}
-              setDragState={setDragState}
-              onUpdateBlockSettings={updateBlockSettingsWrapper}
-              overlays={overlays}
-              overlayDragState={overlayDragState}
-              setOverlayDragState={setOverlayDragState}
-              onUpdateOverlay={(id, update) => updateOverlay(id, update)}
-              imageDragState={imageDragState}
-              setImageDragState={setImageDragState}
-              onUpdateImagePosition={(update) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  imageOffsetX: update.imageOffsetX,
-                  imageOffsetY: update.imageOffsetY,
-                }))
-              }
-              onDownload={handleDownload}
-              onCopy={handleCopy}
-              onSaveCache={addToCache}
-            />
-          )}
-          <RightColumn
-            settings={settings}
-            onSettingsChange={(update) => setSettings((prev) => ({ ...prev, ...update }))}
-            colorPicker={colorPicker}
-            onColorPickerChange={setColorPicker}
-            colorAlpha={colorAlpha}
-            onColorAlphaChange={setColorAlpha}
-            selectedTemplateColor={selectedTemplateColor}
-            onSelectTemplateColor={setSelectedTemplateColor}
-            rawTextFile={rawTextFile}
-            onRawTextChange={setRawTextFile}
-            onRemoveTimestamps={() => setRawTextFile(sanitizeChatInput(rawTextFile))}
-            onApplyChatLines={() => setLines(buildLinesFromBlocks(textBlocks))}
-            lines={lines}
-            onUpdateLine={updateLine}
-            onRemoveLine={(id) => setLines((prev) => prev.filter((item) => item.id !== id))}
-            cacheItems={cacheItems}
-            onLoadCache={handleLoadCache}
-            onRemoveCache={removeCache}
-            // Layers Panel Props
-            textBlocks={textBlocks}
-            overlays={overlays}
-            layerOrder={layerOrder || []}
-            activeBlockId={activeBlockId}
-            onSelectLayer={(id, type) => {
-              if (type === 'text') {
-                setActiveBlockId(id);
-              } else {
-                // Select overlay logic if we have one? 
-                // Currently we just have activeBlockId. 
-                // We might want to add activeOverlayId or just a general Selection state.
-                // For now, doing nothing for overlays besides maybe highlighting it in the panel?
-                // But the panel highlights based on isActive prop.
-              }
+
+          <div
+            className="flex-1 min-h-0 grid gap-6"
+            style={{
+              gridTemplateColumns: `
+                    ${showLeftSidebar ? 'minmax(300px, 340px)' : '0px'} 
+                    minmax(0, 1fr) 
+                    ${showRightSidebar ? 'minmax(300px, 320px)' : '0px'}
+                `,
+              transition: 'grid-template-columns 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
             }}
-            onMoveLayer={(dragIndex, hoverIndex) => { actions.reorderLayers(dragIndex, hoverIndex); commitHistory(); }}
-            onToggleVisible={(id, type) => { actions.toggleLayerVisibility(id, type); commitHistory(); }}
-            onToggleLock={(id, type) => { actions.toggleLayerLock(id, type); commitHistory(); }}
-          />
+          >
+            {/* LEFT SIDEBAR */}
+            <div className={`flex flex-col gap-6 overflow-hidden transition-all duration-500 ${showLeftSidebar ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+              <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar space-y-6">
+                {(visiblePanels.source || visiblePanels.textEditor) && (
+                  <div className="bg-terminal-panel/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4">
+                    <LeftColumn
+                      onImageFile={handleImageFile}
+                      onChatFile={handleChatFile}
+                      overlays={overlays}
+                      onOverlayFile={handleOverlayFile}
+                      onUpdateOverlay={(id, update) => updateOverlay(id, update)}
+                      onRemoveOverlay={(id) => { removeOverlay(id); invalidateCache(id); }}
+                      nameInputs={nameInputs}
+                      onAddNameInput={addNameInput}
+                      onRemoveNameInput={removeNameInput}
+                      onUpdateNameInput={updateNameInput}
+                      onAppendToBlock={appendToBlock}
+                      textBlocks={textBlocks}
+                      onUpdateBlock={updateBlock}
+                      onUpdateBlockSettings={updateBlockSettingsWrapper}
+                      onAddBlock={() => { handleAddBlock(); }}
+                      onRemoveBlock={(id) => { removeTextBlock(id); }}
+                      onToggleBlockSettings={toggleBlockSettings}
+                      onToggleBlockCollapsed={toggleBlockCollapsed}
+                      onToggleBlockAdvanced={toggleBlockAdvanced}
+                      onSetActiveBlockId={setActiveBlockId}
+                      width={settings.width}
+                      height={settings.height}
+                      filterText={filterText}
+                      onFilterTextChange={setFilterText}
+                      onParseChat={handleParseChat}
+                      onClearBlocks={() => { handleClearBlocks(); }}
+                      onCommitHistory={commitHistory}
+                      activeCropOverlayId={activeCropOverlayId}
+                      onSetActiveCropOverlayId={setActiveCropOverlayId}
+                      mode={visiblePanels.source && visiblePanels.textEditor ? 'full' : visiblePanels.source ? 'source' : 'text'}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* CENTER CANVAS */}
+            <div className="min-h-0 flex flex-col">
+              {activeCropOverlayId ? (
+                (() => {
+                  const overlay = overlays.find(o => o.id === activeCropOverlayId);
+                  if (!overlay) {
+                    setActiveCropOverlayId(null);
+                    return null;
+                  }
+                  return (
+                    <div className="flex-1 min-h-0 rounded-2xl overflow-hidden border border-white/5 bg-terminal-black shadow-2xl">
+                      <CropEditor
+                        overlay={overlay}
+                        width={1200} // Estimate or use ref to measure
+                        height={800}
+                        onApply={(crop) => {
+                          updateOverlay(overlay.id, { crop });
+                          setActiveCropOverlayId(null);
+                        }}
+                        onSaveAsCopy={(crop) => {
+                          const newOverlay = {
+                            ...overlay,
+                            id: `${Date.now()}-copy`,
+                            name: `${overlay.name} (Crop)`,
+                            crop,
+                            // Reset position for the new copy to center or slight offset
+                            x: settings.width / 2 + 20,
+                            y: settings.height / 2 + 20
+                          };
+                          addOverlay(newOverlay);
+                          setActiveCropOverlayId(null);
+                        }}
+                        onCancel={() => setActiveCropOverlayId(null)}
+                      />
+                    </div>
+                  );
+                })()
+              ) : (
+                <CenterColumn
+                  imageDataUrl={imageDataUrl}
+                  canvasRef={canvasRef}
+                  previewRef={previewRef}
+                  settings={settings}
+                  fitMode={settings.fitMode}
+                  zoom={zoom}
+                  autoFit={autoFit}
+                  onZoomOut={() => {
+                    setAutoFit(false);
+                    setZoom((value) => Math.max(0.1, Number((value - 0.1).toFixed(2))));
+                  }}
+                  onZoomIn={() => {
+                    setAutoFit(false);
+                    setZoom((value) => Math.min(3, Number((value + 0.1).toFixed(2))));
+                  }}
+                  onFit={() => {
+                    setAutoFit(true);
+                    setZoom(computeFitZoom());
+                  }}
+                  spaceDown={spaceDown}
+                  isPanning={isPanning}
+                  isDragging={isDragging}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  onPreviewEnter={() => setIsPreviewHover(true)}
+                  onPreviewLeave={() => {
+                    setIsPreviewHover(false);
+                    setIsPanning(false);
+                    panStateRef.current = null;
+                  }}
+                  onPanStart={(event) => {
+                    if (!spaceDown || !previewRef.current) return;
+                    event.preventDefault();
+                    panStateRef.current = {
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      startScrollLeft: previewRef.current.scrollLeft,
+                      startScrollTop: previewRef.current.scrollTop,
+                    };
+                    setIsPanning(true);
+                  }}
+                  onPanMove={(event) => {
+                    if (!spaceDown || !panStateRef.current || !previewRef.current) return;
+                    event.preventDefault();
+                    const deltaX = event.clientX - panStateRef.current.startX;
+                    const deltaY = event.clientY - panStateRef.current.startY;
+                    previewRef.current.scrollLeft = panStateRef.current.startScrollLeft - deltaX;
+                    previewRef.current.scrollTop = panStateRef.current.startScrollTop - deltaY;
+                  }}
+                  onPanEnd={() => {
+                    setIsPanning(false);
+                    panStateRef.current = null;
+                  }}
+                  activeBlockId={activeBlockId}
+                  getBlockSettings={getBlockSettings}
+                  dragState={dragState}
+                  setDragState={setDragState}
+                  onUpdateBlockSettings={updateBlockSettingsWrapper}
+                  overlays={overlays}
+                  overlayDragState={overlayDragState}
+                  setOverlayDragState={setOverlayDragState}
+                  onUpdateOverlay={(id, update) => updateOverlay(id, update)}
+                  imageDragState={imageDragState}
+                  setImageDragState={setImageDragState}
+                  onUpdateImagePosition={(update) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      imageOffsetX: update.imageOffsetX,
+                      imageOffsetY: update.imageOffsetY,
+                    }))
+                  }
+                  onDownload={handleDownload}
+                  onCopy={handleCopy}
+                  onSaveCache={addToCache}
+                  onCommitHistory={commitHistory}
+                />
+              )}
+            </div>
+
+            {/* RIGHT SIDEBAR */}
+            <div className={`flex flex-col gap-6 overflow-hidden transition-all duration-500 ${showRightSidebar ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+              <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+                <RightColumn
+                  settings={settings}
+                  onSettingsChange={(update) => setSettings((prev) => ({ ...prev, ...update }))}
+                  colorPicker={colorPicker}
+                  onColorPickerChange={setColorPicker}
+                  colorAlpha={colorAlpha}
+                  onColorAlphaChange={setColorAlpha}
+                  selectedTemplateColor={selectedTemplateColor}
+                  onSelectTemplateColor={setSelectedTemplateColor}
+                  rawTextFile={rawTextFile}
+                  onRawTextChange={setRawTextFile}
+                  onRemoveTimestamps={() => setRawTextFile(sanitizeChatInput(rawTextFile))}
+                  onApplyChatLines={() => setLines(buildLinesFromBlocks(textBlocks))}
+                  lines={lines}
+                  onUpdateLine={updateLine}
+                  onRemoveLine={(id) => setLines((prev) => prev.filter((item) => item.id !== id))}
+                  cacheItems={cacheItems}
+                  onLoadCache={handleLoadCache}
+                  onRemoveCache={removeCache}
+                  // Layers Panel Props
+                  textBlocks={textBlocks}
+                  overlays={overlays}
+                  layerOrder={layerOrder || []}
+                  activeBlockId={activeBlockId}
+                  onSelectLayer={(id, type) => {
+                    if (type === 'text') {
+                      setActiveBlockId(id);
+                    }
+                  }}
+                  onMoveLayer={(dragIndex, hoverIndex) => { actions.reorderLayers(dragIndex, hoverIndex); }}
+                  onToggleVisible={(id, type) => { actions.toggleLayerVisibility(id, type); }}
+                  onToggleLock={(id, type) => { actions.toggleLayerLock(id, type); }}
+                  onCommitHistory={commitHistory}
+                  // Visible Panels Control
+                  visiblePanels={visiblePanels}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </DndProvider>

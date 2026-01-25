@@ -62,6 +62,7 @@ type CenterColumnProps = {
   onDownload: () => void;
   onCopy: () => void;
   onSaveCache: () => void;
+  onCommitHistory: () => void;
 };
 
 export const CenterColumn: React.FC<CenterColumnProps> = ({
@@ -101,6 +102,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
   onDownload,
   onCopy,
   onSaveCache,
+  onCommitHistory,
 }) => {
   const hitTestOverlay = (x: number, y: number) => {
     for (let i = overlays.length - 1; i >= 0; i -= 1) {
@@ -146,7 +148,6 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
         className="relative flex-1 min-h-0 min-w-0 w-full max-w-full overflow-auto bg-terminal-dark rounded-lg border border-terminal-border p-4"
         style={{
           cursor: spaceDown ? (isPanning ? 'grabbing' : 'grab') : undefined,
-          height: 'calc(100% - 150px)',
         }}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
@@ -155,7 +156,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
         onMouseLeave={onPreviewLeave}
         onMouseDown={onPanStart}
         onMouseMove={onPanMove}
-        onMouseUp={onPanEnd}
+        onMouseUp={() => { onPanEnd(); onCommitHistory(); }}
       >
         {isDragging && (
           <div className="absolute inset-6 border-2 border-dashed border-terminal-accent rounded-lg bg-terminal-accent/10 pointer-events-none flex items-center justify-center text-sm text-white">
@@ -218,6 +219,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
                 setDragState(null);
                 setOverlayDragState(null);
                 setImageDragState(null);
+                onCommitHistory();
               }}
               onMouseMove={(event) => {
                 if (imageDragState) {

@@ -49,6 +49,8 @@ import {
   Eye,
   Minus,
   MoveVertical,
+  ChevronLeft,
+  ChevronRight,
   File,
   FileText,
   Calendar,
@@ -66,7 +68,8 @@ import {
   Maximize,
   Move,
   Undo,
-  Redo
+  Redo,
+  UserPlus
 } from 'lucide-react';
 
 export {
@@ -136,5 +139,8 @@ export {
   Maximize,
   Move,
   Undo,
-  Redo
+  Redo,
+  ChevronLeft,
+  ChevronRight,
+  UserPlus
 };

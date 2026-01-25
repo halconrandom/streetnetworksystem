@@ -1,8 +1,24 @@
 import React, { useState } from 'react';
-import { Image as ImageIcon, FileText, Trash2, Plus, Settings, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, Crop } from '../../components/Icons';
+import {
+  Image as ImageIcon,
+  FileText,
+  Trash2,
+  Plus,
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  ToggleLeft,
+  ToggleRight,
+  Crop,
+  Type,
+  Search,
+  UserPlus,
+  Save,
+  Activity
+} from '../../components/Icons';
 import { defaultTextSettings } from './constants';
 import { CropModal } from './CropModal';
-import type { OverlayImage, TextBlock, TextBlockSettings, TextPosition } from './types';
+import type { OverlayImage, TextBlock, TextBlockSettings } from './types';
 
 type LeftColumnProps = {
   onImageFile: (file: File) => void;
@@ -33,6 +49,8 @@ type LeftColumnProps = {
   onFilterTextChange: (value: string) => void;
   onParseChat: () => void;
   onClearBlocks: () => void;
+  onCommitHistory: () => void;
+  mode?: 'full' | 'source' | 'text';
 };
 
 export const LeftColumn: React.FC<LeftColumnProps> = ({
@@ -64,53 +82,96 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
   onFilterTextChange,
   onParseChat,
   onClearBlocks,
+  onCommitHistory,
+  mode = 'full'
 }) => {
+  const showSource = mode === 'full' || mode === 'source';
+  const showTextEditor = mode === 'full' || mode === 'text';
+
   const [imageFileName, setImageFileName] = useState('');
   const [chatFileName, setChatFileName] = useState('');
   const [overlayFileName, setOverlayFileName] = useState('');
-  const [cropModalOverlayId, setCropModalOverlayId] = useState<string | null>(null);
+
+  // Local storage for saved names (dropdown list)
+  const savedNames: string[] = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+
+  const handleSaveName = (name: string) => {
+    if (!name.trim()) return;
+    const current = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+    if (!current.includes(name.trim())) {
+      const updated = [...current, name.trim()];
+      localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+      // Force re-render if needed, but here it depends on state. 
+      // For now, it will update next time the component renders.
+    }
+  };
+
+  const handleRemoveSavedName = (name: string) => {
+    const current = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+    const updated = current.filter((n: string) => n !== name);
+    localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+  };
 
   return (
-    <div className="space-y-6 min-h-0">
-      <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <ImageIcon size={18} className="text-terminal-accent" />
-          Screenshot Source
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
-            Image
-            <label htmlFor="screenshot-image" className="flex items-center gap-2">
-              <input
-                id="screenshot-image"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) {
-                    setImageFileName(file.name);
-                    onImageFile(file);
-                  }
-                }}
-              />
-              <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
-                Choose file
-              </span>
-              {imageFileName && (
-                <span className="text-[11px] text-terminal-muted truncate" title={imageFileName}>
-                  {imageFileName}
-                </span>
-              )}
-            </label>
+    <div className="space-y-6 min-h-0 pb-10 pr-1">
+      {showSource && (
+        /* Main Source Import */
+        <div className="bg-terminal-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 space-y-4 shadow-2xl">
+          <div className="flex items-center gap-2 text-white font-semibold">
+            <ImageIcon size={18} className="text-terminal-accent" />
+            Source Material
           </div>
-          <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
-            Chat .txt
-            <label htmlFor="screenshot-chat" className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2 text-[10px] uppercase font-bold tracking-widest text-white/30">
+              Screenshot
+              <label htmlFor="screenshot-image" className="group flex flex-col items-center justify-center gap-2 p-3 bg-black/40 border border-white/5 rounded-xl cursor-pointer hover:bg-black/60 hover:border-terminal-accent/30 transition-all">
+                <input
+                  id="screenshot-image"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      setImageFileName(file.name);
+                      onImageFile(file);
+                    }
+                  }}
+                />
+                <Plus size={16} className="text-terminal-accent" />
+                <span className="text-[9px] truncate w-full text-center font-mono">{imageFileName || 'UPLOAD'}</span>
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-2 text-[10px] uppercase font-bold tracking-widest text-white/30">
+              Overlays
+              <label htmlFor="overlay-image" className="group flex flex-col items-center justify-center gap-2 p-3 bg-black/40 border border-white/5 rounded-xl cursor-pointer hover:bg-black/60 hover:border-terminal-accent/30 transition-all">
+                <input
+                  id="overlay-image"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      setOverlayFileName(file.name);
+                      onOverlayFile(file);
+                    }
+                  }}
+                />
+                <ImageIcon size={16} className="text-terminal-accent" />
+                <span className="text-[9px] truncate w-full text-center font-mono">{overlayFileName || 'ADD'}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 text-[10px] uppercase font-bold tracking-widest text-white/30 pt-2">
+            Logs / Chat file
+            <label htmlFor="chat-file" className="group flex items-center gap-3 p-3 bg-black/40 border border-white/5 rounded-xl cursor-pointer hover:bg-black/60 hover:border-terminal-accent/30 transition-all">
               <input
-                id="screenshot-chat"
+                id="chat-file"
                 type="file"
-                accept=".txt,text/plain"
+                accept=".txt"
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -120,780 +181,499 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                   }
                 }}
               />
-              <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
-                Choose file
-              </span>
-              {chatFileName && (
-                <span className="text-[11px] text-terminal-muted truncate" title={chatFileName}>
-                  {chatFileName}
-                </span>
-              )}
+              <FileText size={16} className="text-terminal-accent" />
+              <span className="truncate flex-1 text-[9px] text-white/60 font-mono italic">{chatFileName || 'import_chat.txt'}</span>
             </label>
           </div>
         </div>
-        <div className="text-xs text-terminal-muted">
-          Prefix a line with <span className="text-white">(#RRGGBB)</span> or <span className="text-white">(#RRGGBBAA)</span> to set a custom color.
-        </div>
-      </div>
+      )}
 
-      <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <ImageIcon size={18} className="text-terminal-accent" />
-          Image Overlays
+      {/* Character Manager with Actions - Always show if left column is active */}
+      <div className="bg-terminal-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 space-y-4 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div className="text-white font-semibold text-xs flex items-center gap-2">
+            <UserPlus size={16} className="text-terminal-accent" />
+            Character Matrix
+          </div>
+          <button
+            onClick={onAddNameInput}
+            className="p-1 px-3 bg-terminal-accent text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all shadow-lg active:scale-95"
+          >
+            Add Row
+          </button>
         </div>
-        <div className="flex flex-col gap-2 text-xs uppercase tracking-wide text-terminal-muted">
-          Agregar imagen
-          <label htmlFor="overlay-image" className="flex items-center gap-2">
-            <input
-              id="overlay-image"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  setOverlayFileName(file.name);
-                  onOverlayFile(file);
-                }
-              }}
-            />
-            <span className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide bg-terminal-border/40 border border-terminal-border text-terminal-muted rounded-md">
-              Choose file
-            </span>
-            {overlayFileName && (
-              <span className="text-[11px] text-terminal-muted truncate" title={overlayFileName}>
-                {overlayFileName}
-              </span>
-            )}
-          </label>
-        </div>
-        {overlays.length === 0 ? (
-          <div className="text-xs text-terminal-muted">No hay imagenes superpuestas.</div>
-        ) : (
-          <div className="space-y-3">
-            {overlays.map((overlay) => (
-              <div key={overlay.id} className="rounded-md border border-terminal-border bg-terminal-dark/40 p-3 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white truncate" title="Nombre del archivo de la superposicion.">
-                    {overlay.name}
-                  </span>
-                  <button
-                    onClick={() => onRemoveOverlay(overlay.id)}
-                    className="text-terminal-muted hover:text-red-400"
-                    title="Eliminar esta superposicion."
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label
-                    title="Escala de la imagen superpuesta."
-                    className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                  >
-                    Scale
-                    <input
-                      type="number"
-                      min={0.05}
-                      max={5}
-                      step={0.05}
-                      value={overlay.scale}
-                      onChange={(event) =>
-                        onUpdateOverlay(overlay.id, { scale: Number(event.target.value) })
-                      }
-                      className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                    />
-                  </label>
-                  <label
-                    title="Rotacion de la imagen superpuesta."
-                    className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                  >
-                    Rotation
-                    <input
-                      type="number"
-                      min={-180}
-                      max={180}
-                      step={1}
-                      value={overlay.rotation}
-                      onChange={(event) =>
-                        onUpdateOverlay(overlay.id, { rotation: Number(event.target.value) })
-                      }
-                      className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                    />
-                  </label>
-                  <label
-                    title="Opacidad de la imagen superpuesta."
-                    className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
-                  >
-                    Opacity
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={overlay.opacity}
-                      onChange={(event) =>
-                        onUpdateOverlay(overlay.id, { opacity: Number(event.target.value) })
-                      }
-                      className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                    />
-                  </label>
 
-                  <div className="col-span-2 flex justify-end">
+        <datalist id="saved-names">
+          {savedNames.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+
+        <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+          {nameInputs.map((input, index) => (
+            <div key={input.id} className="p-3 bg-black/40 border border-white/5 rounded-2xl space-y-3 group relative">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-white/10 w-4">{index + 1}</span>
+                <input
+                  value={input.name}
+                  onChange={(e) => onUpdateNameInput(input.id, e.target.value)}
+                  placeholder="Character Name"
+                  list="saved-names"
+                  className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-1.5 text-xs text-white focus:border-terminal-accent/30 outline-none"
+                />
+                <div className="flex items-center gap-1">
+                  {nameInputs.length > 1 && (
                     <button
-                      onClick={() => onSetActiveCropOverlayId(overlay.id)}
-                      className={`flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wide border rounded-md ${activeCropOverlayId === overlay.id
-                        ? 'bg-terminal-accent/20 border-terminal-accent text-terminal-accent'
-                        : 'bg-terminal-dark border-terminal-border text-terminal-muted hover:text-white'
-                        }`}
+                      onClick={() => onRemoveNameInput(input.id)}
+                      className="p-1.5 text-white/20 hover:text-red-400 transition-all"
+                      title="Remove row"
                     >
-                      <Crop size={14} />
-                      Crop
+                      <Trash2 size={14} />
                     </button>
-                  </div>
-
-                  {cropModalOverlayId === overlay.id && (
-                    <CropModal
-                      overlay={overlay}
-                      isOpen={true}
-                      onClose={() => setCropModalOverlayId(null)}
-                      onConfirm={(crop) => onUpdateOverlay(overlay.id, { crop })}
-                    />
                   )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-        <div className="text-xs text-terminal-muted">
-          Arrastra la imagen en el canvas para moverla.
-        </div>
-      </div>
 
-      <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-3">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <FileText size={18} className="text-terminal-accent" />
-          Chat Input
-        </div>
-        <div className="flex flex-col gap-3">
-          <datalist id="saved-names">
-            {(JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]') as string[]).map((name) => (
-              <option key={name} value={name} />
-            ))}
-          </datalist>
-
-          {nameInputs.map((input, index) => (
-            <div key={input.id} className="flex flex-col gap-2 p-3 rounded-md border border-terminal-border bg-terminal-dark/30">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-terminal-muted w-4 flex-shrink-0">{index + 1}</span>
-                <input
-                  value={input.name}
-                  onChange={(event) => onUpdateNameInput(input.id, event.target.value)}
-                  placeholder="Nombre"
-                  list="saved-names"
-                  className="flex-1 min-w-[100px] bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                />
+              {/* Character Action Buttons */}
+              <div className="grid grid-cols-2 gap-2">
                 <button
-                  onClick={() => {
-                    if (!input.name.trim()) return;
-                    const saved = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
-                    if (!saved.includes(input.name.trim())) {
-                      const newSaved = [...saved, input.name.trim()];
-                      localStorage.setItem('streetnetwork_saved_names', JSON.stringify(newSaved));
-                      setOverlayFileName(prev => prev + ' ');
-                    }
-                  }}
-                  className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md flex-shrink-0"
-                  title="Guardar"
-                >
-                  <Plus size={12} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (!input.name.trim()) return;
-                    const saved = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
-                    const newSaved = saved.filter((n: string) => n !== input.name.trim());
-                    localStorage.setItem('streetnetwork_saved_names', JSON.stringify(newSaved));
-                    setOverlayFileName(prev => prev + ' ');
-                  }}
-                  className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-red-400 rounded-md flex-shrink-0"
-                  title="Borrar de lista"
-                >
-                  <Trash2 size={12} />
-                </button>
-                {nameInputs.length > 1 && (
-                  <button
-                    onClick={() => onRemoveNameInput(input.id)}
-                    className="p-1 px-2 text-xs font-semibold bg-terminal-dark border border-terminal-border text-red-500 hover:bg-red-500/10 rounded-md flex-shrink-0"
-                    title="Quitar fila"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() =>
-                    onAppendToBlock(`(#bd9dd4)* ${input.name || '[Nombre]'} `)
-                  }
-                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                  onClick={() => onAppendToBlock(`(#bd9dd4)* ${input.name || '[Nombre]'} `)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-[#bd9dd4]/20 hover:border-[#bd9dd4]/30 rounded-lg transition-all"
                 >
                   /me
                 </button>
                 <button
-                  onClick={() =>
-                    onAppendToBlock(`(#8fbe2e)* (( ${input.name || '[Nombre]'} )) `)
-                  }
-                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                  onClick={() => onAppendToBlock(`(#8fbe2e)* (( ${input.name || '[Nombre]'} )) `)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-[#8fbe2e]/20 hover:border-[#8fbe2e]/30 rounded-lg transition-all"
                 >
                   /do
                 </button>
                 <button
-                  onClick={() =>
-                    onAppendToBlock(`(#b4b401)${input.name || '[Nombre]'} dice (phone): `)
-                  }
-                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                  onClick={() => onAppendToBlock(`(#b4b401)${input.name || '[Nombre]'} dice (phone): `)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-[#b4b401]/20 hover:border-[#b4b401]/30 rounded-lg transition-all"
                 >
                   Call
                 </button>
                 <button
-                  onClick={() =>
-                    onAppendToBlock(`${input.name || '[Nombre]'} dice: `)
-                  }
-                  className="flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted hover:text-white rounded-md"
+                  onClick={() => onAppendToBlock(`${input.name || '[Nombre]'} dice: `)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                 >
                   Dialog
                 </button>
               </div>
             </div>
           ))}
-
-          <button
-            onClick={onAddNameInput}
-            className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent rounded-md hover:bg-terminal-accent/20"
-          >
-            <Plus size={14} />
-            Add Another Character
-          </button>
         </div>
-        <div className="space-y-3">
-          {textBlocks.map((block, index) => {
-            const blockSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
-            return (
-              <div key={block.id} className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-terminal-muted">
-                  <button
-                    onClick={() => onToggleBlockCollapsed(block.id)}
-                    className="uppercase tracking-wide text-left text-terminal-muted hover:text-white"
-                    title="Collapse"
-                  >
-                    Text Block #{index + 1}
-                  </button>
+      </div>
+
+      {/* Overlay Management List - Tie to source visibility or just show if column is on */}
+      {showSource && overlays.length > 0 && (
+        <div className="bg-terminal-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 space-y-4 shadow-2xl">
+          <div className="text-white font-semibold text-xs flex items-center gap-2">
+            <ImageIcon size={16} className="text-terminal-accent" />
+            Active Overlays
+          </div>
+          <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+            {overlays.map((overlay) => (
+              <div key={overlay.id} className="p-3 bg-black/40 border border-white/5 rounded-2xl space-y-4 group">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 overflow-hidden flex-shrink-0 border border-white/10 p-1">
+                      <img src={overlay.dataUrl} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] text-white/70 truncate font-mono font-bold uppercase tracking-wider">{overlay.name}</span>
+                      <span className="text-[9px] text-white/30 truncate">ID: {overlay.id.split('-')[0]}</span>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    {block.text.trim().length > 0 && (
+                    <button
+                      onClick={() => onSetActiveCropOverlayId(overlay.id)}
+                      className="p-2 bg-white/5 hover:bg-terminal-accent/20 text-white/40 hover:text-terminal-accent rounded-xl transition-all"
+                      title="Crop Image"
+                    >
+                      <Crop size={14} />
+                    </button>
+                    <button
+                      onClick={() => onRemoveOverlay(overlay.id)}
+                      className="p-2 bg-white/5 hover:bg-red-500/10 text-white/20 hover:text-red-400 rounded-xl transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Manual Controls */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Scale</label>
+                    <input
+                      type="number"
+                      value={overlay.scale}
+                      step={0.05}
+                      onChange={(e) => onUpdateOverlay(overlay.id, { scale: Number(e.target.value) })}
+                      onBlur={onCommitHistory}
+                      className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] outline-none focus:border-white/20 font-mono"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Rotation</label>
+                    <input
+                      type="number"
+                      value={overlay.rotation}
+                      onChange={(e) => onUpdateOverlay(overlay.id, { rotation: Number(e.target.value) })}
+                      onBlur={onCommitHistory}
+                      className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] outline-none focus:border-white/20 font-mono"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 col-span-2">
+                    <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Opacity</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={overlay.opacity}
+                        onChange={(e) => onUpdateOverlay(overlay.id, { opacity: Number(e.target.value) })}
+                        onMouseUp={onCommitHistory}
+                        className="flex-1 accent-terminal-accent h-1.5"
+                      />
+                      <span className="text-[10px] font-mono text-white/50 w-8 text-right">{(overlay.opacity * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showTextEditor && (
+        <div className="bg-terminal-panel/40 backdrop-blur-md border border-white/5 rounded-2xl p-4 space-y-6 shadow-xl flex-1 flex flex-col min-h-0">
+          <div className="flex items-center justify-between">
+            <div className="text-white font-semibold flex items-center gap-2">
+              <Type size={18} className="text-terminal-accent" />
+              Content Strategy
+            </div>
+            <button
+              onClick={onAddBlock}
+              className="p-2 bg-terminal-accent text-black rounded-lg hover:brightness-110 active:scale-90 transition-all shadow-lg"
+              title="New Text Block"
+            >
+              <Plus size={16} strokeWidth={3} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 pr-1">
+            {textBlocks.map((block, index) => {
+              const bSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
+              return (
+                <div
+                  key={block.id}
+                  className={`group relative flex flex-col gap-4 p-4 bg-black/40 border transition-all duration-300 rounded-3xl hover:border-white/10 ${block.collapsed ? 'opacity-60' : 'opacity-100 shadow-2xl'
+                    }`}
+                >
+                  {/* Block Header Toolbar */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="px-2 py-0.5 bg-terminal-accent/10 text-terminal-accent text-[9px] font-extrabold uppercase tracking-widest rounded-full border border-terminal-accent/20">
+                        UNIT #{index + 1}
+                      </span>
+                      <span className="text-[10px] font-mono text-white/30 truncate max-w-[120px]">
+                        {block.id.split('-')[0]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => {
-                          onSetActiveBlockId(block.id);
-                          onToggleBlockSettings(block.id);
-                        }}
-                        className="text-terminal-muted hover:text-white"
-                        title="Block Settings"
+                        onClick={() => onToggleBlockCollapsed(block.id)}
+                        className="p-2 rounded-xl text-white/10 hover:text-white/40 hover:bg-white/5 transition-all"
+                        title={block.collapsed ? 'Expand' : 'Collapse'}
+                      >
+                        {block.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                      </button>
+                      <button
+                        onClick={() => onToggleBlockSettings(block.id)}
+                        className={`p-2 rounded-xl transition-all ${block.settingsOpen ? 'bg-terminal-accent/20 text-terminal-accent' : 'text-white/10 hover:text-white/60 hover:bg-white/5'}`}
+                        title="Configuration"
                       >
                         <Settings size={14} />
                       </button>
-                    )}
-                    <button
-                      onClick={() => onToggleBlockCollapsed(block.id)}
-                      className="text-terminal-muted hover:text-white"
-                      title="Collapse"
-                    >
-                      {block.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-                    </button>
-                    {textBlocks.length > 1 && (
-                      <button
-                        onClick={() => onRemoveBlock(block.id)}
-                        className="text-terminal-muted hover:text-red-400"
-                        title="Delete Block"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
+                      {textBlocks.length > 1 && (
+                        <button
+                          onClick={() => onRemoveBlock(block.id)}
+                          className="p-2 rounded-xl text-white/5 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {!block.collapsed && (
-                  <>
-                    <textarea
-                      value={block.text}
-                      onChange={(event) => onUpdateBlock(block.id, event.target.value)}
-                      onFocus={() => onSetActiveBlockId(block.id)}
-                      placeholder="Paste or edit chat lines here."
-                      rows={6}
-                      className="w-full bg-terminal-dark border border-terminal-border rounded-md p-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-terminal-accent"
-                    />
-                    {block.text.trim().length > 0 && block.settingsOpen && (
-                      <div className="space-y-3 rounded-md border border-terminal-border bg-terminal-dark/40 p-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <label
-                            title="Define el ancho maximo del area de texto antes de hacer salto de linea."
-                            className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
-                          >
-                            Text Box Width
-                            <input
-                              type="number"
-                              value={blockSettings.textBoxWidth}
-                              min={100}
-                              max={width}
-                              onChange={(event) =>
-                                onUpdateBlockSettings(block.id, { textBoxWidth: Number(event.target.value) })
-                              }
-                              className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                            />
-                          </label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <label
-                            title="Tamano de la fuente del texto."
-                            className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                          >
-                            Size
-                            <input
-                              type="number"
-                              value={blockSettings.fontSize}
-                              min={8}
-                              max={64}
-                              onChange={(event) =>
-                                onUpdateBlockSettings(block.id, { fontSize: Number(event.target.value) })
-                              }
-                              className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                            />
-                          </label>
-                          <label
-                            title="Espaciado vertical entre lineas."
-                            className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                          >
-                            Line Height
-                            <input
-                              type="number"
-                              value={blockSettings.lineHeight}
-                              min={10}
-                              max={80}
-                              onChange={(event) =>
-                                onUpdateBlockSettings(block.id, { lineHeight: Number(event.target.value) })
-                              }
-                              className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                            />
-                          </label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <label
-                            title="Giro del bloque de texto en grados."
-                            className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
-                          >
-                            Text Rotation (deg)
-                            <input
-                              type="number"
-                              value={blockSettings.textRotation}
-                              min={-180}
-                              max={180}
-                              step={1}
-                              onChange={(event) =>
-                                onUpdateBlockSettings(block.id, { textRotation: Number(event.target.value) })
-                              }
-                              className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                            />
-                          </label>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-terminal-muted border border-terminal-border rounded-md px-3 py-2 bg-terminal-dark">
-                          <span className="uppercase tracking-wide" title="Activa un fondo negro detras del texto.">Black Backdrop</span>
-                          <button
-                            onClick={() =>
-                              onUpdateBlockSettings(block.id, { backdropEnabled: !blockSettings.backdropEnabled })
-                            }
-                            className="flex items-center gap-2 text-xs text-terminal-muted"
-                            title="Activa o desactiva el fondo negro del texto."
-                          >
-                            {blockSettings.backdropEnabled ? (
-                              <>
-                                <span className="text-terminal-accent">On</span>
-                                <ToggleRight size={18} className="text-terminal-accent" />
-                              </>
-                            ) : (
-                              <>
-                                <span>Off</span>
-                                <ToggleLeft size={18} />
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        {blockSettings.backdropEnabled && (
+
+                  {!block.collapsed && (
+                    <>
+                      <textarea
+                        value={block.text}
+                        onChange={(e) => onUpdateBlock(block.id, e.target.value)}
+                        onFocus={() => onSetActiveBlockId(block.id)}
+                        placeholder="Import logs or type narration..."
+                        rows={5}
+                        className="w-full bg-black/40 text-[11px] text-white border border-white/5 rounded-2xl p-4 focus:border-terminal-accent/30 outline-none transition-all custom-scrollbar font-mono leading-relaxed"
+                      />
+
+                      {block.settingsOpen && (
+                        <div className="space-y-4 pt-4 border-t border-white/5 animate-fade-in-up">
+                          {/* Basic Settings */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5 col-span-2">
+                              <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Box Max Width</label>
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="range"
+                                  min={100}
+                                  max={width}
+                                  value={bSettings.textBoxWidth}
+                                  onChange={(e) => onUpdateBlockSettings(block.id, { textBoxWidth: Number(e.target.value) })}
+                                  onMouseUp={onCommitHistory}
+                                  className="flex-1 accent-terminal-accent h-1"
+                                />
+                                <input
+                                  type="number"
+                                  value={bSettings.textBoxWidth}
+                                  onChange={(e) => onUpdateBlockSettings(block.id, { textBoxWidth: Number(e.target.value) })}
+                                  onBlur={onCommitHistory}
+                                  className="w-16 bg-black/60 border border-white/5 rounded-lg px-2 py-1 text-white text-[10px] font-mono text-center"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Font Size</label>
+                              <input
+                                type="number"
+                                value={bSettings.fontSize}
+                                onChange={(e) => onUpdateBlockSettings(block.id, { fontSize: Number(e.target.value) })}
+                                onBlur={onCommitHistory}
+                                className="bg-black/60 border border-white/5 rounded-lg px-3 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none font-mono"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Line Space</label>
+                              <input
+                                type="number"
+                                value={bSettings.lineHeight}
+                                onChange={(e) => onUpdateBlockSettings(block.id, { lineHeight: Number(e.target.value) })}
+                                onBlur={onCommitHistory}
+                                className="bg-black/60 border border-white/5 rounded-lg px-3 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none font-mono"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Align</label>
+                              <select
+                                value={bSettings.align}
+                                onChange={(e) => { onUpdateBlockSettings(block.id, { align: e.target.value as any }); onCommitHistory(); }}
+                                className="bg-black/60 border border-white/5 rounded-lg px-3 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none"
+                              >
+                                <option value="left">Left</option>
+                                <option value="center">Center</option>
+                                <option value="right">Right</option>
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Rotation</label>
+                              <input
+                                type="number"
+                                value={bSettings.textRotation}
+                                step={1}
+                                onChange={(e) => onUpdateBlockSettings(block.id, { textRotation: Number(e.target.value) })}
+                                onBlur={onCommitHistory}
+                                className="bg-black/60 border border-white/5 rounded-lg px-3 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Backdrop & Shadow Toggles */}
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="col-span-2 flex items-center gap-2 text-xs">
+                            <button
+                              onClick={() => onUpdateBlockSettings(block.id, { backdropEnabled: !bSettings.backdropEnabled })}
+                              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${bSettings.backdropEnabled ? 'bg-terminal-accent/10 border-terminal-accent/40 text-terminal-accent' : 'bg-white/5 border-white/5 text-white/20'}`}
+                            >
+                              <span className="text-[10px] font-bold uppercase tracking-widest">Backdrop</span>
+                              {bSettings.backdropEnabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                            </button>
+                            <button
+                              onClick={() => onUpdateBlockSettings(block.id, { shadowEnabled: !bSettings.shadowEnabled })}
+                              className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${bSettings.shadowEnabled ? 'bg-terminal-accent/10 border-terminal-accent/40 text-terminal-accent' : 'bg-white/5 border-white/5 text-white/20'}`}
+                            >
+                              <span className="text-[10px] font-bold uppercase tracking-widest">Shadow</span>
+                              {bSettings.shadowEnabled ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                            </button>
+                          </div>
+
+                          {bSettings.backdropEnabled && (
+                            <div className="flex items-center gap-2 p-1 bg-black/40 rounded-xl border border-white/5">
                               <button
                                 onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'text' })}
-                                className={`px-3 py-2 rounded-md border ${blockSettings.backdropMode === 'text'
-                                  ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                                  : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-                                  }`}
-                                title="Fondo solo detras del texto de cada linea."
+                                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all ${bSettings.backdropMode === 'text' ? 'bg-terminal-accent text-black shadow-lg' : 'text-white/30 hover:text-white/60'}`}
                               >
-                                Just Text
+                                Fitted
                               </button>
                               <button
                                 onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'all' })}
-                                className={`px-3 py-2 rounded-md border ${blockSettings.backdropMode === 'all'
-                                  ? 'bg-terminal-accent/15 text-terminal-accent border-terminal-accent/30'
-                                  : 'bg-terminal-dark text-terminal-muted border-terminal-border'
-                                  }`}
-                                title="Fondo que cubre todo el ancho del bloque."
+                                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all ${bSettings.backdropMode === 'all' ? 'bg-terminal-accent text-black shadow-lg' : 'text-white/30 hover:text-white/60'}`}
                               >
-                                All Width
+                                Full Width
                               </button>
                             </div>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between text-xs text-terminal-muted border border-terminal-border rounded-md px-3 py-2 bg-terminal-dark">
-                          <span className="uppercase tracking-wide" title="Activa o desactiva la sombra del texto.">Shadow Blur</span>
-                          <button
-                            onClick={() =>
-                              onUpdateBlockSettings(block.id, { shadowEnabled: !blockSettings.shadowEnabled })
-                            }
-                            className="flex items-center gap-2 text-xs text-terminal-muted"
-                            title="Activa o desactiva la sombra del texto."
-                          >
-                            {blockSettings.shadowEnabled ? (
-                              <>
-                                <span className="text-terminal-accent">On</span>
-                                <ToggleRight size={18} className="text-terminal-accent" />
-                              </>
-                            ) : (
-                              <>
-                                <span>Off</span>
-                                <ToggleLeft size={18} />
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-terminal-muted border border-terminal-border rounded-md px-3 py-2 bg-terminal-dark">
-                          <span className="uppercase tracking-wide" title="Muestra opciones adicionales para el texto.">Opciones Avanzadas</span>
+                          )}
+
+                          {/* Advanced Options Toggle */}
                           <button
                             onClick={() => onToggleBlockAdvanced(block.id)}
-                            className="flex items-center gap-2 text-xs text-terminal-muted"
-                            title="Muestra u oculta opciones avanzadas."
+                            className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl border transition-all ${block.advancedOpen ? 'bg-white/10 border-white/20 text-white' : 'bg-white/5 border-transparent text-white/30 hover:text-white/60'}`}
                           >
-                            {block.advancedOpen ? (
-                              <>
-                                <span className="text-terminal-accent">On</span>
-                                <ToggleRight size={18} className="text-terminal-accent" />
-                              </>
-                            ) : (
-                              <>
-                                <span>Off</span>
-                                <ToggleLeft size={18} />
-                              </>
-                            )}
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Advanced Visuals</span>
+                            {block.advancedOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           </button>
-                        </div>
-                        {block.advancedOpen && (
-                          <>
-                            <div className="grid grid-cols-2 gap-3">
-                              <label
-                                title="Mueve el texto horizontalmente."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Text X
-                                <input
-                                  type="number"
-                                  value={blockSettings.textOffsetX}
-                                  min={-width}
-                                  max={width}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { textOffsetX: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Mueve el texto verticalmente."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Text Y
-                                <input
-                                  type="number"
-                                  value={blockSettings.textOffsetY}
-                                  min={-height}
-                                  max={height}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { textOffsetY: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                            </div>
-                            <label
-                              title="Selecciona la fuente del texto."
-                              className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                            >
-                              Font Family
-                              <select
-                                value={blockSettings.fontFamily}
-                                onChange={(event) =>
-                                  onUpdateBlockSettings(block.id, { fontFamily: event.target.value })
-                                }
-                                className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                              >
-                                <option value="Arial, Helvetica, sans-serif">Arial, Helvetica, sans-serif</option>
-                                <option value="Calibri, sans-serif">Calibri, sans-serif</option>
-                                <option value="Raleway, san-serif">Raleway, san-serif</option>
-                                <option value="Comic Sans MS, cursive, san-serif">Comic Sans MS, cursive, san-serif</option>
-                              </select>
-                            </label>
-                            <div className="grid grid-cols-2 gap-3">
-                              <label
-                                title="Grosor de la fuente."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Weight
-                                <input
-                                  type="number"
-                                  value={blockSettings.fontWeight}
-                                  min={100}
-                                  max={900}
-                                  step={100}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { fontWeight: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Grosor del contorno del texto."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Stroke
-                                <input
-                                  type="number"
-                                  value={blockSettings.strokeWidth}
-                                  min={0}
-                                  max={10}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { strokeWidth: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <label
-                                title="Color del contorno del texto."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Stroke Color
-                                <input
-                                  value={blockSettings.strokeColor}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { strokeColor: event.target.value })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              {blockSettings.shadowEnabled && (
-                                <label
-                                  title="Desenfoque de la sombra."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                                >
-                                  Shadow Blur
+
+                          {block.advancedOpen && (
+                            <div className="space-y-4 pt-2 animate-fade-in">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Shift X</label>
                                   <input
                                     type="number"
-                                    value={blockSettings.shadowBlur}
-                                    min={0}
-                                    max={20}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { shadowBlur: Number(event.target.value) })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                    value={bSettings.textOffsetX}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { textOffsetX: Number(e.target.value) })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
                                   />
-                                </label>
-                              )}
-                              {blockSettings.shadowEnabled && (
-                                <label
-                                  title="Desplazamiento horizontal de la sombra."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                                >
-                                  Shadow X
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Shift Y</label>
                                   <input
                                     type="number"
-                                    value={blockSettings.shadowOffsetX}
-                                    min={-10}
-                                    max={10}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { shadowOffsetX: Number(event.target.value) })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                    value={bSettings.textOffsetY}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { textOffsetY: Number(e.target.value) })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
                                   />
-                                </label>
-                              )}
-                              {blockSettings.shadowEnabled && (
-                                <label
-                                  title="Desplazamiento vertical de la sombra."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                                >
-                                  Shadow Y
+                                </div>
+                                <div className="flex flex-col gap-1.5 col-span-2">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Font Family</label>
+                                  <select
+                                    value={bSettings.fontFamily}
+                                    onChange={(e) => { onUpdateBlockSettings(block.id, { fontFamily: e.target.value }); onCommitHistory(); }}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px]"
+                                  >
+                                    <option value="Arial, Helvetica, sans-serif">Standard Arial</option>
+                                    <option value="Calibri, sans-serif">Modern Calibri</option>
+                                    <option value="Raleway, san-serif">Elegant Raleway</option>
+                                    <option value="Comic Sans MS, cursive, san-serif">Comic Sans MS</option>
+                                    <option value="'Courier New', Courier, monospace">True Monospace</option>
+                                  </select>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Weight</label>
                                   <input
                                     type="number"
-                                    value={blockSettings.shadowOffsetY}
-                                    min={-10}
-                                    max={10}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { shadowOffsetY: Number(event.target.value) })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                    value={bSettings.fontWeight}
+                                    step={100}
+                                    min={100}
+                                    max={900}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { fontWeight: Number(e.target.value) })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
                                   />
-                                </label>
-                              )}
-                              {blockSettings.shadowEnabled && (
-                                <label
-                                  title="Color de la sombra."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2 col-span-2"
-                                >
-                                  Shadow Color
-                                  <input
-                                    value={blockSettings.shadowColor}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { shadowColor: event.target.value })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                  />
-                                </label>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                              <label
-                                title="Margen horizontal interno del bloque."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Padding X
-                                <input
-                                  type="number"
-                                  value={blockSettings.paddingX}
-                                  min={0}
-                                  max={200}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { paddingX: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Margen vertical interno del bloque."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Padding Y
-                                <input
-                                  type="number"
-                                  value={blockSettings.paddingY}
-                                  min={0}
-                                  max={200}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { paddingY: Number(event.target.value) })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                />
-                              </label>
-                              <label
-                                title="Ubicacion base del texto dentro del canvas."
-                                className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                              >
-                                Text Position
-                                <select
-                                  value={blockSettings.textPosition}
-                                  onChange={(event) =>
-                                    onUpdateBlockSettings(block.id, { textPosition: event.target.value as TextPosition })
-                                  }
-                                  className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-                                >
-                                  <option value="bottom-left">Bottom Left</option>
-                                  <option value="top-left">Top Left</option>
-                                </select>
-                              </label>
-                            </div>
-                            {blockSettings.backdropEnabled && (
-                              <div className="grid grid-cols-2 gap-3">
-                                <label
-                                  title="Separacion entre el texto y el fondo."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                                >
-                                  Backdrop Padding
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Stroke</label>
                                   <input
                                     type="number"
-                                    value={blockSettings.backdropPadding}
-                                    min={0}
-                                    max={20}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { backdropPadding: Number(event.target.value) })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                    value={bSettings.strokeWidth}
+                                    step={0.5}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { strokeWidth: Number(e.target.value) })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
                                   />
-                                </label>
-                                <label
-                                  title="Opacidad del fondo negro (0 a 1)."
-                                  className="text-xs uppercase tracking-wide text-terminal-muted flex flex-col gap-2"
-                                >
-                                  Backdrop Opacity
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Stroke Color</label>
+                                  <input
+                                    value={bSettings.strokeColor}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { strokeColor: e.target.value })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
+                                  />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Padding X</label>
                                   <input
                                     type="number"
-                                    min={0}
-                                    max={1}
-                                    step={0.05}
-                                    value={blockSettings.backdropOpacity}
-                                    onChange={(event) =>
-                                      onUpdateBlockSettings(block.id, { backdropOpacity: Number(event.target.value) })
-                                    }
-                                    className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
+                                    value={bSettings.paddingX}
+                                    onChange={(e) => onUpdateBlockSettings(block.id, { paddingX: Number(e.target.value) })}
+                                    onBlur={onCommitHistory}
+                                    className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px] font-mono"
                                   />
-                                </label>
+                                </div>
                               </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-          <button
-            onClick={onAddBlock}
-            className="flex items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-          >
-            <Plus size={14} />
-            Add Block
-          </button>
+
+                              {bSettings.shadowEnabled && (
+                                <div className="grid grid-cols-2 gap-3 p-3 bg-white/5 border border-white/5 rounded-2xl">
+                                  <div className="flex flex-col gap-1.5">
+                                    <label className="text-[9px] font-bold text-white/10 uppercase tracking-widest">S-Blur</label>
+                                    <input
+                                      type="number"
+                                      value={bSettings.shadowBlur}
+                                      onChange={(e) => onUpdateBlockSettings(block.id, { shadowBlur: Number(e.target.value) })}
+                                      onBlur={onCommitHistory}
+                                      className="bg-transparent border border-white/5 rounded px-2 py-1 text-white text-[10px] font-mono"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1.5">
+                                    <label className="text-[9px] font-bold text-white/10 uppercase tracking-widest">S-Color</label>
+                                    <input
+                                      value={bSettings.shadowColor}
+                                      onChange={(e) => onUpdateBlockSettings(block.id, { shadowColor: e.target.value })}
+                                      onBlur={onCommitHistory}
+                                      className="bg-transparent border border-white/5 rounded px-2 py-1 text-white text-[10px] font-mono"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {block.collapsed && (
+                    <div className="text-[10px] text-white/40 italic truncate pr-20 font-mono flex items-center gap-2">
+                      <Activity size={10} className="text-terminal-accent/40" />
+                      {block.text.slice(0, 60) || '(Unit Data Missing)'}{block.text.length > 60 ? '...' : ''}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="pt-4 mt-auto flex gap-3">
+            <button
+              onClick={onClearBlocks}
+              className="flex-1 px-4 py-3 bg-white/5 text-white/40 hover:text-white text-[10px] font-bold uppercase tracking-widest border border-white/5 rounded-2xl transition-all"
+            >
+              Flush
+            </button>
+            <button
+              onClick={onParseChat}
+              className="flex-[2] px-4 py-3 bg-terminal-accent text-black text-[10px] font-extrabold uppercase tracking-widest rounded-2xl shadow-[0_0_30px_rgba(var(--accent-rgb),0.3)] hover:brightness-110 active:scale-95 transition-all"
+            >
+              Bake Into Canvas
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onParseChat}
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/30 rounded-md"
-          >
-            Parse Lines
-          </button>
-          <button
-            onClick={onClearBlocks}
-            className="px-3 py-2 text-xs font-semibold uppercase tracking-wide bg-terminal-dark border border-terminal-border text-terminal-muted rounded-md"
-          >
-            Clear
-          </button>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-terminal-muted">
-          <span>Filter</span>
-          <input
-            value={filterText}
-            onChange={(event) => onFilterTextChange(event.target.value)}
-            placeholder="Search lines"
-            className="flex-1 bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-white text-xs"
-          />
-        </div>
-      </div>
-    </div >
+      )}
+    </div>
   );
 };

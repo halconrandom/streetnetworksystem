@@ -10,6 +10,7 @@ export const defaultSettings: EditorSettings = {
   height: 1080,
   fitMode: 'contain',
   imageScale: 1,
+  imageRotation: 0,
   imageOffsetX: 0,
   imageOffsetY: 0,
 };
@@ -33,6 +34,7 @@ export const defaultTextSettings: TextBlockSettings = {
   textOffsetY: 0,
   textBoxWidth: 980,
   textRotation: 0,
+  align: 'left',
   backdropEnabled: false,
   backdropMode: 'text',
   backdropPadding: 6,
