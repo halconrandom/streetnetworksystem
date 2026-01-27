@@ -227,6 +227,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   if (req.path.startsWith('/api/auth')) return next();
   if (req.path.startsWith('/api/admin')) return next();
+  if (req.path.startsWith('/api/nexus')) return next();
   if (req.path === '/health') return next();
   if (!API_KEY) return next();
   const headerKey = req.get('x-api-key');
@@ -418,6 +419,63 @@ app.get('/api/auth/me', async (req, res) => {
   } catch (err) {
     console.error('auth me failed', err);
     return res.status(500).json({ error: 'Failed to fetch session' });
+  }
+});
+
+const requireAuth = async (req, res, next) => {
+  try {
+    const sessionUser = await loadSessionUser(req);
+    if (!sessionUser) {
+      console.warn('[AUTH] Unauthorized access attempt to:', req.path);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!sessionUser.is_active) {
+      console.warn('[AUTH] Inactive user attempt:', sessionUser.email);
+      return res.status(403).json({ error: 'User disabled' });
+    }
+    req.user = sessionUser;
+    return next();
+  } catch (err) {
+    console.error('[AUTH] Middleware error:', err);
+    return res.status(500).json({ error: 'Authentication failed' });
+  }
+};
+
+app.get('/api/nexus', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select data from public.sn_nexus_states where user_id = $1 limit 1`,
+      [req.user.id]
+    );
+    return res.json(result.rows[0]?.data || { nodes: [], connections: [], camera: { x: 0, y: 0, zoom: 1 } });
+  } catch (err) {
+    console.error('[NEXUS] Fetch failed for user:', req.user.id, err);
+    return res.status(500).json({ error: 'Failed to fetch nexus data' });
+  }
+});
+
+app.post('/api/nexus', requireAuth, async (req, res) => {
+  try {
+    const data = req.body || {};
+    if (!data.nodes) {
+      console.warn('[NEXUS] Invalid data payload received from:', req.user.email);
+      return res.status(400).json({ error: 'Invalid data format' });
+    }
+
+    await pool.query(
+      `insert into public.sn_nexus_states (user_id, data)
+             values ($1, $2::jsonb)
+             on conflict (user_id) do update set data = $2::jsonb, updated_at = now()`,
+      [req.user.id, JSON.stringify(data)]
+    );
+    console.log('[NEXUS] State saved successfully for:', req.user.email);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[NEXUS] Save failed for user:', req.user.id, err);
+    if (err.code === '42P01') {
+      return res.status(500).json({ error: 'Database table missing. Please run the SQL migration 003_nexus.sql.' });
+    }
+    return res.status(500).json({ error: 'Failed to save nexus data' });
   }
 });
 

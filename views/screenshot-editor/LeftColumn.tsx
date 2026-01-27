@@ -470,7 +470,7 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                               <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Align</label>
                               <select
                                 value={bSettings.align}
-                                onChange={(e) => { onUpdateBlockSettings(block.id, { align: e.target.value as any }); onCommitHistory(); }}
+                                onChange={(e) => { onUpdateBlockSettings(block.id, { align: e.target.value as any }); }}
                                 className="bg-black/60 border border-white/5 rounded-lg px-3 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none"
                               >
                                 <option value="left">Left</option>
@@ -562,7 +562,7 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                                   <label className="text-[9px] font-bold text-white/20 uppercase tracking-widest">Font Family</label>
                                   <select
                                     value={bSettings.fontFamily}
-                                    onChange={(e) => { onUpdateBlockSettings(block.id, { fontFamily: e.target.value }); onCommitHistory(); }}
+                                    onChange={(e) => { onUpdateBlockSettings(block.id, { fontFamily: e.target.value }); }}
                                     className="bg-black/60 border border-white/5 rounded-lg px-2.5 py-1.5 text-white text-[11px]"
                                   >
                                     <option value="Arial, Helvetica, sans-serif">Standard Arial</option>

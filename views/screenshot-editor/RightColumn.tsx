@@ -123,7 +123,6 @@ export const RightColumn: React.FC<RightColumnProps> = ({
                 value={settings.fitMode}
                 onChange={(event) => {
                   onSettingsChange({ fitMode: event.target.value as FitMode });
-                  onCommitHistory();
                 }}
                 className="bg-black/40 border border-white/5 rounded-xl px-2.5 py-2 text-white text-[11px] focus:border-terminal-accent/30 outline-none transition-all"
               >

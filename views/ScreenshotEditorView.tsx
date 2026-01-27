@@ -318,14 +318,19 @@ export const ScreenshotEditorView: React.FC = () => {
   useEffect(() => {
     if (settings.fitMode !== 'crop') return;
     if (!imageSize.width || !imageSize.height) return;
-    const scaleX = settings.width / imageSize.width;
-    const scaleY = settings.height / imageSize.height;
-    const coverScale = Math.max(scaleX, scaleY);
-    updateSettings({
-      imageScale: coverScale,
-      imageOffsetX: 0,
-      imageOffsetY: 0,
-    });
+
+    // Only perform an initial cover fit IF settings are currently at default/zeroed.
+    // This allows manual changes to persist even if resolution changes slightly.
+    if (settings.imageScale === 1 && settings.imageOffsetX === 0 && settings.imageOffsetY === 0) {
+      const scaleX = settings.width / imageSize.width;
+      const scaleY = settings.height / imageSize.height;
+      const coverScale = Math.max(scaleX, scaleY);
+      updateSettings({
+        imageScale: coverScale,
+        imageOffsetX: 0,
+        imageOffsetY: 0,
+      });
+    }
   }, [imageSize.height, imageSize.width, settings.fitMode, settings.height, settings.width]);
 
   const handleClearBlocks = () => {

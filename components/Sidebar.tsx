@@ -1,12 +1,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { 
-  LayoutDashboard, 
-  MessageSquare, 
-  Users, 
-  Settings, 
-  Activity, 
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Users,
+  Settings,
+  Activity,
   LogOut,
   Shield,
   PenTool,
@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
     { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets' },
     { id: 'v2_builder', label: 'Message Builder', icon: PenTool, path: '/message-builder' },
     { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor' },
+    { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus' },
     { id: 'users', label: 'Users', icon: Users, path: '/users' },
     { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit' },
     { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
@@ -46,8 +47,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
           <Shield size={18} className="text-terminal-accent" />
         </div>
         <div>
-            <h1 className="font-bold text-white tracking-wider text-sm">STREET NETWORK</h1>
-            <p className="text-[10px] text-terminal-muted uppercase tracking-widest">System Admin</p>
+          <h1 className="font-bold text-white tracking-wider text-sm">STREET NETWORK</h1>
+          <p className="text-[10px] text-terminal-muted uppercase tracking-widest">System Admin</p>
         </div>
       </div>
 
@@ -75,8 +76,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
       {/* User / Logout */}
       <div className="p-4 border-t border-terminal-border">
         <button className="flex items-center gap-3 px-3 py-2 w-full text-sm text-terminal-muted hover:text-red-400 transition-colors">
-            <LogOut size={18} />
-            <span>Logout</span>
+          <LogOut size={18} />
+          <span>Logout</span>
         </button>
       </div>
     </aside>

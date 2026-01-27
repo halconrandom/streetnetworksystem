@@ -163,8 +163,8 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
       // 1. Check Alt Drag (Background image position)
       if (fitMode === 'crop' && e.altKey) {
         setImageDragState({
-          startX: e.clientX,
-          startY: e.clientY,
+          startX: x,
+          startY: y,
           baseX: settings.imageOffsetX,
           baseY: settings.imageOffsetY,
         });
@@ -207,11 +207,20 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
     }
 
     if (imageDragState) {
-      const deltaX = e.clientX - imageDragState.startX;
-      const deltaY = e.clientY - imageDragState.startY;
+      const deltaX = x - imageDragState.startX;
+      const deltaY = y - imageDragState.startY;
+
+      // Handle rotation for intuitive dragging
+      const radians = (settings.imageRotation * Math.PI) / 180;
+      const cos = Math.cos(-radians);
+      const sin = Math.sin(-radians);
+
+      const rotatedDeltaX = deltaX * cos - deltaY * sin;
+      const rotatedDeltaY = deltaX * sin + deltaY * cos;
+
       onUpdateImagePosition({
-        imageOffsetX: Math.round(imageDragState.baseX + deltaX),
-        imageOffsetY: Math.round(imageDragState.baseY + deltaY),
+        imageOffsetX: Math.round(imageDragState.baseX + rotatedDeltaX),
+        imageOffsetY: Math.round(imageDragState.baseY + rotatedDeltaY),
       });
       return;
     }

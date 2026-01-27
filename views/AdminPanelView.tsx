@@ -49,11 +49,16 @@ const deriveName = (email: string) => {
   return name || email;
 };
 
-export default function AdminPanelView() {
+interface AdminPanelViewProps {
+  activeTab?: 'users' | 'audit';
+}
+
+export default function AdminPanelView({ activeTab: initialTab = 'users' }: AdminPanelViewProps) {
   const router = useRouter();
   const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [currentTab, setCurrentTab] = useState<'users' | 'audit'>(initialTab);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -61,7 +66,7 @@ export default function AdminPanelView() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const pageSize = 25;
+  const pageSize = 15;
   const [editMap, setEditMap] = useState<Record<string, AdminUser>>({});
 
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
@@ -147,10 +152,10 @@ export default function AdminPanelView() {
 
   useEffect(() => {
     if (!checkingAccess && !accessDenied) {
-      loadUsers();
-      loadAudit();
+      if (currentTab === 'users') loadUsers();
+      if (currentTab === 'audit') loadAudit();
     }
-  }, [checkingAccess, accessDenied, loadUsers, loadAudit]);
+  }, [checkingAccess, accessDenied, currentTab, loadUsers, loadAudit]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalUsers / pageSize)), [totalUsers, pageSize]);
   const auditPages = useMemo(() => Math.max(1, Math.ceil(auditTotal / auditPageSize)), [auditTotal, auditPageSize]);
@@ -208,253 +213,373 @@ export default function AdminPanelView() {
 
   if (checkingAccess) {
     return (
-      <div className="flex h-full items-center justify-center text-terminal-muted">
-        Verifying access...
+      <div className="flex h-[400px] items-center justify-center text-terminal-muted animate-pulse font-mono uppercase tracking-[0.2em] text-xs">
+        <RefreshCw size={16} className="mr-3 animate-spin" />
+        Deciphering Credentials...
       </div>
     );
   }
 
   if (accessDenied) {
     return (
-      <div className="flex h-full items-center justify-center text-terminal-muted">
-        <div className="text-center space-y-2">
-          <div className="text-lg text-white">Access Denied</div>
-          <div className="text-xs uppercase tracking-wide">Admin role required</div>
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="max-w-md w-full bg-red-500/5 border border-red-500/20 rounded-xl p-8 text-center space-y-4 shadow-2xl backdrop-blur-sm">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+            <Shield size={32} className="text-red-500" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-xl text-white font-bold tracking-tight">Security Protocol Violation</h2>
+            <p className="text-sm text-red-500/60 uppercase tracking-widest font-mono">Access Denied</p>
+          </div>
+          <p className="text-sm text-terminal-muted leading-relaxed">
+            Your current authorization level is insufficient to access the core system management interface. Contact a terminal overseer.
+          </p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-6 py-2 bg-red-500 text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-red-400 transition-all active:scale-95 shadow-lg shadow-red-500/20"
+          >
+            Return to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg text-white font-semibold">Admin Panel</h2>
-          <p className="text-xs text-terminal-muted">Manage users, roles, verification and access flags.</p>
+    <div className="h-full flex flex-col min-w-0 bg-terminal-dark/30">
+      {/* Tab Navigation */}
+      <div className="px-6 pt-6 flex items-center justify-between border-b border-terminal-border bg-terminal-panel/30 backdrop-blur-md">
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => setCurrentTab('users')}
+            className={`pb-4 text-xs font-bold uppercase tracking-[0.2em] transition-all relative ${currentTab === 'users' ? 'text-terminal-accent' : 'text-terminal-muted hover:text-white'
+              }`}
+          >
+            User Controller
+            {currentTab === 'users' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-terminal-accent shadow-[0_0_10px_rgba(255,59,59,0.5)]"></div>}
+          </button>
+          <button
+            onClick={() => setCurrentTab('audit')}
+            className={`pb-4 text-xs font-bold uppercase tracking-[0.2em] transition-all relative ${currentTab === 'audit' ? 'text-terminal-accent' : 'text-terminal-muted hover:text-white'
+              }`}
+          >
+            Audit Matrix
+            {currentTab === 'audit' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-terminal-accent shadow-[0_0_10px_rgba(255,59,59,0.5)]"></div>}
+          </button>
         </div>
-        <div className="flex items-center gap-2 text-xs text-terminal-muted">
-          <Shield size={14} />
-          Role protected
+        <div className="pb-4 flex items-center gap-3 text-[10px] text-terminal-muted uppercase tracking-widest opacity-60">
+          <Shield size={12} className="text-terminal-accent" />
+          Authorized Access Mode
         </div>
       </div>
 
-      <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex items-center gap-2">
-            <Search size={14} className="text-terminal-muted" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  setPage(1);
-                  loadUsers();
-                }
-              }}
-              placeholder="Search by email or id"
-              className="bg-terminal-dark border border-terminal-border rounded px-3 py-1 text-xs text-white w-64"
-            />
-          </div>
-          <button
-            className="px-3 py-1 text-xs rounded border border-terminal-border text-terminal-muted"
-            onClick={() => {
-              setPage(1);
-              loadUsers();
-            }}
-          >
-            Search
-          </button>
-          <button
-            className="px-3 py-1 text-xs rounded border border-terminal-border text-terminal-muted flex items-center gap-2"
-            onClick={() => loadUsers()}
-          >
-            <RefreshCw size={12} /> Refresh
-          </button>
-          <div className="ml-auto text-xs text-terminal-muted">
-            {totalUsers} users
-          </div>
-        </div>
+      <div className="flex-1 overflow-auto custom-scrollbar p-6">
+        {currentTab === 'users' ? (
+          <div className="space-y-6 max-w-[1400px] mx-auto">
+            {/* Search and Stats */}
+            <div className="flex flex-wrap items-center gap-4 bg-terminal-panel border border-terminal-border rounded-xl p-4 shadow-xl">
+              <div className="relative flex-1 min-w-[300px]">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-terminal-muted" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      setPage(1);
+                      loadUsers();
+                    }
+                  }}
+                  placeholder="Scan identifier or neural address..."
+                  className="w-full bg-terminal-dark/50 border border-terminal-border/50 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-terminal-accent/50 transition-colors placeholder:text-terminal-muted/30 font-mono"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg border border-terminal-border text-terminal-muted hover:bg-white/5 hover:text-white transition-all active:scale-95"
+                  onClick={() => {
+                    setPage(1);
+                    loadUsers();
+                  }}
+                >
+                  Query API
+                </button>
+                <button
+                  className="p-2 border border-terminal-border rounded-lg text-terminal-muted hover:bg-white/5 hover:text-white transition-all active:scale-95 shadow-inner"
+                  onClick={() => loadUsers()}
+                  title="Reload Registry"
+                >
+                  <RefreshCw size={16} className={loadingUsers ? 'animate-spin' : ''} />
+                </button>
+              </div>
+              <div className="px-4 border-l border-terminal-border h-8 flex items-center gap-4 ml-auto">
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-terminal-muted uppercase tracking-tighter">Registered Nodes</span>
+                  <span className="text-sm font-mono text-white leading-none">{totalUsers}</span>
+                </div>
+              </div>
+            </div>
 
-        {usersError && <div className="text-xs text-terminal-accent">{usersError}</div>}
+            {usersError && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-500 px-4 py-3 rounded-lg text-xs font-mono">
+                [SYSTEM_ERROR]: {usersError}
+              </div>
+            )}
 
-        <div className="overflow-auto">
-          <table className="w-full text-xs text-terminal-muted">
-            <thead>
-              <tr className="text-left border-b border-terminal-border">
-                <th className="py-2">Name</th>
-                <th>Email</th>
-                <th>ID</th>
-                <th>Role</th>
-                <th>Active</th>
-                <th>Verified</th>
-                <th>Flags</th>
-                <th>Last Login</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingUsers && (
-                <tr>
-                  <td colSpan={9} className="py-4 text-center">Loading...</td>
-                </tr>
-              )}
-              {!loadingUsers && users.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="py-4 text-center">No users found.</td>
-                </tr>
-              )}
-              {users.map((user) => {
-                const edited = editMap[user.id] || user;
-                return (
-                  <tr key={user.id} className="border-b border-terminal-border/60 align-top">
-                    <td className="py-3 text-white">{deriveName(user.email)}</td>
-                    <td className="py-3">{user.email}</td>
-                    <td className="py-3">{user.id.slice(0, 8)}...</td>
-                    <td className="py-3">
-                      <select
-                        value={edited.role}
-                        onChange={(event) => updateEdit(user.id, { role: event.target.value as AdminUser['role'] })}
-                        className="bg-terminal-dark border border-terminal-border rounded px-2 py-1 text-xs text-white"
-                      >
-                        <option value="user">User</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </td>
-                    <td className="py-3">
-                      <button
-                        onClick={() => updateEdit(user.id, { is_active: !edited.is_active })}
-                        className="flex items-center gap-1 text-xs"
-                      >
-                        {edited.is_active ? <Check size={14} className="text-terminal-accent" /> : <X size={14} />}
-                      </button>
-                    </td>
-                    <td className="py-3">
-                      <button
-                        onClick={() => updateEdit(user.id, { is_verified: !edited.is_verified })}
-                        className="flex items-center gap-1 text-xs"
-                      >
-                        {edited.is_verified ? <Check size={14} className="text-terminal-accent" /> : <X size={14} />}
-                      </button>
-                    </td>
-                    <td className="py-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        {FLAGS.map((flag) => (
-                          <label key={`${user.id}-${flag.id}`} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={edited.flags?.includes(flag.id)}
-                              onChange={() => toggleFlag(user.id, flag.id)}
-                            />
-                            <span>{flag.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="py-3">{formatDate(user.last_login_at)}</td>
-                    <td className="py-3">
-                      <button
-                        className="px-3 py-1 text-xs rounded border border-terminal-border text-terminal-muted flex items-center gap-2"
-                        onClick={() => saveUser(user.id)}
-                      >
-                        <Save size={12} /> Save
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            <div className="bg-terminal-panel border border-terminal-border rounded-xl shadow-2xl overflow-hidden backdrop-blur-sm">
+              <div className="overflow-x-auto overflow-y-hidden">
+                <table className="w-full text-xs text-terminal-text border-collapse">
+                  <thead>
+                    <tr className="text-left bg-terminal-dark/50 border-b border-terminal-border">
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Identity</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Neural Address</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted text-center">Status</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Authorization Flags</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Last Uplink</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-terminal-border/40">
+                    {loadingUsers ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-terminal-muted animate-pulse font-mono uppercase tracking-[0.1em]">
+                          Synchronizing Registry...
+                        </td>
+                      </tr>
+                    ) : users.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-terminal-muted font-mono uppercase tracking-[0.1em]">
+                          No records found in database
+                        </td>
+                      </tr>
+                    ) : (
+                      users.map((user) => {
+                        const edited = editMap[user.id] || user;
+                        const isChanged = JSON.stringify(user) !== JSON.stringify(edited);
 
-        <div className="flex items-center justify-between text-xs text-terminal-muted">
-          <span>Page {page} / {totalPages}</span>
-          <div className="flex items-center gap-2">
-            <button
-              className="px-2 py-1 border border-terminal-border rounded"
-              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              disabled={page <= 1}
-            >
-              Prev
-            </button>
-            <button
-              className="px-2 py-1 border border-terminal-border rounded"
-              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              disabled={page >= totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
+                        return (
+                          <tr key={user.id} className="hover:bg-white/[0.02] transition-colors group">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-terminal-dark to-terminal-border border border-terminal-border flex items-center justify-center overflow-hidden">
+                                  <span className="text-[10px] font-bold text-white uppercase">{deriveName(user.email).slice(0, 2)}</span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-white font-medium">{deriveName(user.email)}</span>
+                                  <span className="text-[9px] uppercase tracking-tighter text-terminal-muted font-mono">ID: {user.id.slice(0, 8)}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-terminal-muted/80">{user.email}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center justify-center gap-6">
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-[8px] uppercase tracking-tighter text-terminal-muted">Active</span>
+                                  <button
+                                    onClick={() => updateEdit(user.id, { is_active: !edited.is_active })}
+                                    className={`w-10 h-5 rounded-full p-1 transition-all duration-300 relative border ${edited.is_active ? 'bg-terminal-accent/20 border-terminal-accent/40' : 'bg-terminal-dark border-terminal-border'
+                                      }`}
+                                  >
+                                    <div className={`w-3 h-3 rounded-full shadow-lg transform transition-transform duration-300 ${edited.is_active ? 'translate-x-5 bg-terminal-accent shadow-terminal-accent/50' : 'translate-x-0 bg-terminal-muted/50'
+                                      }`} />
+                                  </button>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-[8px] uppercase tracking-tighter text-terminal-muted">Verified</span>
+                                  <button
+                                    onClick={() => updateEdit(user.id, { is_verified: !edited.is_verified })}
+                                    className={`w-10 h-5 rounded-full p-1 transition-all duration-300 relative border ${edited.is_verified ? 'bg-terminal-accent/20 border-terminal-accent/40' : 'bg-terminal-dark border-terminal-border'
+                                      }`}
+                                  >
+                                    <div className={`w-3 h-3 rounded-full shadow-lg transform transition-transform duration-300 ${edited.is_verified ? 'translate-x-5 bg-terminal-accent shadow-terminal-accent/50' : 'translate-x-0 bg-terminal-muted/50'
+                                      }`} />
+                                  </button>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                  <span className="text-[8px] uppercase tracking-tighter text-terminal-muted">Role</span>
+                                  <select
+                                    value={edited.role}
+                                    onChange={(event) => updateEdit(user.id, { role: event.target.value as AdminUser['role'] })}
+                                    className="bg-terminal-dark/50 border border-terminal-border/50 rounded px-1.5 py-0.5 text-[10px] text-white focus:outline-none focus:border-terminal-accent cursor-pointer uppercase font-mono"
+                                  >
+                                    <option value="user">Member</option>
+                                    <option value="admin">Overseer</option>
+                                  </select>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-2 max-w-[300px]">
+                                {FLAGS.map((flag) => {
+                                  const active = edited.flags?.includes(flag.id);
+                                  return (
+                                    <button
+                                      key={`${user.id}-${flag.id}`}
+                                      onClick={() => toggleFlag(user.id, flag.id)}
+                                      className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-tighter transition-all border ${active
+                                          ? 'bg-terminal-accent/10 border-terminal-accent/30 text-terminal-accent shadow-[0_0_5px_rgba(255,59,59,0.1)]'
+                                          : 'bg-terminal-dark border-terminal-border text-terminal-muted/40 hover:border-terminal-muted/60'
+                                        }`}
+                                    >
+                                      {flag.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex flex-col">
+                                <span className="text-terminal-muted font-mono leading-none">{formatDate(user.last_login_at)}</span>
+                                <span className="text-[8px] uppercase tracking-tighter text-terminal-muted opacity-40 mt-1">Created: {formatDate(user.created_at).split(',')[0]}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <button
+                                onClick={() => saveUser(user.id)}
+                                disabled={!isChanged}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChanged
+                                    ? 'bg-terminal-accent text-white shadow-lg shadow-terminal-accent/20 hover:scale-105 active:scale-95'
+                                    : 'bg-terminal-dark/50 text-terminal-muted opacity-40 cursor-default border border-terminal-border font-mono'
+                                  }`}
+                              >
+                                <Save size={12} />
+                                Update State
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-      <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-white text-sm font-semibold">Audit Logs</h3>
-            <p className="text-xs text-terminal-muted">Recent administrative actions.</p>
+            {/* Pagination */}
+            <div className="flex items-center justify-between bg-terminal-panel/50 border border-terminal-border p-4 rounded-xl backdrop-blur-sm">
+              <div className="text-[10px] uppercase tracking-widest text-terminal-muted font-mono">
+                Registry Index: <span className="text-white">{(page - 1) * pageSize + 1} — {Math.min(page * pageSize, totalUsers)}</span> of {totalUsers} nodes
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-terminal-border rounded-lg text-terminal-muted hover:bg-white/5 hover:text-white transition-all disabled:opacity-20 flex items-center gap-1 active:scale-95"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                >
+                  <X size={10} className="rotate-90 origin-center" /> Previous
+                </button>
+                <div className="flex items-center gap-1 px-4 font-mono text-xs">
+                  <span className="text-terminal-accent">{page}</span>
+                  <span className="text-terminal-muted opacity-30">/</span>
+                  <span className="text-terminal-muted">{totalPages}</span>
+                </div>
+                <button
+                  className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-terminal-border rounded-lg text-terminal-muted hover:bg-white/5 hover:text-white transition-all disabled:opacity-20 flex items-center gap-1 active:scale-95"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next <X size={10} className="-rotate-90 origin-center" />
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            className="px-3 py-1 text-xs rounded border border-terminal-border text-terminal-muted flex items-center gap-2"
-            onClick={() => loadAudit()}
-          >
-            <RefreshCw size={12} /> Refresh
-          </button>
-        </div>
-        <div className="overflow-auto">
-          <table className="w-full text-xs text-terminal-muted">
-            <thead>
-              <tr className="text-left border-b border-terminal-border">
-                <th className="py-2">Time</th>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Target</th>
-                <th>Meta</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingAudit && (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center">Loading...</td>
-                </tr>
-              )}
-              {!loadingAudit && auditRows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center">No audit entries.</td>
-                </tr>
-              )}
-              {auditRows.map((row) => (
-                <tr key={row.id} className="border-b border-terminal-border/60">
-                  <td className="py-2">{formatDate(row.created_at)}</td>
-                  <td>{row.action}</td>
-                  <td>{row.actor_email || '—'}</td>
-                  <td>{row.target_email || '—'}</td>
-                  <td className="max-w-xs truncate">
-                    {row.metadata ? JSON.stringify(row.metadata) : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex items-center justify-between text-xs text-terminal-muted">
-          <span>Page {auditPage} / {auditPages}</span>
-          <div className="flex items-center gap-2">
-            <button
-              className="px-2 py-1 border border-terminal-border rounded"
-              onClick={() => setAuditPage((prev) => Math.max(1, prev - 1))}
-              disabled={auditPage <= 1}
-            >
-              Prev
-            </button>
-            <button
-              className="px-2 py-1 border border-terminal-border rounded"
-              onClick={() => setAuditPage((prev) => Math.min(auditPages, prev + 1))}
-              disabled={auditPage >= auditPages}
-            >
-              Next
-            </button>
+        ) : (
+          <div className="space-y-6 max-w-[1400px] mx-auto">
+            <div className="flex items-center justify-between bg-terminal-panel border border-terminal-border rounded-xl p-4 shadow-xl">
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-widest">Chronological Security Audit</h3>
+                <p className="text-[10px] text-terminal-muted tracking-tight">Immutable history branch records.</p>
+              </div>
+              <button
+                className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg border border-terminal-border text-terminal-muted hover:bg-white/5 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                onClick={() => loadAudit()}
+              >
+                <RefreshCw size={14} className={loadingAudit ? 'animate-spin' : ''} />
+                Refresh Stream
+              </button>
+            </div>
+
+            <div className="bg-terminal-panel border border-terminal-border rounded-xl shadow-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-terminal-text border-collapse">
+                  <thead>
+                    <tr className="text-left bg-terminal-dark/50 border-b border-terminal-border">
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Timestamp</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Action Type</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Operator</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Subject Node</th>
+                      <th className="px-6 py-4 font-bold uppercase tracking-widest text-[10px] text-terminal-muted">Event Payload</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-terminal-border/20">
+                    {loadingAudit ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-terminal-muted animate-pulse font-mono uppercase tracking-[0.1em]">
+                          Streaming Event Logs...
+                        </td>
+                      </tr>
+                    ) : auditRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-terminal-muted font-mono uppercase tracking-[0.1em]">
+                          No telemetry data available
+                        </td>
+                      </tr>
+                    ) : (
+                      auditRows.map((row) => (
+                        <tr key={row.id} className="hover:bg-white/[0.01] transition-colors border-b border-terminal-border/10">
+                          <td className="px-6 py-4 font-mono text-terminal-muted text-[10px]">{formatDate(row.created_at)}</td>
+                          <td className="px-6 py-4">
+                            <span className="bg-terminal-accent/5 text-terminal-accent border border-terminal-accent/20 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tighter">
+                              {row.action}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col">
+                              <span className="text-white">{row.actor_email || '—'}</span>
+                              <span className="text-[8px] font-mono text-terminal-muted opacity-40 uppercase tracking-tighter">{row.ip || 'INTERNAL_IPC'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-terminal-muted">{row.target_email || '—'}</td>
+                          <td className="px-6 py-4">
+                            <pre className="text-[9px] font-mono text-cyan-400/60 max-w-[250px] truncate bg-black/40 px-2 py-1 rounded cursor-help" title={row.metadata ? JSON.stringify(row.metadata, null, 2) : undefined}>
+                              {row.metadata ? JSON.stringify(row.metadata) : 'EMPTY_DATA'}
+                            </pre>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between bg-terminal-panel/50 border border-terminal-border p-4 rounded-xl">
+              <div className="text-[10px] uppercase tracking-widest text-terminal-muted font-mono">
+                Total Audit Stream: <span className="text-white">{auditTotal} records</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-terminal-border rounded-lg text-terminal-muted hover:bg-white/5 disabled:opacity-20 active:scale-95"
+                  onClick={() => setAuditPage((prev) => Math.max(1, prev - 1))}
+                  disabled={auditPage <= 1}
+                >
+                  Prev
+                </button>
+                <div className="px-4 font-mono text-xs">
+                  <span className="text-terminal-accent">{auditPage}</span>
+                  <span className="text-terminal-muted opacity-30 mx-1">/</span>
+                  <span className="text-terminal-muted">{auditPages}</span>
+                </div>
+                <button
+                  className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-terminal-border rounded-lg text-terminal-muted hover:bg-white/5 disabled:opacity-20 active:scale-95"
+                  onClick={() => setAuditPage((prev) => Math.min(auditPages, prev + 1))}
+                  disabled={auditPage >= auditPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
