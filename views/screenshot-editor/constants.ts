@@ -28,7 +28,7 @@ export const defaultTextSettings: TextBlockSettings = {
   fontFamily: 'Arial, Helvetica, sans-serif',
   fontWeight: 700,
   fontSize: 18,
-  lineHeight: 22,
+  lineHeight: 25,
   strokeWidth: 2,
   strokeColor: '#000000',
   shadowBlur: 4,

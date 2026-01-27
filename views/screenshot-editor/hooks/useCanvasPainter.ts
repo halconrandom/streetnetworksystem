@@ -56,79 +56,92 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   if (maxWidth <= 0) return [{ text, redactions: [] }];
 
   const MARKER = '//';
-  const words = text.split(/(\s+)/); // Keep spaces
+  // Split by whitespace and markers
+  const tokens = text.split(/(\s+|\/\/)/).filter(s => s !== undefined && s !== "");
   const lines: { text: string; redactions: RedactionRegion[] }[] = [];
+
   let currentText = '';
   let inRedaction = false;
   let redactionStartPos: number | null = null;
   let currentRedactions: RedactionRegion[] = [];
 
   const pushLine = () => {
+    // If we wrap in the middle of a redaction, close it for the current line
+    if (inRedaction && redactionStartPos !== null) {
+      const endPos = ctx.measureText(currentText).width;
+      if (endPos > redactionStartPos) {
+        currentRedactions.push({ startX: redactionStartPos, width: endPos - redactionStartPos });
+      }
+    }
+
     lines.push({ text: currentText, redactions: [...currentRedactions] });
+
     currentText = '';
     currentRedactions = [];
+
+    // If we wrapped in the middle of a redaction, it continues at the start of the next line
     if (inRedaction) {
       redactionStartPos = 0;
+    } else {
+      redactionStartPos = null;
     }
   };
 
-  words.forEach((word) => {
-    if (!word) return;
-
-    for (let i = 0; i < word.length; i++) {
-      const nextTwo = word.substring(i, i + 2);
-
-      if (nextTwo === MARKER) {
-        if (!inRedaction) {
-          inRedaction = true;
-          redactionStartPos = ctx.measureText(currentText).width;
-        } else {
-          const redactionEndPos = ctx.measureText(currentText).width;
-          if (redactionEndPos > (redactionStartPos ?? 0)) {
-            currentRedactions.push({
-              startX: redactionStartPos!,
-              width: redactionEndPos - redactionStartPos!
-            });
-          }
-          inRedaction = false;
-          redactionStartPos = null;
-        }
-        i++; // skip next char of marker
-        continue;
-      }
-
-      const char = word[i];
-      const testText = currentText + char;
-
-      if (ctx.measureText(testText).width > maxWidth && currentText && !(/\s/.test(char))) {
-        if (inRedaction) {
-          const redactionEndPos = ctx.measureText(currentText).width;
-          if (redactionEndPos > (redactionStartPos ?? 0)) {
-            currentRedactions.push({
-              startX: redactionStartPos!,
-              width: redactionEndPos - redactionStartPos!
-            });
-          }
-        }
-        pushLine();
-        currentText = char;
-        if (inRedaction) redactionStartPos = 0;
+  tokens.forEach((token) => {
+    if (token === MARKER) {
+      if (!inRedaction) {
+        inRedaction = true;
+        redactionStartPos = ctx.measureText(currentText).width;
       } else {
-        currentText += char;
+        const endPos = ctx.measureText(currentText).width;
+        if (endPos > (redactionStartPos ?? 0)) {
+          currentRedactions.push({
+            startX: redactionStartPos!,
+            width: endPos - redactionStartPos!
+          });
+        }
+        inRedaction = false;
+        redactionStartPos = null;
       }
+      return;
+    }
+
+    // Skip leading spaces on a new line to keep things clean
+    if (currentText === "" && /^\s+$/.test(token)) return;
+
+    const testText = currentText + token;
+    const testWidth = ctx.measureText(testText).width;
+
+    if (testWidth > maxWidth) {
+      // If we already have some text, push it and try the word on a new line
+      if (currentText !== "") {
+        pushLine();
+
+        // Skip the token if it's just a space that caused the wrap
+        if (/^\s+$/.test(token)) return;
+      }
+
+      // If the word itself is still too long for a single line, use character-based fallback for it
+      if (ctx.measureText(token).width > maxWidth) {
+        for (let i = 0; i < token.length; i++) {
+          const char = token[i];
+          if (ctx.measureText(currentText + char).width > maxWidth) {
+            pushLine();
+          }
+          currentText += char;
+        }
+      } else {
+        currentText = token;
+      }
+    } else {
+      currentText = testText;
     }
   });
 
-  if (inRedaction) {
-    const redactionEndPos = ctx.measureText(currentText).width;
-    if (redactionEndPos > (redactionStartPos ?? 0)) {
-      currentRedactions.push({
-        startX: redactionStartPos!,
-        width: redactionEndPos - redactionStartPos!
-      });
-    }
+  // Final push if there's any pending text
+  if (currentText !== "" || lines.length === 0 || inRedaction) {
+    pushLine();
   }
-  pushLine();
 
   return lines;
 };
