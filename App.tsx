@@ -13,6 +13,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
+  const [userFlags, setUserFlags] = useState<string[]>([]);
   const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
 
   useEffect(() => {
@@ -33,7 +34,11 @@ function AppShell({ currentView, title, children }: AppShellProps) {
           router.replace('/verify');
           return;
         }
-        if (isMounted) setCheckingAccess(false);
+
+        if (isMounted) {
+          setUserFlags(payload.flags || []);
+          setCheckingAccess(false);
+        }
       } catch {
         router.replace('/login');
       }
@@ -43,6 +48,36 @@ function AppShell({ currentView, title, children }: AppShellProps) {
       isMounted = false;
     };
   }, [apiBase, router]);
+
+  // Route protection based on flags
+  useEffect(() => {
+    if (checkingAccess || !userFlags.length) return;
+
+    const routeFlagMap: Record<string, string> = {
+      '/': 'dashboard',
+      '/tickets': 'transcripts',
+      '/message-builder': 'message_builder',
+      '/screenshot-editor': 'screenshot_editor',
+      '/nexus': 'nexus',
+      '/users': 'users',
+      '/audit': 'audit_logs',
+    };
+
+    const currentPath = router.pathname;
+    const requiredFlag = routeFlagMap[currentPath];
+
+    if (requiredFlag && !userFlags.includes(requiredFlag)) {
+      console.warn(`[AUTH] Unauthorized route access: ${currentPath}. Required flag: ${requiredFlag}`);
+      // Redirect to a safe page the user HAS access to
+      const firstAvailable = Object.entries(routeFlagMap).find(([_, flag]) => userFlags.includes(flag));
+      if (firstAvailable) {
+        router.replace(firstAvailable[0]);
+      } else {
+        // No access to anything? Redirect to verify as a fallback
+        router.replace('/verify');
+      }
+    }
+  }, [router.pathname, userFlags, checkingAccess]);
 
   if (checkingAccess) {
     return (
@@ -54,7 +89,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
 
   return (
     <div className="flex h-screen bg-terminal-dark text-terminal-text font-sans overflow-hidden">
-      <Sidebar currentView={currentView} />
+      <Sidebar currentView={currentView} flags={userFlags} />
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-terminal-panel/50 backdrop-blur-sm border-b border-terminal-border flex items-center justify-between px-6 z-20">

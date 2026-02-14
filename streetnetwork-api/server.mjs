@@ -263,8 +263,7 @@ const ADMIN_FLAGS = [
   'screenshot_editor',
   'users',
   'audit_logs',
-  'settings',
-  'admin_panel',
+  'nexus',
 ];
 
 const normalizeFlags = (flags) => {
@@ -281,11 +280,37 @@ const requireAdmin = async (req, res, next) => {
     if (!sessionUser) return res.status(401).json({ error: 'Unauthorized' });
     if (!sessionUser.is_active) return res.status(403).json({ error: 'User disabled' });
     if (sessionUser.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-    req.adminUser = sessionUser;
+
+    // Fetch flags for the middleware context
+    const flags = await getUserFlags(sessionUser.id);
+    req.adminUser = { ...sessionUser, flags };
     return next();
   } catch (err) {
     console.error('admin auth failed', err);
     return res.status(500).json({ error: 'Failed to authorize' });
+  }
+};
+
+const requireFlag = (flag) => async (req, res, next) => {
+  try {
+    const sessionUser = await loadSessionUser(req);
+    if (!sessionUser) return res.status(401).json({ error: 'Unauthorized' });
+    if (!sessionUser.is_active) return res.status(403).json({ error: 'User disabled' });
+
+    // Admin check if it's an admin-only area
+    if (sessionUser.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+
+    const flags = await getUserFlags(sessionUser.id);
+    if (!flags.includes(flag)) {
+      console.warn(`[AUTH] User ${sessionUser.email} missing required flag: ${flag}`);
+      return res.status(403).json({ error: `Missing required permission: ${flag}` });
+    }
+
+    req.adminUser = { ...sessionUser, flags };
+    return next();
+  } catch (err) {
+    console.error(`flag check failed for ${flag}`, err);
+    return res.status(500).json({ error: 'Authorization error' });
   }
 };
 
@@ -441,24 +466,24 @@ const requireAuth = async (req, res, next) => {
   }
 };
 
-app.get('/api/nexus', requireAuth, async (req, res) => {
+app.get('/api/nexus', requireFlag('nexus'), async (req, res) => {
   try {
     const result = await pool.query(
       `select data from public.sn_nexus_states where user_id = $1 limit 1`,
-      [req.user.id]
+      [req.adminUser.id]
     );
     return res.json(result.rows[0]?.data || { nodes: [], connections: [], camera: { x: 0, y: 0, zoom: 1 } });
   } catch (err) {
-    console.error('[NEXUS] Fetch failed for user:', req.user.id, err);
+    console.error('[NEXUS] Fetch failed for user:', req.adminUser.id, err);
     return res.status(500).json({ error: 'Failed to fetch nexus data' });
   }
 });
 
-app.post('/api/nexus', requireAuth, async (req, res) => {
+app.post('/api/nexus', requireFlag('nexus'), async (req, res) => {
   try {
     const data = req.body || {};
     if (!data.nodes) {
-      console.warn('[NEXUS] Invalid data payload received from:', req.user.email);
+      console.warn('[NEXUS] Invalid data payload received from:', req.adminUser.email);
       return res.status(400).json({ error: 'Invalid data format' });
     }
 
@@ -466,12 +491,12 @@ app.post('/api/nexus', requireAuth, async (req, res) => {
       `insert into public.sn_nexus_states (user_id, data)
              values ($1, $2::jsonb)
              on conflict (user_id) do update set data = $2::jsonb, updated_at = now()`,
-      [req.user.id, JSON.stringify(data)]
+      [req.adminUser.id, JSON.stringify(data)]
     );
-    console.log('[NEXUS] State saved successfully for:', req.user.email);
+    console.log('[NEXUS] State saved successfully for:', req.adminUser.email);
     return res.json({ ok: true });
   } catch (err) {
-    console.error('[NEXUS] Save failed for user:', req.user.id, err);
+    console.error('[NEXUS] Save failed for user:', req.adminUser.id, err);
     if (err.code === '42P01') {
       return res.status(500).json({ error: 'Database table missing. Please run the SQL migration 003_nexus.sql.' });
     }
@@ -483,7 +508,31 @@ app.get('/api/admin/flags', requireAdmin, (_req, res) => {
   return res.json({ flags: ADMIN_FLAGS });
 });
 
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
+app.get('/api/admin/stats', requireFlag('dashboard'), async (_req, res) => {
+  try {
+    const [users, tickets, audit] = await Promise.all([
+      pool.query(`select count(*)::int as total from public.sn_users`),
+      pool.query(`select count(*)::int as total, count(*) filter (where status = 'open')::int as open from public.sn_tickets`),
+      pool.query(`select count(*)::int as total from public.sn_audit_logs`),
+    ]);
+
+    const activeSessions = await pool.query(`select count(distinct user_id)::int as total from public.sn_sessions where expires_at > now() and revoked_at is null`);
+
+    return res.json({
+      totalUsers: users.rows[0].total,
+      totalTickets: tickets.rows[0].total,
+      openTickets: tickets.rows[0].open,
+      activeMembers: activeSessions.rows[0].total,
+      auditRecords: audit.rows[0].total,
+      avgResponse: '12m', // Placeholder for now
+    });
+  } catch (err) {
+    console.error('admin stats failed', err);
+    return res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+app.get('/api/admin/users', requireFlag('users'), async (req, res) => {
   const page = Math.max(1, Number(req.query.page || 1));
   const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 25)));
   const search = String(req.query.q || '').trim();
@@ -530,7 +579,7 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
   return res.json({ rows: payload, total, page, pageSize });
 });
 
-app.patch('/api/admin/users/:id', requireAdmin, async (req, res) => {
+app.patch('/api/admin/users/:id', requireFlag('users'), async (req, res) => {
   const id = req.params.id;
   const { role, is_active, is_verified } = req.body || {};
   const nextRole = typeof role === 'string' ? role.trim() : undefined;
@@ -575,7 +624,7 @@ app.patch('/api/admin/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.put('/api/admin/users/:id/flags', requireAdmin, async (req, res) => {
+app.put('/api/admin/users/:id/flags', requireFlag('users'), async (req, res) => {
   const id = req.params.id;
   const flags = normalizeFlags(req.body?.flags);
   try {
@@ -606,7 +655,7 @@ app.put('/api/admin/users/:id/flags', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/api/admin/audit', requireAdmin, async (req, res) => {
+app.get('/api/admin/audit', requireFlag('audit_logs'), async (req, res) => {
   const page = Math.max(1, Number(req.query.page || 1));
   const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 25)));
   const params = [];
@@ -636,7 +685,7 @@ app.get('/api/admin/audit', requireAdmin, async (req, res) => {
 });
 
 
-app.get('/api/tickets', async (_req, res) => {
+app.get('/api/tickets', requireFlag('tickets'), async (_req, res) => {
   try {
     const result = await pool.query(
       `select id, ticket_number, user_id, thread_id, category, status, claimed_by, claimed_by_name,
@@ -708,7 +757,7 @@ app.get('/api/tickets/:id/notes', async (req, res) => {
   }
 });
 
-app.get('/api/message-builder/webhooks', async (_req, res) => {
+app.get('/api/message-builder/webhooks', requireFlag('message_builder'), async (_req, res) => {
   try {
     const result = await pool.query(
       `select id, name, value, kind, is_thread_enabled, thread_id, created_at, updated_at

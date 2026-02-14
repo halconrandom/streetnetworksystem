@@ -15,21 +15,23 @@ import {
 
 interface SidebarProps {
   currentView: string;
+  flags: string[];
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
   const router = useRouter();
   const currentPath = router.asPath;
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets' },
-    { id: 'v2_builder', label: 'Message Builder', icon: PenTool, path: '/message-builder' },
-    { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor' },
-    { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus' },
-    { id: 'users', label: 'Users', icon: Users, path: '/users' },
-    { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit' },
-    { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
+    { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
+    { id: 'v2_builder', label: 'Message Builder', icon: PenTool, path: '/message-builder', flag: 'message_builder' },
+    { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor', flag: 'screenshot_editor' },
+    { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus', flag: 'nexus' },
+    { id: 'users', label: 'Users', icon: Users, path: '/users', flag: 'users' },
+    { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit', flag: 'audit_logs' },
   ];
+
+  const filteredItems = menuItems.filter(item => flags.includes(item.flag));
 
   const isActive = (itemId: string, path: string) => {
     if (currentView === itemId) return true;
@@ -37,6 +39,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
     if (itemId === 'v2_builder' && currentPath.startsWith('/message-builder')) return true;
     if (itemId === 'screenshot_editor' && currentPath.startsWith('/screenshot-editor')) return true;
     return currentPath === path;
+  };
+
+  const handleLogout = async () => {
+    const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
+    try {
+      if (apiBase) {
+        await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' });
+      }
+    } catch (err) {
+      console.error('Logout failed', err);
+    } finally {
+      router.push('/login');
+    }
   };
 
   return (
@@ -54,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
 
       {/* Navigation */}
       <nav className="flex-1 py-6 px-3 space-y-1">
-        {menuItems.map((item) => {
+        {filteredItems.map((item) => {
           const active = isActive(item.id, item.path);
           return (
             <Link
@@ -75,9 +90,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView }) => {
 
       {/* User / Logout */}
       <div className="p-4 border-t border-terminal-border">
-        <button className="flex items-center gap-3 px-3 py-2 w-full text-sm text-terminal-muted hover:text-red-400 transition-colors">
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2 w-full text-sm text-terminal-muted hover:text-red-400 transition-colors transition-all active:scale-95"
+        >
           <LogOut size={18} />
-          <span>Logout</span>
+          <span>Logout System</span>
         </button>
       </div>
     </aside>

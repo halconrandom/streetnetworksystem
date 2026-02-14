@@ -33,8 +33,6 @@ const FLAGS = [
   { id: 'screenshot_editor', label: 'Screenshot Editor' },
   { id: 'users', label: 'Users' },
   { id: 'audit_logs', label: 'Audit Logs' },
-  { id: 'settings', label: 'Settings' },
-  { id: 'admin_panel', label: 'Admin Panel' },
 ];
 
 const formatDate = (value: string | null) => {
@@ -416,8 +414,8 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
                                       key={`${user.id}-${flag.id}`}
                                       onClick={() => toggleFlag(user.id, flag.id)}
                                       className={`px-2 py-0.5 rounded text-[9px] uppercase tracking-tighter transition-all border ${active
-                                          ? 'bg-terminal-accent/10 border-terminal-accent/30 text-terminal-accent shadow-[0_0_5px_rgba(255,59,59,0.1)]'
-                                          : 'bg-terminal-dark border-terminal-border text-terminal-muted/40 hover:border-terminal-muted/60'
+                                        ? 'bg-terminal-accent/10 border-terminal-accent/30 text-terminal-accent shadow-[0_0_5px_rgba(255,59,59,0.1)]'
+                                        : 'bg-terminal-dark border-terminal-border text-terminal-muted/40 hover:border-terminal-muted/60'
                                         }`}
                                     >
                                       {flag.label}
@@ -437,8 +435,8 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
                                 onClick={() => saveUser(user.id)}
                                 disabled={!isChanged}
                                 className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${isChanged
-                                    ? 'bg-terminal-accent text-white shadow-lg shadow-terminal-accent/20 hover:scale-105 active:scale-95'
-                                    : 'bg-terminal-dark/50 text-terminal-muted opacity-40 cursor-default border border-terminal-border font-mono'
+                                  ? 'bg-terminal-accent text-white shadow-lg shadow-terminal-accent/20 hover:scale-105 active:scale-95'
+                                  : 'bg-terminal-dark/50 text-terminal-muted opacity-40 cursor-default border border-terminal-border font-mono'
                                   }`}
                               >
                                 <Save size={12} />
