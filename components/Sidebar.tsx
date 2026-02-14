@@ -28,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
     { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor', flag: 'screenshot_editor' },
     { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus', flag: 'nexus' },
     { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit', flag: 'audit_logs' },
-    { id: 'vault', label: 'La Bóveda', icon: Shield, path: '/vault', flag: 'vault' },
+    { id: 'vault', label: 'The Vault', icon: Shield, path: '/vault', flag: 'vault' },
     { id: 'users', label: 'Users', icon: Users, path: '/users', flag: 'users' },
   ];
 

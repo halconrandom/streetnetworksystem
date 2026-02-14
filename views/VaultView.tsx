@@ -157,8 +157,8 @@ export default function VaultView() {
                                                 type="button"
                                                 onClick={() => setForm({ ...form, tier: t })}
                                                 className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tighter border transition-all ${form.tier === t
-                                                        ? 'bg-terminal-accent/10 border-terminal-accent text-terminal-accent shadow-sm shadow-terminal-accent/10'
-                                                        : 'bg-terminal-dark/30 border-terminal-border text-terminal-muted hover:border-terminal-muted/30'
+                                                    ? 'bg-terminal-accent/10 border-terminal-accent text-terminal-accent shadow-sm shadow-terminal-accent/10'
+                                                    : 'bg-terminal-dark/30 border-terminal-border text-terminal-muted hover:border-terminal-muted/30'
                                                     }`}
                                             >
                                                 {t}
@@ -236,7 +236,7 @@ export default function VaultView() {
                     <div className="flex flex-col">
                         <h1 className="text-2xl font-black text-white uppercase tracking-[0.3em] flex items-center gap-4">
                             <Shield className="text-terminal-accent" size={32} />
-                            La Bóveda
+                            The Vault
                         </h1>
                         <p className="text-[10px] text-terminal-muted uppercase tracking-[0.4em] mt-2 ml-12">Centralized Corporate Client Database</p>
                     </div>
@@ -311,9 +311,9 @@ export default function VaultView() {
                                             <h3 className="text-lg text-white font-black uppercase tracking-tight group-hover:text-terminal-accent transition-colors">{client.full_name}</h3>
                                             <div className="flex items-center gap-3 mt-1.5">
                                                 <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest border ${client.tier === 'vip' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
-                                                        client.tier === 'premium' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)]' :
-                                                            client.tier === 'blacklisted' ? 'bg-red-500/10 text-red-400 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]' :
-                                                                'bg-terminal-dark/50 text-terminal-muted border-terminal-border'
+                                                    client.tier === 'premium' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.2)]' :
+                                                        client.tier === 'blacklisted' ? 'bg-red-500/10 text-red-400 border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]' :
+                                                            'bg-terminal-dark/50 text-terminal-muted border-terminal-border'
                                                     }`}>
                                                     {client.tier}
                                                 </span>

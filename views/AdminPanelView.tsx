@@ -34,7 +34,7 @@ const FLAGS = [
   { id: 'users', label: 'Users' },
   { id: 'audit_logs', label: 'Audit Logs' },
   { id: 'nexus', label: 'The Nexus' },
-  { id: 'vault', label: 'La Bóveda' },
+  { id: 'vault', label: 'The Vault' },
 ];
 
 const formatDate = (value: string | null) => {
