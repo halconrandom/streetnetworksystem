@@ -225,13 +225,25 @@ app.get('/api/tickets/health', (_req, res) => res.json({ ok: true }));
 
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
-  if (req.path.startsWith('/api/auth')) return next();
-  if (req.path.startsWith('/api/admin')) return next();
-  if (req.path.startsWith('/api/nexus')) return next();
+
+  const isWhitelisted =
+    req.path.startsWith('/api/auth') ||
+    req.path.startsWith('/api/admin') ||
+    req.path.startsWith('/api/nexus') ||
+    req.path.startsWith('/api/vault') ||
+    req.path.startsWith('/api/tickets') ||
+    req.path.startsWith('/api/message-builder');
+
+  if (isWhitelisted) {
+    return next();
+  }
+
   if (req.path === '/health') return next();
   if (!API_KEY) return next();
+
   const headerKey = req.get('x-api-key');
   if (headerKey !== API_KEY) {
+    console.warn(`[AUTH] 401 Blocked (Missing API Key): ${req.method} ${req.path}. Whitelist match: ${isWhitelisted}`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
   return next();
@@ -264,6 +276,7 @@ const ADMIN_FLAGS = [
   'users',
   'audit_logs',
   'nexus',
+  'vault',
 ];
 
 const normalizeFlags = (flags) => {
@@ -294,15 +307,17 @@ const requireAdmin = async (req, res, next) => {
 const requireFlag = (flag) => async (req, res, next) => {
   try {
     const sessionUser = await loadSessionUser(req);
-    if (!sessionUser) return res.status(401).json({ error: 'Unauthorized' });
+    if (!sessionUser) {
+      console.warn(`[AUTH] 401 Unauthorized (No Session): ${req.method} ${req.path}`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     if (!sessionUser.is_active) return res.status(403).json({ error: 'User disabled' });
 
-    // Admin check if it's an admin-only area
     if (sessionUser.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
 
     const flags = await getUserFlags(sessionUser.id);
     if (!flags.includes(flag)) {
-      console.warn(`[AUTH] User ${sessionUser.email} missing required flag: ${flag}`);
+      console.warn(`[AUTH] 403 Forbidden (Missing Flag '${flag}'): ${sessionUser.email} on ${req.method} ${req.path}. User has: ${flags.join(', ')}`);
       return res.status(403).json({ error: `Missing required permission: ${flag}` });
     }
 
@@ -658,17 +673,43 @@ app.put('/api/admin/users/:id/flags', requireFlag('users'), async (req, res) => 
 app.get('/api/admin/audit', requireFlag('audit_logs'), async (req, res) => {
   const page = Math.max(1, Number(req.query.page || 1));
   const pageSize = Math.min(200, Math.max(10, Number(req.query.pageSize || 25)));
+  const { action, actorId, targetId, dateStart, dateEnd, search } = req.query;
+
   const params = [];
   const where = [];
-  if (req.query.userId) {
-    params.push(String(req.query.userId));
-    where.push(`(a.actor_user_id = $${params.length} or a.target_user_id = $${params.length})`);
+
+  if (action) {
+    params.push(action);
+    where.push(`a.action = $${params.length}`);
   }
+  if (actorId) {
+    params.push(actorId);
+    where.push(`a.actor_user_id = $${params.length}`);
+  }
+  if (targetId) {
+    params.push(targetId);
+    where.push(`a.target_user_id = $${params.length}`);
+  }
+  if (dateStart) {
+    params.push(dateStart);
+    where.push(`a.created_at >= $${params.length}`);
+  }
+  if (dateEnd) {
+    params.push(dateEnd);
+    where.push(`a.created_at <= $${params.length}`);
+  }
+  if (search) {
+    params.push(`%${search}%`);
+    where.push(`(a.ip ilike $${params.length} or a.user_agent ilike $${params.length} or a.action ilike $${params.length})`);
+  }
+
   const whereSql = where.length ? `where ${where.join(' and ')}` : '';
   const countResult = await pool.query(`select count(*)::int as total from public.sn_audit_logs a ${whereSql}`, params);
   const total = countResult.rows[0]?.total ?? 0;
+
   params.push(pageSize);
   params.push((page - 1) * pageSize);
+
   const rowsResult = await pool.query(
     `select a.id, a.action, a.metadata, a.created_at, a.ip, a.user_agent,
             actor.email as actor_email, target.email as target_email
@@ -909,6 +950,137 @@ app.delete('/api/message-builder/mentions/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Message Builder API listening on :${PORT}`);
+/**
+ * --- LA BÓVEDA (THE VAULT) ---
+ */
+
+const normalizeVaultAsset = (row) => ({
+  ...row,
+  created_at: toIsoUtc(row.created_at),
+  updated_at: toIsoUtc(row.updated_at),
+});
+
+const normalizeVaultClient = (row) => ({
+  ...row,
+  created_at: toIsoUtc(row.created_at),
+  updated_at: toIsoUtc(row.updated_at),
+  last_interaction: toIsoUtc(row.last_interaction),
+});
+
+// Assets CRUD
+app.get('/api/vault/assets', requireFlag('vault'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select a.*, u.email as owner_email
+       from public.sn_vault_assets a
+       left join public.sn_users u on u.id = a.owner_id
+       order by a.name asc`
+    );
+    res.json(result.rows.map(normalizeVaultAsset));
+  } catch (err) {
+    console.error('list assets failed', err);
+    res.status(500).json({ error: 'Failed to list assets' });
+  }
+});
+
+app.post('/api/vault/assets', requireFlag('vault'), async (req, res) => {
+  const { name, kind, identifier, owner_id, status, metadata } = req.body || {};
+  if (!name || !kind) return res.status(400).json({ error: 'Name and kind are required' });
+  try {
+    const result = await pool.query(
+      `insert into public.sn_vault_assets (name, kind, identifier, owner_id, status, metadata)
+       values ($1, $2, $3, $4, $5, $6::jsonb)
+       returning *`,
+      [name, kind, identifier || null, owner_id || null, status || 'active', metadata ? JSON.stringify(metadata) : '{}']
+    );
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'vault.asset.create',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { assetId: result.rows[0].id, name },
+    });
+    res.status(201).json(normalizeVaultAsset(result.rows[0]));
+  } catch (err) {
+    console.error('create asset failed', err);
+    res.status(500).json({ error: 'Failed to create asset' });
+  }
+});
+
+app.delete('/api/vault/assets/:id', requireFlag('vault'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`delete from public.sn_vault_assets where id = $1 returning id`, [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'vault.asset.delete',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { assetId: id },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('delete asset failed', err);
+    res.status(500).json({ error: 'Failed to delete asset' });
+  }
+});
+
+// Clients CRUD
+app.get('/api/vault/clients', requireFlag('vault'), async (req, res) => {
+  try {
+    const result = await pool.query(`select * from public.sn_vault_clients order by full_name asc`);
+    res.json(result.rows.map(normalizeVaultClient));
+  } catch (err) {
+    console.error('list clients failed', err);
+    res.status(500).json({ error: 'Failed to list clients' });
+  }
+});
+
+app.post('/api/vault/clients', requireFlag('vault'), async (req, res) => {
+  const { full_name, email, phone, tier, metadata, internal_notes } = req.body || {};
+  if (!full_name) return res.status(400).json({ error: 'Full name is required' });
+  try {
+    const result = await pool.query(
+      `insert into public.sn_vault_clients (full_name, email, phone, tier, metadata, internal_notes)
+       values ($1, $2, $3, $4, $5::jsonb, $6)
+       returning *`,
+      [full_name, email || null, phone || null, tier || 'standard', metadata ? JSON.stringify(metadata) : '{}', internal_notes || null]
+    );
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'vault.client.create',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { clientId: result.rows[0].id, full_name },
+    });
+    res.status(201).json(normalizeVaultClient(result.rows[0]));
+  } catch (err) {
+    console.error('create client failed', err);
+    res.status(500).json({ error: 'Failed to create client' });
+  }
+});
+
+app.delete('/api/vault/clients/:id', requireFlag('vault'), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`delete from public.sn_vault_clients where id = $1 returning id`, [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'vault.client.delete',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { clientId: id },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('delete client failed', err);
+    res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Allowed origins:`, allowedOrigins);
 });

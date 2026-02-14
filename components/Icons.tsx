@@ -71,7 +71,11 @@ import {
   Move,
   Undo,
   Redo,
-  UserPlus
+  UserPlus,
+  Package,
+  Building,
+  Phone,
+  Mail
 } from 'lucide-react';
 
 export {
@@ -146,5 +150,9 @@ export {
   Redo,
   ChevronLeft,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Building,
+  Package,
+  Phone,
+  Mail
 };

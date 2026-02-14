@@ -61,6 +61,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
       '/nexus': 'nexus',
       '/users': 'users',
       '/audit': 'audit_logs',
+      '/vault': 'vault',
     };
 
     const currentPath = router.pathname;

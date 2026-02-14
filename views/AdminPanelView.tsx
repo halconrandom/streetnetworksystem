@@ -33,6 +33,8 @@ const FLAGS = [
   { id: 'screenshot_editor', label: 'Screenshot Editor' },
   { id: 'users', label: 'Users' },
   { id: 'audit_logs', label: 'Audit Logs' },
+  { id: 'nexus', label: 'The Nexus' },
+  { id: 'vault', label: 'La Bóveda' },
 ];
 
 const formatDate = (value: string | null) => {
@@ -72,6 +74,14 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
   const [auditTotal, setAuditTotal] = useState(0);
   const auditPageSize = 25;
   const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditFilters, setAuditFilters] = useState({
+    action: '',
+    actorId: '',
+    targetId: '',
+    dateStart: '',
+    dateEnd: '',
+    search: '',
+  });
 
   const loadUsers = useCallback(async () => {
     if (!apiBase) return;
@@ -106,23 +116,22 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
     if (!apiBase) return;
     setLoadingAudit(true);
     try {
-      const params = new URLSearchParams({
+      const qs = new URLSearchParams({
         page: String(auditPage),
         pageSize: String(auditPageSize),
+        ...Object.fromEntries(Object.entries(auditFilters).filter(([_, v]) => v)),
       });
-      const res = await fetch(`${apiBase}/admin/audit?${params.toString()}`, {
-        credentials: 'include',
-      });
+      const res = await fetch(`${apiBase}/admin/audit?${qs}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load audit logs');
       const data = await res.json();
       setAuditRows(data.rows || []);
       setAuditTotal(data.total || 0);
     } catch (err) {
-      // ignore
+      console.error('loadAudit failed', err);
     } finally {
       setLoadingAudit(false);
     }
-  }, [apiBase, auditPage, auditPageSize]);
+  }, [apiBase, auditPage, auditPageSize, auditFilters]);
 
   useEffect(() => {
     if (!apiBase) return;
@@ -482,18 +491,80 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
           </div>
         ) : (
           <div className="space-y-6 max-w-[1400px] mx-auto">
-            <div className="flex items-center justify-between bg-terminal-panel border border-terminal-border rounded-xl p-4 shadow-xl">
-              <div>
-                <h3 className="text-white text-sm font-bold uppercase tracking-widest">Chronological Security Audit</h3>
-                <p className="text-[10px] text-terminal-muted tracking-tight">Immutable history branch records.</p>
+            <div className="flex flex-col gap-4 bg-terminal-panel border border-terminal-border rounded-xl p-6 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-white text-sm font-bold uppercase tracking-widest">Chronological Security Audit</h3>
+                  <p className="text-[10px] text-terminal-muted tracking-tight">Immutable history branch records.</p>
+                </div>
+                <button
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg border border-terminal-border text-terminal-muted hover:bg-white/5 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                  onClick={() => loadAudit()}
+                >
+                  <RefreshCw size={14} className={loadingAudit ? 'animate-spin' : ''} />
+                  Refresh Stream
+                </button>
               </div>
-              <button
-                className="px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg border border-terminal-border text-terminal-muted hover:bg-white/5 hover:text-white transition-all active:scale-95 flex items-center gap-2"
-                onClick={() => loadAudit()}
-              >
-                <RefreshCw size={14} className={loadingAudit ? 'animate-spin' : ''} />
-                Refresh Stream
-              </button>
+
+              {/* Filters Bar */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-terminal-border/20">
+                <div className="space-y-1">
+                  <label className="text-[9px] text-terminal-muted uppercase font-bold tracking-tighter">Action Type</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. vault.client.create"
+                    value={auditFilters.action}
+                    onChange={(e) => setAuditFilters({ ...auditFilters, action: e.target.value })}
+                    className="w-full bg-terminal-dark border border-terminal-border rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-terminal-accent outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-terminal-muted uppercase font-bold tracking-tighter">Operator Mail / ID</label>
+                  <input
+                    type="text"
+                    placeholder="Search by mail/id..."
+                    value={auditFilters.actorId}
+                    onChange={(e) => setAuditFilters({ ...auditFilters, actorId: e.target.value })}
+                    className="w-full bg-terminal-dark border border-terminal-border rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-terminal-accent outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-terminal-muted uppercase font-bold tracking-tighter">General Search</label>
+                  <input
+                    type="text"
+                    placeholder="Search IP, UA..."
+                    value={auditFilters.search}
+                    onChange={(e) => setAuditFilters({ ...auditFilters, search: e.target.value })}
+                    className="w-full bg-terminal-dark border border-terminal-border rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-terminal-accent outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-terminal-muted uppercase font-bold tracking-tighter">Date Start</label>
+                  <input
+                    type="date"
+                    value={auditFilters.dateStart}
+                    onChange={(e) => setAuditFilters({ ...auditFilters, dateStart: e.target.value })}
+                    className="w-full bg-terminal-dark border border-terminal-border rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-terminal-accent outline-none font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] text-terminal-muted uppercase font-bold tracking-tighter">Date End</label>
+                  <input
+                    type="date"
+                    value={auditFilters.dateEnd}
+                    onChange={(e) => setAuditFilters({ ...auditFilters, dateEnd: e.target.value })}
+                    className="w-full bg-terminal-dark border border-terminal-border rounded-lg px-3 py-1.5 text-[10px] text-white focus:border-terminal-accent outline-none font-mono"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={() => setAuditFilters({ action: '', actorId: '', targetId: '', dateStart: '', dateEnd: '', search: '' })}
+                    className="w-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest border border-terminal-accent/30 text-terminal-accent rounded-lg hover:bg-terminal-accent/10 transition-all"
+                  >
+                    Reset Link
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="bg-terminal-panel border border-terminal-border rounded-xl shadow-2xl overflow-hidden">
