@@ -519,6 +519,28 @@
   letter-spacing: 0.07em;
 }
 
+.targetConfigGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.toggleCard {
+  border: 1px solid var(--sn-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  background: rgba(255, 255, 255, 0.015);
+  min-height: 88px;
+
+  .dialogRow {
+    margin: 0 0 0.35rem;
+    padding-top: 0;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+  }
+}
+
 .modalActions {
   display: flex;
   gap: 0.75rem;
@@ -662,6 +684,18 @@ dialog.dialog {
 
     .modalItem {
       flex-direction: column;
+    }
+
+    .targetConfigGrid {
+      grid-template-columns: 1fr;
+    }
+
+    .toggleCard {
+      min-height: auto;
+
+      .dialogRow {
+        flex-wrap: wrap;
+      }
     }
 
     .dialogRow {

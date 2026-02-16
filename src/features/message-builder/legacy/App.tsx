@@ -885,17 +885,21 @@ function App() {
                     </div>
                 </div>
 
-                <div className={Styles.dialogRow}>
-                    <span className={Styles.toggleLabel}>Send to Thread</span>
-                    <button type="button" className={`${Styles.toggle} ${newTargetThreadEnabled ? Styles.toggleOn : ''}`} onClick={() => setNewTargetThreadEnabled((prev) => !prev)}>
-                        <span className={Styles.toggleThumb} />
-                    </button>
-                    <span className={Styles.helperText}>Use this when target is a forum/thread.</span>
-                </div>
+                <div className={Styles.targetConfigGrid}>
+                    <div className={Styles.toggleCard}>
+                        <div className={Styles.dialogRow}>
+                            <span className={Styles.toggleLabel}>Send to Thread</span>
+                            <button type="button" className={`${Styles.toggle} ${newTargetThreadEnabled ? Styles.toggleOn : ''}`} onClick={() => setNewTargetThreadEnabled((prev) => !prev)}>
+                                <span className={Styles.toggleThumb} />
+                            </button>
+                        </div>
+                        <span className={Styles.helperText}>Use this when target is a forum/thread.</span>
 
-                <div className={`${Styles.threadInput} ${newTargetThreadEnabled ? Styles.threadInputOpen : ''}`}>
-                    <input className={Styles.input} type="text" placeholder="123456789012345678" value={newTargetThreadId} onChange={(ev) => setNewTargetThreadId(ev.target.value)} />
-                    {!threadIdIsValid && <div className={Styles.inlineError}>Thread ID must be numeric.</div>}
+                        <div className={`${Styles.threadInput} ${newTargetThreadEnabled ? Styles.threadInputOpen : ''}`}>
+                            <input className={Styles.input} type="text" placeholder="123456789012345678" value={newTargetThreadId} onChange={(ev) => setNewTargetThreadId(ev.target.value)} />
+                            {!threadIdIsValid && <div className={Styles.inlineError}>Thread ID must be numeric.</div>}
+                        </div>
+                    </div>
                 </div>
 
                 <div className={Styles.modalActions}>
