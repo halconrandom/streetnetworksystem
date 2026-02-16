@@ -64,8 +64,6 @@
     "node_modules",
     "components-sdk/node_modules",
     "components-sdk/vite.config.ts",
-    "components-sdk/playground",
-    "index.tsx",
-    "index.html"
+    "components-sdk/playground"
   ]
 }

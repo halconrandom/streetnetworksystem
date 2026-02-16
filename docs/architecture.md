@@ -29,4 +29,4 @@
 
 ## Notes
 - Build pipeline is validated with `npm run build`.
-- Root still contains historical Vite files (`vite.config.ts`, `index.html`, `index.tsx`) pending final deprecation decision.
+- Legacy root Vite entry files were removed; Next.js is the active web runtime.
