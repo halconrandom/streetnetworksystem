@@ -20,7 +20,20 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
+        "./src/*",
         "./*"
+      ],
+      "@app/*": [
+        "./src/core/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@integrations/*": [
+        "./src/integrations/*"
       ],
       "components-sdk": [
         "./components-sdk/src"
