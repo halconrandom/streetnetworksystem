@@ -70,8 +70,15 @@ export const TicketList: React.FC<TicketListProps> = ({ onSelectTicket }) => {
     try {
       const res = await fetch(`${apiBase}/tickets`, {
         headers: apiKey ? { 'x-api-key': apiKey } : {},
+        credentials: 'include',
       });
-      if (!res.ok) throw new Error('Failed to load tickets');
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        console.error(`[Tickets] Failed to load tickets (${res.status} ${res.statusText})`, body || '(empty body)');
+        return;
+      }
+
       const rows: TicketRow[] = await res.json();
       if (!Array.isArray(rows)) return;
       const mapped = rows.map((row) => {
