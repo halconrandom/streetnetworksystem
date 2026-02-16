@@ -5,6 +5,7 @@
 - Put business/UI logic under `src/features/<feature>`.
 - Put cross-feature reusable code in `src/shared/*` only when used by 2+ features.
 - Keep legacy/third-party integrations under `src/integrations/*`.
+- Keep scripts in `scripts/*` and product/functional docs in `docs/product/*`.
 
 ## Imports
 - Prefer aliases over deep relative imports:
