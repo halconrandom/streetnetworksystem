@@ -529,10 +529,17 @@
   justify-content: space-between;
   gap: 1rem;
   border: 1px solid var(--sn-border);
-  border-radius: 8px;
-  padding: 0.85rem;
+  border-radius: 10px;
+  padding: 0.9rem;
   margin-bottom: 0.7rem;
   background: rgba(0,0,0,0.2);
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.modalItem:hover {
+  border-color: var(--sn-border-strong);
+  background: rgba(255,255,255,0.02);
+  transform: translateY(-1px);
 }
 
 .modalItemMain {
@@ -584,13 +591,15 @@
 }
 
 dialog.dialog {
-  border-radius: 6px;
+  border-radius: 14px;
   width: 450px;
   max-width: calc(100% - 4rem);
   max-height: calc(100% - 4rem);
   border: 1px solid var(--sn-border);
-  background: var(--sn-panel);
-  padding: 4rem;
+  background: linear-gradient(180deg, rgba(24,24,26,0.98), rgba(18,18,20,0.98));
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  padding: 2rem;
+  animation: modalIn 180ms ease-out;
 
   .button {
     margin-top: 2rem;
@@ -598,22 +607,30 @@ dialog.dialog {
 
   .close {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: 0.75rem;
+    right: 0.75rem;
     cursor: pointer;
     color: #fff;
-    font-size: 2rem;
-    opacity: 0.5;
-    border: none;
-    background: none;
+    font-size: 1rem;
+    opacity: 0.8;
+    border: 1px solid var(--sn-border-strong);
+    background: rgba(255, 255, 255, 0.03);
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
 
     &:hover {
       opacity: 1;
+      border-color: var(--sn-accent-dark);
+      color: var(--sn-accent);
+      background: rgba(255, 59, 59, 0.08);
     }
   }
 
   @media (max-width: 560px) {
-    padding: 2rem;
+    padding: 1.2rem;
 
     .button {
       margin-top: 1rem;
@@ -631,6 +648,22 @@ dialog.dialog {
     .modalItem {
       flex-direction: column;
     }
+  }
+}
+
+dialog.dialog::backdrop {
+  background: radial-gradient(circle at 20% 10%, rgba(255, 59, 59, 0.14), rgba(0, 0, 0, 0.85) 48%, rgba(0, 0, 0, 0.94));
+  backdrop-filter: blur(4px);
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
