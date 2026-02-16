@@ -63,6 +63,13 @@ function App() {
     const [newMentionKind, setNewMentionKind] = useState<'role' | 'user' | 'channel' | 'mentionable'>('role');
     const [newMentionId, setNewMentionId] = useState('');
     const [newMentionName, setNewMentionName] = useState('');
+    const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
+    const [editingTarget, setEditingTarget] = useState<{ name: string; value: string }>({ name: '', value: '' });
+    const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+    const [editingTemplateName, setEditingTemplateName] = useState('');
+    const [editingMentionId, setEditingMentionId] = useState<string | null>(null);
+    const [editingMention, setEditingMention] = useState<{ keyword: string; displayName: string; targetId: string }>({ keyword: '', displayName: '', targetId: '' });
+    const [closingDialog, setClosingDialog] = useState<'targets' | 'templates' | 'mentions' | null>(null);
     const [colorPickerOpen, setColorPickerOpen] = useState(false);
     const colorPickerRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
@@ -346,12 +353,20 @@ function App() {
     }
     
     const { t } = useTranslation('website');
+    const animateDialogClose = (kind: 'targets' | 'templates' | 'mentions', ref: React.RefObject<HTMLDialogElement>) => {
+        setClosingDialog(kind);
+        window.setTimeout(() => {
+            ref.current?.close();
+            setClosingDialog((prev) => (prev === kind ? null : prev));
+        }, 140);
+    };
+
     const openTargetsDialog = () => targetsDialog.current?.showModal();
-    const closeTargetsDialog = () => targetsDialog.current?.close();
+    const closeTargetsDialog = () => animateDialogClose('targets', targetsDialog);
     const openTemplatesDialog = () => templatesDialog.current?.showModal();
-    const closeTemplatesDialog = () => templatesDialog.current?.close();
+    const closeTemplatesDialog = () => animateDialogClose('templates', templatesDialog);
     const openMentionsDialog = () => mentionsDialog.current?.showModal();
-    const closeMentionsDialog = () => mentionsDialog.current?.close();
+    const closeMentionsDialog = () => animateDialogClose('mentions', mentionsDialog);
     const threadIdIsValid = useMemo(() => {
         if (!newTargetThreadEnabled) return true;
         return /^\d+$/.test(newTargetThreadId.trim());
@@ -448,6 +463,38 @@ function App() {
         }
         setTargets((prev) => prev.filter((item) => item.id !== id));
     };
+
+    const startEditTarget = (id: string, name: string, value: string) => {
+        setEditingTargetId(id);
+        setEditingTarget({ name, value });
+    };
+
+    const saveEditTarget = async (id: string) => {
+        const nextName = editingTarget.name.trim();
+        const nextValue = editingTarget.value.trim();
+        if (!nextName || !nextValue) return;
+
+        if (apiBase) {
+            try {
+                const res = await fetch(`${apiBase}/webhooks/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                    },
+                    body: JSON.stringify({ name: nextName, value: nextValue }),
+                });
+                if (!res.ok) throw new Error('Failed to update webhook');
+            } catch (err) {
+                console.error(err);
+                window.alert('Failed to update target.');
+                return;
+            }
+        }
+
+        setTargets((prev) => prev.map((item) => (item.id === id ? { ...item, name: nextName, value: nextValue } : item)));
+        setEditingTargetId(null);
+    };
     const addTemplate = async () => {
         const name = newTemplateName.trim();
         if (!name) return;
@@ -503,6 +550,37 @@ function App() {
             }
         }
         setTemplates((prev) => prev.filter((item) => item.id !== id));
+    };
+
+    const startEditTemplate = (id: string, name: string) => {
+        setEditingTemplateId(id);
+        setEditingTemplateName(name);
+    };
+
+    const saveEditTemplate = async (id: string) => {
+        const nextName = editingTemplateName.trim();
+        if (!nextName) return;
+
+        if (apiBase) {
+            try {
+                const res = await fetch(`${apiBase}/templates/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                    },
+                    body: JSON.stringify({ name: nextName }),
+                });
+                if (!res.ok) throw new Error('Failed to update template');
+            } catch (err) {
+                console.error(err);
+                window.alert('Failed to update template.');
+                return;
+            }
+        }
+
+        setTemplates((prev) => prev.map((item) => (item.id === id ? { ...item, name: nextName } : item)));
+        setEditingTemplateId(null);
     };
     const addMention = async () => {
         const keyword = newMentionKeyword.trim();
@@ -570,6 +648,44 @@ function App() {
             }
         }
         setMentions((prev) => prev.filter((item) => item.id !== id));
+    };
+
+    const startEditMention = (id: string, keyword: string, targetId: string, displayName?: string) => {
+        setEditingMentionId(id);
+        setEditingMention({ keyword, targetId, displayName: displayName || '' });
+    };
+
+    const saveEditMention = async (id: string) => {
+        const keyword = editingMention.keyword.trim();
+        const targetId = editingMention.targetId.trim();
+        if (!keyword || !/^\d+$/.test(targetId)) return;
+
+        if (apiBase) {
+            try {
+                const res = await fetch(`${apiBase}/mentions/${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                    },
+                    body: JSON.stringify({
+                        keyword,
+                        target_id: targetId,
+                        display_name: editingMention.displayName.trim() || null,
+                    }),
+                });
+                if (!res.ok) throw new Error('Failed to update mention');
+            } catch (err) {
+                console.error(err);
+                window.alert('Failed to update mention alias.');
+                return;
+            }
+        }
+
+        setMentions((prev) => prev.map((item) => (item.id === id
+            ? { ...item, keyword, targetId, displayName: editingMention.displayName.trim() || undefined }
+            : item)));
+        setEditingMentionId(null);
     };
     const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const buildMentionTag = (entry: typeof mentions[number]) => {
@@ -749,7 +865,7 @@ function App() {
             )}
         </div>
         </div>
-                <dialog ref={targetsDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
+                <dialog ref={targetsDialog} className={`${Styles.dialog} ${Styles.dialogWide} ${closingDialog === 'targets' ? Styles.dialogClosing : ''}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeTargetsDialog}>x</button></form>
             <div className={Styles.dialogHeader}>
                 <h3 className={Styles.dialogTitle}>Saved Webhooks</h3>
@@ -802,20 +918,39 @@ function App() {
                 {targets.map((item) => (
                     <div key={item.id} className={Styles.modalItem}>
                         <div className={Styles.modalItemMain}>
-                            <div className={Styles.targetName}>
-                                {item.name}
-                                {item.threadId && <span className={Styles.threadBadge}>Thread: {item.threadId.slice(0, 3)}...{item.threadId.slice(-3)}</span>}
-                            </div>
-                            <div className={Styles.modalMeta}>{item.value}</div>
+                            {editingTargetId === item.id ? (
+                                <>
+                                    <input className={Styles.input} type="text" value={editingTarget.name} onChange={(ev) => setEditingTarget((prev) => ({ ...prev, name: ev.target.value }))} />
+                                    <input className={Styles.input} type="text" value={editingTarget.value} onChange={(ev) => setEditingTarget((prev) => ({ ...prev, value: ev.target.value }))} />
+                                </>
+                            ) : (
+                                <>
+                                    <div className={Styles.targetName}>
+                                        {item.name}
+                                        {item.threadId && <span className={Styles.threadBadge}>Thread: {item.threadId.slice(0, 3)}...{item.threadId.slice(-3)}</span>}
+                                    </div>
+                                    <div className={Styles.modalMeta}>{item.value}</div>
+                                </>
+                            )}
                         </div>
                         <div className={Styles.modalButtons}>
-                            <button className={Styles.buttonGhost} type="button" onClick={() => useTarget(item.id)}>Use</button>
-                            <button className={Styles.buttonDanger} type="button" onClick={() => removeTarget(item.id)}>Remove</button>
+                            {editingTargetId === item.id ? (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => saveEditTarget(item.id)}>Save</button>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => setEditingTargetId(null)}>Cancel</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => useTarget(item.id)}>Use</button>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => startEditTarget(item.id, item.name, item.value)}>Edit</button>
+                                    <button className={Styles.buttonDanger} type="button" onClick={() => removeTarget(item.id)}>Remove</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
-        </dialog>                <dialog ref={templatesDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
+        </dialog>                <dialog ref={templatesDialog} className={`${Styles.dialog} ${Styles.dialogWide} ${closingDialog === 'templates' ? Styles.dialogClosing : ''}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeTemplatesDialog}>x</button></form>
             <div className={Styles.dialogHeader}>
                 <h3 className={Styles.dialogTitle}>Saved Containers</h3>
@@ -841,17 +976,33 @@ function App() {
                 {templates.map((item) => (
                     <div key={item.id} className={Styles.modalItem}>
                         <div className={Styles.modalItemMain}>
-                            <div className={Styles.targetName}>{item.name}</div>
-                            <div className={Styles.modalMeta}>Components: {item.data?.length ?? 0}</div>
+                            {editingTemplateId === item.id ? (
+                                <input className={Styles.input} type="text" value={editingTemplateName} onChange={(ev) => setEditingTemplateName(ev.target.value)} />
+                            ) : (
+                                <>
+                                    <div className={Styles.targetName}>{item.name}</div>
+                                    <div className={Styles.modalMeta}>Components: {item.data?.length ?? 0}</div>
+                                </>
+                            )}
                         </div>
                         <div className={Styles.modalButtons}>
-                            <button className={Styles.buttonGhost} type="button" onClick={() => applyTemplate(item.id)}>Load</button>
-                            <button className={Styles.buttonDanger} type="button" onClick={() => removeTemplate(item.id)}>Remove</button>
+                            {editingTemplateId === item.id ? (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => saveEditTemplate(item.id)}>Save</button>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => setEditingTemplateId(null)}>Cancel</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => applyTemplate(item.id)}>Load</button>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => startEditTemplate(item.id, item.name)}>Edit</button>
+                                    <button className={Styles.buttonDanger} type="button" onClick={() => removeTemplate(item.id)}>Remove</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 ))}
             </div>
-        </dialog>                <dialog ref={mentionsDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
+        </dialog>                <dialog ref={mentionsDialog} className={`${Styles.dialog} ${Styles.dialogWide} ${closingDialog === 'mentions' ? Styles.dialogClosing : ''}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeMentionsDialog}>x</button></form>
             <div className={Styles.dialogHeader}>
                 <h3 className={Styles.dialogTitle}>Mention Aliases</h3>
@@ -898,14 +1049,34 @@ function App() {
                         <div className={Styles.dialogEmptySub}>Add your first alias above</div>
                     </div>
                 )}
-                {mentions.map((item) => (
+                                {mentions.map((item) => (
                     <div key={item.id} className={Styles.modalItem}>
                         <div className={Styles.modalItemMain}>
-                            <div className={Styles.targetName}>{item.keyword}<span className={Styles.threadBadge}>{item.kind}</span></div>
-                            <div className={Styles.modalMeta}>{item.displayName ? `${item.displayName} · ` : ''}{item.targetId}</div>
+                            {editingMentionId === item.id ? (
+                                <>
+                                    <input className={Styles.input} type="text" value={editingMention.keyword} onChange={(ev) => setEditingMention((prev) => ({ ...prev, keyword: ev.target.value }))} />
+                                    <input className={Styles.input} type="text" value={editingMention.displayName} onChange={(ev) => setEditingMention((prev) => ({ ...prev, displayName: ev.target.value }))} placeholder="Display name" />
+                                    <input className={Styles.input} type="text" value={editingMention.targetId} onChange={(ev) => setEditingMention((prev) => ({ ...prev, targetId: ev.target.value }))} placeholder="Discord ID" />
+                                </>
+                            ) : (
+                                <>
+                                    <div className={Styles.targetName}>{item.keyword}<span className={Styles.threadBadge}>{item.kind}</span></div>
+                                    <div className={Styles.modalMeta}>{item.displayName ? `${item.displayName} · ` : ''}{item.targetId}</div>
+                                </>
+                            )}
                         </div>
                         <div className={Styles.modalButtons}>
-                            <button className={Styles.buttonDanger} type="button" onClick={() => removeMention(item.id)}>Remove</button>
+                            {editingMentionId === item.id ? (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => saveEditMention(item.id)}>Save</button>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => setEditingMentionId(null)}>Cancel</button>
+                                </>
+                            ) : (
+                                <>
+                                    <button className={Styles.buttonGhost} type="button" onClick={() => startEditMention(item.id, item.keyword, item.targetId, item.displayName)}>Edit</button>
+                                    <button className={Styles.buttonDanger} type="button" onClick={() => removeMention(item.id)}>Remove</button>
+                                </>
+                            )}
                         </div>
                     </div>
                 ))}
