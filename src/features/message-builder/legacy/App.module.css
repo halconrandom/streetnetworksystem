@@ -464,6 +464,125 @@
   cursor: pointer;
 }
 
+.dialogWide {
+  width: 760px !important;
+}
+
+.dialogHeader {
+  margin-bottom: 1.4rem;
+}
+
+.dialogTitle {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--sn-text);
+  font-weight: 700;
+}
+
+.dialogSub {
+  margin: 0.35rem 0 0;
+  color: var(--sn-text-dim);
+  font-size: 0.9rem;
+}
+
+.modalSection {
+  border: 1px solid var(--sn-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.modalField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.modalLabel {
+  font-size: 11px;
+  color: var(--sn-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.modalList {
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.modalItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid var(--sn-border);
+  border-radius: 8px;
+  padding: 0.85rem;
+  margin-bottom: 0.7rem;
+  background: rgba(0,0,0,0.2);
+}
+
+.modalItemMain {
+  min-width: 0;
+}
+
+.modalMeta {
+  margin-top: 0.25rem;
+  color: var(--sn-text-dim);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.modalButtons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.buttonGhost {
+  background: transparent;
+  border: 1px solid var(--sn-border-strong);
+  color: var(--sn-text-muted);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.buttonGhost:hover {
+  color: var(--sn-text);
+  border-color: var(--sn-text-dim);
+}
+
+.buttonDanger {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ff6b6b;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.buttonDanger:hover {
+  background: rgba(239, 68, 68, 0.16);
+}
+
 dialog.dialog {
   border-radius: 6px;
   width: 450px;
@@ -498,6 +617,19 @@ dialog.dialog {
 
     .button {
       margin-top: 1rem;
+    }
+
+    .modalGrid {
+      grid-template-columns: 1fr;
+    }
+
+    .modalActions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .modalItem {
+      flex-direction: column;
     }
   }
 }

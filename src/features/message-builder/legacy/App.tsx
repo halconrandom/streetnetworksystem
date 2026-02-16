@@ -749,70 +749,50 @@ function App() {
             )}
         </div>
         </div>
-        <dialog ref={targetsDialog} className={Styles.dialog}>
+                <dialog ref={targetsDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeTargetsDialog}>x</button></form>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Add target</p>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="Name"
-                        value={newTargetName}
-                        onChange={(ev) => setNewTargetName(ev.target.value)}
-                    />
-                </div>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="Webhook URL or Channel ID"
-                        value={newTargetValue}
-                        onChange={(ev) => setNewTargetValue(ev.target.value)}
-                    />
-                </div>
-                <div className={Styles.dialogRow}>
-                    <span className={Styles.toggleLabel}>Send to Thread</span>
-                    <button
-                        type="button"
-                        className={`${Styles.toggle} ${newTargetThreadEnabled ? Styles.toggleOn : ''}`}
-                        onClick={() => setNewTargetThreadEnabled((prev) => !prev)}
-                    >
-                        <span className={Styles.toggleThumb} />
-                    </button>
-                </div>
-                <div className={Styles.helperText}>Target a specific thread in the channel</div>
-                <div className={`${Styles.threadInput} ${newTargetThreadEnabled ? Styles.threadInputOpen : ''}`}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="123456789012345678"
-                        value={newTargetThreadId}
-                        onChange={(ev) => setNewTargetThreadId(ev.target.value)}
-                    />
-                    {!threadIdIsValid && (
-                        <div className={Styles.inlineError}>Thread ID must be numeric.</div>
-                    )}
-                    <div className={Styles.helperText}>
-                        Right-click on thread → Copy ID (Developer Mode required)
+            <div className={Styles.dialogHeader}>
+                <h3 className={Styles.dialogTitle}>Saved Webhooks</h3>
+                <p className={Styles.dialogSub}>Configura y gestiona destinos para publicar en 1 clic.</p>
+            </div>
+
+            <div className={Styles.modalSection}>
+                <p className={Styles.input_name}>New target</p>
+                <div className={Styles.modalGrid}>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Name</label>
+                        <input className={Styles.input} type="text" placeholder="Example: Spider OpenClaw Channel" value={newTargetName} onChange={(ev) => setNewTargetName(ev.target.value)} />
+                    </div>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Target</label>
+                        <input className={Styles.input} type="text" placeholder="Webhook URL or Channel ID" value={newTargetValue} onChange={(ev) => setNewTargetValue(ev.target.value)} />
                     </div>
                 </div>
+
                 <div className={Styles.dialogRow}>
-                    <select
-                        className={Styles.select}
-                        value={newTargetKind}
-                        onChange={(ev) => setNewTargetKind(ev.target.value === 'channel' ? 'channel' : 'webhook')}
-                    >
+                    <span className={Styles.toggleLabel}>Send to Thread</span>
+                    <button type="button" className={`${Styles.toggle} ${newTargetThreadEnabled ? Styles.toggleOn : ''}`} onClick={() => setNewTargetThreadEnabled((prev) => !prev)}>
+                        <span className={Styles.toggleThumb} />
+                    </button>
+                    <span className={Styles.helperText}>Use this when target is a forum/thread.</span>
+                </div>
+
+                <div className={`${Styles.threadInput} ${newTargetThreadEnabled ? Styles.threadInputOpen : ''}`}>
+                    <input className={Styles.input} type="text" placeholder="123456789012345678" value={newTargetThreadId} onChange={(ev) => setNewTargetThreadId(ev.target.value)} />
+                    {!threadIdIsValid && <div className={Styles.inlineError}>Thread ID must be numeric.</div>}
+                </div>
+
+                <div className={Styles.modalActions}>
+                    <select className={Styles.select} value={newTargetKind} onChange={(ev) => setNewTargetKind(ev.target.value === 'channel' ? 'channel' : 'webhook')}>
                         <option value="webhook">Webhook URL</option>
                         <option value="channel">Channel ID (bot)</option>
                     </select>
-                    <button className={Styles.button} type="button" onClick={addTarget} disabled={!threadIdIsValid}>
-                        Add Target
-                    </button>
+                    <button className={Styles.button} type="button" onClick={addTarget} disabled={!threadIdIsValid}>Add Target</button>
                 </div>
             </div>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Saved webhooks</p>
+
+            <div className={`${Styles.modalSection} ${Styles.modalList}`}>
+                <p className={Styles.input_name}>Configured targets</p>
                 {targets.length === 0 && (
                     <div className={Styles.dialogEmpty}>
                         <div>No saved targets yet.</div>
@@ -820,45 +800,38 @@ function App() {
                     </div>
                 )}
                 {targets.map((item) => (
-                    <div key={item.id} className={Styles.targetRow}>
-                        <div className={Styles.targetInfo}>
+                    <div key={item.id} className={Styles.modalItem}>
+                        <div className={Styles.modalItemMain}>
                             <div className={Styles.targetName}>
                                 {item.name}
-                                {item.threadId && (
-                                    <span className={Styles.threadBadge}>
-                                        Thread: {item.threadId.slice(0, 3)}...{item.threadId.slice(-3)}
-                                    </span>
-                                )}
+                                {item.threadId && <span className={Styles.threadBadge}>Thread: {item.threadId.slice(0, 3)}...{item.threadId.slice(-3)}</span>}
                             </div>
-                            <div className={Styles.targetValue}>{item.value}</div>
+                            <div className={Styles.modalMeta}>{item.value}</div>
                         </div>
-                        <div className={Styles.targetActions}>
-                            <button className={Styles.topbarButton} type="button" onClick={() => useTarget(item.id)}>Use</button>
-                            <button className={Styles.dangerButton} type="button" onClick={() => removeTarget(item.id)}>Remove</button>
+                        <div className={Styles.modalButtons}>
+                            <button className={Styles.buttonGhost} type="button" onClick={() => useTarget(item.id)}>Use</button>
+                            <button className={Styles.buttonDanger} type="button" onClick={() => removeTarget(item.id)}>Remove</button>
                         </div>
                     </div>
                 ))}
             </div>
-        </dialog>
-        <dialog ref={templatesDialog} className={Styles.dialog}>
+        </dialog>                <dialog ref={templatesDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeTemplatesDialog}>x</button></form>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Save container</p>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="Container name"
-                        value={newTemplateName}
-                        onChange={(ev) => setNewTemplateName(ev.target.value)}
-                    />
-                    <button className={Styles.button} type="button" onClick={addTemplate}>
-                        Save
-                    </button>
+            <div className={Styles.dialogHeader}>
+                <h3 className={Styles.dialogTitle}>Saved Containers</h3>
+                <p className={Styles.dialogSub}>Guarda estados reutilizables del builder.</p>
+            </div>
+
+            <div className={Styles.modalSection}>
+                <p className={Styles.input_name}>Create container preset</p>
+                <div className={Styles.modalActions}>
+                    <input className={Styles.input} type="text" placeholder="Container name" value={newTemplateName} onChange={(ev) => setNewTemplateName(ev.target.value)} />
+                    <button className={Styles.button} type="button" onClick={addTemplate}>Save</button>
                 </div>
             </div>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Saved containers</p>
+
+            <div className={`${Styles.modalSection} ${Styles.modalList}`}>
+                <p className={Styles.input_name}>Library</p>
                 {templates.length === 0 && (
                     <div className={Styles.dialogEmpty}>
                         <div>No saved containers yet.</div>
@@ -866,74 +839,59 @@ function App() {
                     </div>
                 )}
                 {templates.map((item) => (
-                    <div key={item.id} className={Styles.targetRow}>
-                        <div className={Styles.targetInfo}>
+                    <div key={item.id} className={Styles.modalItem}>
+                        <div className={Styles.modalItemMain}>
                             <div className={Styles.targetName}>{item.name}</div>
-                            <div className={Styles.targetValue}>Components: {item.data?.length ?? 0}</div>
+                            <div className={Styles.modalMeta}>Components: {item.data?.length ?? 0}</div>
                         </div>
-                        <div className={Styles.targetActions}>
-                            <button className={Styles.topbarButton} type="button" onClick={() => applyTemplate(item.id)}>Load</button>
-                            <button className={Styles.dangerButton} type="button" onClick={() => removeTemplate(item.id)}>Remove</button>
+                        <div className={Styles.modalButtons}>
+                            <button className={Styles.buttonGhost} type="button" onClick={() => applyTemplate(item.id)}>Load</button>
+                            <button className={Styles.buttonDanger} type="button" onClick={() => removeTemplate(item.id)}>Remove</button>
                         </div>
                     </div>
                 ))}
             </div>
-        </dialog>
-        <dialog ref={mentionsDialog} className={Styles.dialog}>
+        </dialog>                <dialog ref={mentionsDialog} className={`${Styles.dialog} ${Styles.dialogWide}`}>
             <form method="dialog"><button className={Styles.close} onClick={closeMentionsDialog}>x</button></form>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Add mention alias</p>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="@staff, #soporte, {vip}"
-                        value={newMentionKeyword}
-                        onChange={(ev) => setNewMentionKeyword(ev.target.value)}
-                    />
+            <div className={Styles.dialogHeader}>
+                <h3 className={Styles.dialogTitle}>Mention Aliases</h3>
+                <p className={Styles.dialogSub}>Define shortcuts for roles, users and channels.</p>
+            </div>
+
+            <div className={Styles.modalSection}>
+                <p className={Styles.input_name}>Create alias</p>
+                <div className={Styles.modalGrid}>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Alias</label>
+                        <input className={Styles.input} type="text" placeholder="@staff, #support, {vip}" value={newMentionKeyword} onChange={(ev) => setNewMentionKeyword(ev.target.value)} />
+                    </div>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Display name (optional)</label>
+                        <input className={Styles.input} type="text" placeholder="Readable label" value={newMentionName} onChange={(ev) => setNewMentionName(ev.target.value)} />
+                    </div>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Discord ID</label>
+                        <input className={Styles.input} type="text" placeholder="123456789012345678" value={newMentionId} onChange={(ev) => setNewMentionId(ev.target.value)} />
+                        {!mentionIdIsValid && newMentionId.trim() && <div className={Styles.inlineError}>ID must be numeric.</div>}
+                    </div>
+                    <div className={Styles.modalField}>
+                        <label className={Styles.modalLabel}>Type</label>
+                        <select className={Styles.select} value={newMentionKind} onChange={(ev) => setNewMentionKind(ev.target.value as typeof newMentionKind)}>
+                            <option value="role">Role</option>
+                            <option value="user">User</option>
+                            <option value="channel">Channel</option>
+                            <option value="mentionable">Mentionable</option>
+                        </select>
+                    </div>
                 </div>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="Display name (optional)"
-                        value={newMentionName}
-                        onChange={(ev) => setNewMentionName(ev.target.value)}
-                    />
-                </div>
-                <div className={Styles.dialogRow}>
-                    <input
-                        className={Styles.input}
-                        type="text"
-                        placeholder="Discord ID"
-                        value={newMentionId}
-                        onChange={(ev) => setNewMentionId(ev.target.value)}
-                    />
-                </div>
-                {!mentionIdIsValid && newMentionId.trim() && (
-                    <div className={Styles.inlineError}>ID must be numeric.</div>
-                )}
-                <div className={Styles.dialogRow}>
-                    <select
-                        className={Styles.select}
-                        value={newMentionKind}
-                        onChange={(ev) => setNewMentionKind(ev.target.value as typeof newMentionKind)}
-                    >
-                        <option value="role">Role</option>
-                        <option value="user">User</option>
-                        <option value="channel">Channel</option>
-                        <option value="mentionable">Mentionable</option>
-                    </select>
-                    <button className={Styles.button} type="button" onClick={addMention} disabled={!mentionIdIsValid}>
-                        Add Alias
-                    </button>
-                </div>
-                <div className={Styles.helperText}>
-                    Aliases replace in Text Display only when sending.
+                <div className={Styles.modalActions}>
+                    <span className={Styles.helperText}>Aliases replace tokens in Text Display when sending.</span>
+                    <button className={Styles.button} type="button" onClick={addMention} disabled={!mentionIdIsValid}>Add Alias</button>
                 </div>
             </div>
-            <div className={Styles.dialogSection}>
-                <p className={Styles.input_name}>Saved mentions</p>
+
+            <div className={`${Styles.modalSection} ${Styles.modalList}`}>
+                <p className={Styles.input_name}>Saved aliases</p>
                 {mentions.length === 0 && (
                     <div className={Styles.dialogEmpty}>
                         <div>No mention aliases yet.</div>
@@ -941,24 +899,18 @@ function App() {
                     </div>
                 )}
                 {mentions.map((item) => (
-                    <div key={item.id} className={Styles.targetRow}>
-                        <div className={Styles.targetInfo}>
-                            <div className={Styles.targetName}>
-                                {item.keyword}
-                                <span className={Styles.threadBadge}>{item.kind}</span>
-                            </div>
-                            <div className={Styles.targetValue}>
-                                {item.displayName ? `${item.displayName} · ` : ''}{item.targetId}
-                            </div>
+                    <div key={item.id} className={Styles.modalItem}>
+                        <div className={Styles.modalItemMain}>
+                            <div className={Styles.targetName}>{item.keyword}<span className={Styles.threadBadge}>{item.kind}</span></div>
+                            <div className={Styles.modalMeta}>{item.displayName ? `${item.displayName} · ` : ''}{item.targetId}</div>
                         </div>
-                        <div className={Styles.targetActions}>
-                            <button className={Styles.dangerButton} type="button" onClick={() => removeMention(item.id)}>Remove</button>
+                        <div className={Styles.modalButtons}>
+                            <button className={Styles.buttonDanger} type="button" onClick={() => removeMention(item.id)}>Remove</button>
                         </div>
                     </div>
                 ))}
             </div>
-        </dialog>
-    </>
+        </dialog>    </>
 }
 
 export default App;
