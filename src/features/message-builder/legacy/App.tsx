@@ -1,4 +1,4 @@
-import { Capsule, Component, ComponentType, ContainerComponent, PassProps, SectionComponent, TextDisplayComponent } from 'components-sdk';
+import { Capsule, Component, ComponentType, ContainerComponent, PassProps, SectionComponent, TextDisplayComponent } from '@integrations/components-sdk';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { actions, DisplaySliceManager, RootState } from './state';
@@ -962,3 +962,4 @@ function App() {
 }
 
 export default App;
+

@@ -6,8 +6,8 @@ import {
     MediaGalleryComponent,
     SectionComponent,
     setFileType
-} from "components-sdk";
-import { getFileNameType } from 'components-sdk';
+} from "@integrations/components-sdk";
+import { getFileNameType } from '@integrations/components-sdk';
 
 
 export const webhookImplementation = {
@@ -136,3 +136,4 @@ export const webhookImplementation = {
     }
 
 }
+

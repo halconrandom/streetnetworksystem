@@ -6,7 +6,6 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['components-sdk'],
   outputFileTracingRoot: path.resolve(__dirname, '..'),
   webpack: (config) => {
     config.module.rules.push({

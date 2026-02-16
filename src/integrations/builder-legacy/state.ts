@@ -1,1 +1,1 @@
-export { store } from '@/website/src/state';
+export { store } from '@features/message-builder/legacy/state';

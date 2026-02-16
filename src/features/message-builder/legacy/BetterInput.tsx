@@ -1,4 +1,4 @@
-import {BetterInput as BetterInputType} from "components-sdk";
+import {BetterInput as BetterInputType} from "@integrations/components-sdk";
 import TextareaAutosize from "react-textarea-autosize";
 
 export const BetterInput: BetterInputType = ({onChange, value}) => {
@@ -11,3 +11,4 @@ export const BetterInput: BetterInputType = ({onChange, value}) => {
         value={value}
     />
 }
+

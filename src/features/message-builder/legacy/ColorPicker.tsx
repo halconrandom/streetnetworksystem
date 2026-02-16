@@ -1,4 +1,4 @@
-import {ColorPicker as ColorPickerType} from "components-sdk";
+import {ColorPicker as ColorPickerType} from "@integrations/components-sdk";
 import { SketchPicker } from 'react-color';
 import Trash from './icons/Trash.svg';
 import Styles from './ColorPicker.module.css';
@@ -19,3 +19,4 @@ export const ColorPicker: ColorPickerType = ({hexColor, onChange}) => {
         />
     </div>
 }
+

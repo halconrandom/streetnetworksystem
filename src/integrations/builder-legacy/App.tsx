@@ -1,1 +1,1 @@
-export { default } from '@/website/src/App';
+export { default } from '@features/message-builder/legacy/App';

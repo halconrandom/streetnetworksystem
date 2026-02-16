@@ -25,7 +25,8 @@
 - `auth/verify`
 
 ## Integrations
-- `src/integrations/builder-legacy/*` currently wraps `website/src/*` usage.
+- `src/integrations/builder-legacy/*` wraps legacy message-builder runtime under `src/features/message-builder/legacy/*`.
+- `src/integrations/components-sdk/*` contains the in-repo SDK source consumed by the builder.
 
 ## Notes
 - Build pipeline is validated with `npm run build`.

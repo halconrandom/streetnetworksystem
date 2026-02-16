@@ -35,11 +35,8 @@
       "@integrations/*": [
         "./src/integrations/*"
       ],
-      "components-sdk": [
-        "./components-sdk/src"
-      ],
-      "components-sdk/*": [
-        "./components-sdk/src/*"
+      "@components-sdk/*": [
+        "./src/integrations/components-sdk/*"
       ]
     },
     "allowImportingTsExtensions": true,
@@ -61,9 +58,6 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules",
-    "components-sdk/node_modules",
-    "components-sdk/vite.config.ts",
-    "components-sdk/playground"
+    "node_modules"
   ]
 }

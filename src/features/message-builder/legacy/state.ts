@@ -7,7 +7,7 @@ import {
     deleteKeyType,
     setKeyType,
     wrapKeyType,
-} from 'components-sdk';
+} from '@integrations/components-sdk';
 import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import defaultJson from "./defaultJson"
@@ -235,3 +235,4 @@ export class DisplaySliceManager implements StateManager {
         // console.log("wrapKey", props);
     }
 }
+

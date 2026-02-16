@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import 'emoji-mart/css/emoji-mart.css'
-import 'components-sdk/components-sdk.css'
+import '@integrations/components-sdk/components-sdk.css'
 import './index.css'
 import './slider.css'
 import './i18n'
@@ -18,3 +18,4 @@ root.render(
     </Provider>
   </StrictMode>,
 )
+

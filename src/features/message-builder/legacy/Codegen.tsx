@@ -3,7 +3,7 @@ import Styles from './App.module.css';
 import Select, { Props } from 'react-select';
 import { select_styles } from './Select';
 import { libs } from '../libs.config';
-import { Component } from 'components-sdk';
+import { Component } from '@integrations/components-sdk';
 import { useTranslation } from 'react-i18next';
 import ejs from 'ejs';
 import type { OnChangeValue } from 'react-select';
@@ -129,3 +129,4 @@ export function Codegen({state, page, setPage} : {
         </>
     );
 }
+

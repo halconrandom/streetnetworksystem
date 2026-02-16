@@ -1,4 +1,4 @@
-import {EmojiPicker as EmojiPickerType} from "components-sdk";
+import {EmojiPicker as EmojiPickerType} from "@integrations/components-sdk";
 
 import {Picker} from "emoji-mart";
 
@@ -61,3 +61,4 @@ export const EmojiPicker: EmojiPickerType = ({onSelect}) => {
         </div>
     )
 }
+

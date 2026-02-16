@@ -1,6 +1,6 @@
 import 'i18next';
-import website from '../website/src/locales/en.json';
-import componentsSdk from '../components-sdk/src/locales/en.json';
+import website from '../src/features/message-builder/legacy/locales/en.json';
+import componentsSdk from '../src/integrations/components-sdk/locales/en.json';
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -11,3 +11,4 @@ declare module 'i18next' {
     };
   }
 }
+
