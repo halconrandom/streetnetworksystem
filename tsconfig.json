@@ -58,6 +58,8 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src/features/message-builder/legacy/rollupPlugin.ts",
+    "src/features/message-builder/legacy/seoPlugin.ts"
   ]
 }
