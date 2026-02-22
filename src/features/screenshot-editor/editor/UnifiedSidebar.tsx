@@ -298,21 +298,126 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                     <div className="w-1 h-4 bg-[#FF3B3B] rounded-full" />
                                     <h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Canvas Setup</h3>
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {[
-                                        { label: 'Classic RP', w: 800, h: 600, tip: '4:3' },
-                                        { label: 'Widescreen', w: 1280, h: 720, tip: '16:9' },
-                                        { label: 'Vertical', w: 720, h: 1280, tip: '9:16' },
-                                    ].map((preset) => (
-                                        <button
-                                            key={preset.label}
-                                            onClick={(e) => { e.stopPropagation(); onSettingsChange({ width: preset.w, height: preset.h }); }}
-                                            className="flex flex-col items-center gap-1 px-1 py-3 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-[#FF3B3B]/30 transition-all group"
-                                        >
-                                            <span className="text-[9px] text-center font-black text-white/40 group-hover:text-white transition-colors uppercase tracking-wider">{preset.label}</span>
-                                            <span className="text-[8px] font-mono text-white/20 px-2 py-0.5 bg-black/40 rounded-md">({preset.w}x{preset.h})</span>
-                                        </button>
-                                    ))}
+
+                                <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-2xl p-5">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Width</label>
+                                            <input
+                                                type="number"
+                                                value={settings.width}
+                                                onChange={(e) => onSettingsChange({ width: Number(e.target.value) })}
+                                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white focus:border-[#FF3B3B]/30 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Height</label>
+                                            <input
+                                                type="number"
+                                                value={settings.height}
+                                                onChange={(e) => onSettingsChange({ height: Number(e.target.value) })}
+                                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white focus:border-[#FF3B3B]/30 outline-none transition-all"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Image Fit</label>
+                                        <div className="relative">
+                                            <select
+                                                value={settings.fitMode}
+                                                onChange={(e) => onSettingsChange({ fitMode: e.target.value as FitMode })}
+                                                className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white/70 appearance-none focus:border-[#FF3B3B]/30 outline-none transition-all"
+                                            >
+                                                <option value="contain">Contain (Keep Ratio)</option>
+                                                <option value="cover">Cover (Fill Space)</option>
+                                                <option value="stretch">Stretch (Distort)</option>
+                                                <option value="crop">Manual Transform</option>
+                                            </select>
+                                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                                        </div>
+                                    </div>
+
+                                    {settings.fitMode === 'crop' && (
+                                        <div className="pt-4 space-y-4 border-t border-white/5 mt-4">
+                                            <div className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Background Transform</div>
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center px-1">
+                                                        <span className="text-[9px] uppercase font-bold text-white/20">Scale</span>
+                                                        <span className="text-[10px] font-mono text-[#FF3B3B]">{settings.imageScale.toFixed(2)}x</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min={0.1}
+                                                        max={5}
+                                                        step={0.05}
+                                                        value={settings.imageScale}
+                                                        onChange={(e) => onSettingsChange({ imageScale: Number(e.target.value) })}
+                                                        onMouseUp={onCommitHistory}
+                                                        className="w-full accent-[#FF3B3B] h-1"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center px-1">
+                                                        <span className="text-[9px] uppercase font-bold text-white/20">Rotation</span>
+                                                        <span className="text-[10px] font-mono text-[#FF3B3B]">{settings.imageRotation}°</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min={-180}
+                                                        max={180}
+                                                        step={1}
+                                                        value={settings.imageRotation}
+                                                        onChange={(e) => onSettingsChange({ imageRotation: Number(e.target.value) })}
+                                                        onMouseUp={onCommitHistory}
+                                                        className="w-full accent-[#FF3B3B] h-1"
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] uppercase font-bold tracking-widest text-white/15 ml-1">Offset X</label>
+                                                        <input
+                                                            type="number"
+                                                            value={settings.imageOffsetX}
+                                                            onChange={(e) => onSettingsChange({ imageOffsetX: Number(e.target.value) })}
+                                                            onBlur={onCommitHistory}
+                                                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[11px] text-white/70 font-mono"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] uppercase font-bold tracking-widest text-white/15 ml-1">Offset Y</label>
+                                                        <input
+                                                            type="number"
+                                                            value={settings.imageOffsetY}
+                                                            onChange={(e) => onSettingsChange({ imageOffsetY: Number(e.target.value) })}
+                                                            onBlur={onCommitHistory}
+                                                            className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[11px] text-white/70 font-mono"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="pt-2 border-t border-white/5 mt-4">
+                                        <div className="text-[9px] uppercase font-bold tracking-widest text-white/20 mb-2 ml-1 mt-3">Presets</div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                { label: 'Classic RP', w: 800, h: 600 },
+                                                { label: 'Widescreen', w: 1280, h: 720 },
+                                                { label: 'Vertical', w: 720, h: 1280 },
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.label}
+                                                    onClick={(e) => { e.stopPropagation(); onSettingsChange({ width: preset.w, height: preset.h }); }}
+                                                    className="flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 bg-black/20 border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-[#FF3B3B]/30 transition-all group"
+                                                >
+                                                    <span className="text-[8px] text-center font-black text-white/40 group-hover:text-white transition-colors uppercase tracking-wider leading-tight">{preset.label}</span>
+                                                    <span className="text-[7.5px] font-mono text-white/20 bg-white/5 px-2 py-0.5 rounded-md">({preset.w}x{preset.h})</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </section>
 

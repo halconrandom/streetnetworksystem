@@ -1,13 +1,11 @@
 import React from 'react';
 import {
     Layers,
-    Settings as SettingsIcon,
     Palette,
     MessageSquare,
     Clock,
     Trash2,
     Copy,
-    Activity,
     Plus,
     GripVertical,
     ChevronDown,
@@ -85,10 +83,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 }) => {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         layers: true,
-        canvas: true,
         colors: true,
         logs: false,
-        filters: false,
         history: false
     });
 
@@ -136,134 +132,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                 onToggleVisible={onToggleVisible}
                                 onToggleLock={onToggleLock}
                             />
-                        </div>
-                    )}
-                </section>
-
-                {/* CANVAS CONFIGURATION */}
-                <section className="space-y-4">
-                    <SectionHeader id="canvas" label="Canvas Setup" icon={SettingsIcon} />
-                    {expandedSections.canvas && (
-                        <div className="space-y-4 animate-fade-in">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Width</label>
-                                    <input
-                                        type="number"
-                                        value={settings.width}
-                                        onChange={(e) => onSettingsChange({ width: Number(e.target.value) })}
-                                        className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white focus:border-[#FF3B3B]/30 outline-none transition-all"
-                                    />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Height</label>
-                                    <input
-                                        type="number"
-                                        value={settings.height}
-                                        onChange={(e) => onSettingsChange({ height: Number(e.target.value) })}
-                                        className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white focus:border-[#FF3B3B]/30 outline-none transition-all"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Image Fit</label>
-                                <div className="relative">
-                                    <select
-                                        value={settings.fitMode}
-                                        onChange={(e) => onSettingsChange({ fitMode: e.target.value as FitMode })}
-                                        className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white/70 appearance-none focus:border-[#FF3B3B]/30 outline-none transition-all"
-                                    >
-                                        <option value="contain">Contain (Keep Ratio)</option>
-                                        <option value="cover">Cover (Fill Space)</option>
-                                        <option value="stretch">Stretch (Distort)</option>
-                                        <option value="crop">Manual Transform</option>
-                                    </select>
-                                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
-                                </div>
-                            </div>
-
-                            {settings.fitMode === 'crop' && (
-                                <div className="pt-4 space-y-4 animate-fade-in border-t border-white/5 mt-4">
-                                    <div className="text-[9px] uppercase font-bold tracking-widest text-white/20 ml-1">Background Transform</div>
-                                    <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center px-1">
-                                                <span className="text-[9px] uppercase font-bold text-white/20">Scale</span>
-                                                <span className="text-[10px] font-mono text-[#FF3B3B]">{settings.imageScale.toFixed(2)}x</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min={0.1}
-                                                max={5}
-                                                step={0.05}
-                                                value={settings.imageScale}
-                                                onChange={(e) => onSettingsChange({ imageScale: Number(e.target.value) })}
-                                                onMouseUp={onCommitHistory}
-                                                className="w-full accent-[#FF3B3B] h-1"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-center px-1">
-                                                <span className="text-[9px] uppercase font-bold text-white/20">Rotation</span>
-                                                <span className="text-[10px] font-mono text-[#FF3B3B]">{settings.imageRotation}°</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min={-180}
-                                                max={180}
-                                                step={1}
-                                                value={settings.imageRotation}
-                                                onChange={(e) => onSettingsChange({ imageRotation: Number(e.target.value) })}
-                                                onMouseUp={onCommitHistory}
-                                                className="w-full accent-[#FF3B3B] h-1"
-                                            />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] uppercase font-bold tracking-widest text-white/15 ml-1">Offset X</label>
-                                                <input
-                                                    type="number"
-                                                    value={settings.imageOffsetX}
-                                                    onChange={(e) => onSettingsChange({ imageOffsetX: Number(e.target.value) })}
-                                                    onBlur={onCommitHistory}
-                                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[11px] text-white/70 font-mono"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[9px] uppercase font-bold tracking-widest text-white/15 ml-1">Offset Y</label>
-                                                <input
-                                                    type="number"
-                                                    value={settings.imageOffsetY}
-                                                    onChange={(e) => onSettingsChange({ imageOffsetY: Number(e.target.value) })}
-                                                    onBlur={onCommitHistory}
-                                                    className="w-full bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[11px] text-white/70 font-mono"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="pt-2">
-                                <div className="text-[9px] uppercase font-bold tracking-widest text-white/15 mb-2 ml-1">Popular Presets</div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {[
-                                        { label: 'SD', w: 800, h: 600, tip: '800x600' },
-                                        { label: 'HD', w: 1280, h: 720, tip: '720p' },
-                                        { label: 'FHD', w: 1920, h: 1080, tip: '1080p' },
-                                    ].map((preset) => (
-                                        <button
-                                            key={preset.label}
-                                            onClick={(e) => { e.stopPropagation(); onSettingsChange({ width: preset.w, height: preset.h }); }}
-                                            className="flex flex-col items-center gap-0.5 py-2 bg-white/[0.02] border border-white/5 rounded-xl hover:bg-white/[0.05] hover:border-white/10 transition-all group"
-                                        >
-                                            <span className="text-[9px] font-black text-white/40 group-hover:text-white transition-colors">{preset.label}</span>
-                                            <span className="text-[7px] font-mono text-white/10">({preset.w}×{preset.h})</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     )}
                 </section>
@@ -425,55 +293,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                     </div>
                                 </div>
                             )}
-                        </div>
-                    )}
-                </section>
-
-                {/* IMAGE FILTERS */}
-                <section className="space-y-4">
-                    <SectionHeader id="filters" label="Post-Processing" icon={Activity} />
-                    {expandedSections.filters && (
-                        <div className="space-y-6 bg-white/[0.02] border border-white/5 rounded-2xl p-5 animate-fade-in">
-                            {[
-                                { label: 'Brightness', key: 'brightness', min: 0, max: 200, unit: '%' },
-                                { label: 'Contrast', key: 'contrast', min: 0, max: 200, unit: '%' },
-                                { label: 'Saturation', key: 'saturate', min: 0, max: 200, unit: '%' },
-                                { label: 'Sepia', key: 'sepia', min: 0, max: 100, unit: '%' },
-                                { label: 'Vignette', key: 'vignette', min: 0, max: 1, step: 0.05, unit: '' },
-                            ].map((filter) => (
-                                <div key={filter.key} className="space-y-2">
-                                    <div className="flex justify-between items-center px-1">
-                                        <span className="text-[9px] uppercase font-bold text-white/20 tracking-wider">{filter.label}</span>
-                                        <span className="text-[10px] font-mono text-[#FF3B3B]">
-                                            {(settings.filters as any)[filter.key]}{filter.unit}
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min={filter.min}
-                                        max={filter.max}
-                                        step={(filter as any).step || 1}
-                                        value={(settings.filters as any)[filter.key]}
-                                        onChange={(e) => onSettingsChange({
-                                            filters: { ...settings.filters, [filter.key]: Number(e.target.value) }
-                                        })}
-                                        onMouseUp={onCommitHistory}
-                                        className="w-full accent-[#FF3B3B] h-1"
-                                    />
-                                </div>
-                            ))}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onSettingsChange({
-                                        filters: { brightness: 100, contrast: 100, saturate: 100, sepia: 0, vignette: 0 }
-                                    });
-                                    onCommitHistory();
-                                }}
-                                className="w-full py-2.5 mt-2 bg-white/5 text-white/20 text-[9px] font-black uppercase tracking-widest rounded-xl hover:text-white transition-all"
-                            >
-                                Reset Defaults
-                            </button>
                         </div>
                     )}
                 </section>
