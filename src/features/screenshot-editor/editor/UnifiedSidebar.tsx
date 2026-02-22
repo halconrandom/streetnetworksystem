@@ -45,6 +45,7 @@ type UnifiedSidebarProps = {
     onUpdateBlock: (id: string, text: string) => void;
     onUpdateBlockSettings: (id: string, update: Partial<TextBlockSettings>) => void;
     onAddBlock: () => void;
+    onDuplicateBlock: (id: string) => void;
     onRemoveBlock: (id: string) => void;
     onToggleBlockSettings: (id: string) => void;
     onToggleBlockCollapsed: (id: string) => void;
@@ -111,6 +112,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     onUpdateBlock,
     onUpdateBlockSettings,
     onAddBlock,
+    onDuplicateBlock,
     onRemoveBlock,
     onToggleBlockSettings,
     onToggleBlockCollapsed,
@@ -276,7 +278,13 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                         <div className="min-w-0"><div className="text-[10px] text-white/70 truncate font-bold uppercase tracking-wider">{overlay.name}</div><div className="text-[8px] text-white/20 truncate">ID: {overlay.id.split('-')[0]}</div></div>
                                                     </div>
                                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => onSetActiveCropOverlayId(overlay.id)} className="p-2 text-white/20 hover:text-[#FF3B3B]"><Square size={14} /></button>
+                                                        <button
+                                                            onClick={() => onSetActiveCropOverlayId(overlay.id)}
+                                                            className={`p-1.5 rounded-lg border transition-all ${activeCropOverlayId === overlay.id ? 'bg-[#FF3B3B] border-[#FF3B3B] text-white' : 'bg-white/5 border-white/5 text-white/20 hover:text-white hover:bg-white/10'}`}
+                                                            title="Crop Overlay (Recortar)"
+                                                        >
+                                                            <Square size={14} />
+                                                        </button>
                                                         <button onClick={() => onRemoveOverlay(overlay.id)} className="p-2 text-white/20 hover:text-red-500"><Trash2 size={14} /></button>
                                                     </div>
                                                 </div>
@@ -430,6 +438,13 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                         <span className="text-[9px] font-mono text-white/20">{block.id.split('-')[0]}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => onDuplicateBlock(block.id)}
+                                                            className="p-1.5 text-white/10 hover:text-white transition-all group/dup"
+                                                            title="Duplicate Block (Duplicar)"
+                                                        >
+                                                            <Copy size={12} className="opacity-50 group-hover/dup:opacity-100" />
+                                                        </button>
                                                         <button onClick={() => onToggleBlockCollapsed(block.id)} className="text-white/10 hover:text-white transition-colors">{block.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</button>
                                                         <button onClick={() => onToggleBlockSettings(block.id)} className={`transition-colors ${block.settingsOpen ? 'text-[#FF3B3B]' : 'text-white/20 hover:text-white'}`}><Settings size={14} /></button>
                                                         {textBlocks.length > 1 && <button onClick={() => onRemoveBlock(block.id)} className="text-white/5 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>}

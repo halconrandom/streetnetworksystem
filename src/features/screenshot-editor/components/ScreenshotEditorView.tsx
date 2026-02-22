@@ -62,7 +62,7 @@ export const ScreenshotEditorView: React.FC = () => {
   const {
     addToCache, loadCache, removeCache,
     addOverlay, removeOverlay, updateOverlay,
-    addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+    addTextBlock, duplicateTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
     addNameInput, removeNameInput, updateNameInput,
     undo, redo, commitHistory, togglePanel, clearAll,
     addRedactionArea, removeRedactionArea, setActiveTool,
@@ -396,6 +396,7 @@ export const ScreenshotEditorView: React.FC = () => {
                 onUpdateBlock={updateBlock}
                 onUpdateBlockSettings={updateBlockSettingsWrapper}
                 onAddBlock={handleAddBlock}
+                onDuplicateBlock={duplicateTextBlock}
                 onRemoveBlock={removeTextBlock}
                 onToggleBlockSettings={toggleBlockSettings}
                 onToggleBlockCollapsed={toggleBlockCollapsed}

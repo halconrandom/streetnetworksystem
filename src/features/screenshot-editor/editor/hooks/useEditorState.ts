@@ -298,6 +298,34 @@ export const useEditorState = () => {
         });
     };
 
+    const duplicateTextBlock = (id: string) => {
+        performAction(prev => {
+            const blockToCopy = prev.textBlocks.find(b => b.id === id);
+            if (!blockToCopy) return prev;
+
+            const newId = `${Date.now()}-copy`;
+            const newBlock: TextBlock = {
+                ...blockToCopy,
+                id: newId,
+                name: `${blockToCopy.name} (Copy)`,
+            };
+
+            const blockIndex = prev.layerOrder.indexOf(id);
+            const nextOrder = [...prev.layerOrder];
+            if (blockIndex !== -1) {
+                nextOrder.splice(blockIndex + 1, 0, newId);
+            } else {
+                nextOrder.push(newId);
+            }
+
+            return {
+                ...prev,
+                textBlocks: [...prev.textBlocks, newBlock],
+                layerOrder: nextOrder
+            };
+        });
+    };
+
     const removeTextBlock = (id: string) => {
         performAction(prev => ({
             ...prev,
@@ -443,7 +471,7 @@ export const useEditorState = () => {
         actions: {
             addToCache, loadCache, removeCache,
             addOverlay, removeOverlay, updateOverlay,
-            addTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+            addTextBlock, duplicateTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
             reorderLayers, toggleLayerVisibility, toggleLayerLock,
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,
