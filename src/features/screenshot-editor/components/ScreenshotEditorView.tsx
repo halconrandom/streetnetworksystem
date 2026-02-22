@@ -473,6 +473,7 @@ export const ScreenshotEditorView: React.FC = () => {
                 onSetActiveCropOverlayId={setActiveCropOverlayId}
                 redactIntensity={redactIntensity}
                 onRedactIntensityChange={setRedactIntensity}
+                onRenameCache={actions.renameCacheItem}
               />
             </div>
           )}
@@ -578,6 +579,7 @@ export const ScreenshotEditorView: React.FC = () => {
               cacheItems={cacheItems}
               onLoadCache={handleLoadCache}
               onRemoveCache={removeCache}
+              onRenameCache={actions.renameCacheItem}
               textBlocks={textBlocks}
               overlays={overlays}
               layerOrder={layerOrder || []}

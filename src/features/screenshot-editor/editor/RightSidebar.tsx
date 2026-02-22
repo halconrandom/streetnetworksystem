@@ -37,6 +37,7 @@ type RightSidebarProps = {
     cacheItems: CacheItem[];
     onLoadCache: (item: CacheItem) => void;
     onRemoveCache: (id: string) => void;
+    onRenameCache: (id: string, name: string) => void;
     textBlocks: TextBlock[];
     overlays: OverlayImage[];
     layerOrder: string[];
@@ -69,6 +70,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     cacheItems,
     onLoadCache,
     onRemoveCache,
+    onRenameCache,
     textBlocks,
     overlays,
     layerOrder,
@@ -489,8 +491,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                             ) : (
                                 cacheItems.map((item) => (
                                     <div key={item.id} className="group relative bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:bg-white/[0.04] transition-all">
-                                        <div className="min-w-0 pr-4">
-                                            <div className="text-[11px] font-bold text-white/70 truncate group-hover:text-white transition-colors">{item.name}</div>
+                                        <div className="min-w-0 pr-4 flex-1">
+                                            <input
+                                                value={item.name}
+                                                onChange={(e) => onRenameCache(item.id, e.target.value)}
+                                                className="w-full bg-transparent border-none text-[11px] font-bold text-white/70 truncate focus:text-white transition-colors outline-none cursor-text p-0"
+                                                placeholder="Punto de guardado..."
+                                            />
                                             <div className="text-[8px] text-white/15 mt-1 font-mono uppercase tracking-tighter">{new Date(item.createdAt).toLocaleTimeString()}</div>
                                         </div>
                                         <div className="flex items-center gap-2">

@@ -69,14 +69,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </button>
             </div>
 
-            <div className="flex items-center gap-4 pl-4 border-l border-white/10">
-                <button className="text-white/20 hover:text-white transition-colors">
-                    <Bell size={18} />
-                </button>
-                <button className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-                    <User size={16} />
-                </button>
-            </div>
         </div>
     );
 };

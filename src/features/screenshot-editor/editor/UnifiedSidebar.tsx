@@ -76,6 +76,7 @@ type UnifiedSidebarProps = {
     cacheItems: CacheItem[];
     onLoadCache: (item: CacheItem) => void;
     onRemoveCache: (id: string) => void;
+    onRenameCache: (id: string, name: string) => void;
     // Layers Reordering
     layerOrder: string[];
     onSelectLayer: (id: string, type: 'text' | 'overlay') => void;
@@ -144,6 +145,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     cacheItems,
     onLoadCache,
     onRemoveCache,
+    onRenameCache,
     layerOrder,
     onSelectLayer,
     onMoveLayer,
@@ -287,6 +289,79 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                         <div className="p-3 rounded-xl bg-white/5 group-hover:scale-110 transition-transform"><Plus size={24} className="text-white/40" /></div>
                                         <div className="text-center"><span className="block text-[10px] font-bold text-white/60 uppercase tracking-wider">Overlays</span></div>
                                     </label>
+                                </div>
+                            </section>
+
+                            {/* CANVAS SETUP */}
+                            <section className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1 h-4 bg-[#FF3B3B] rounded-full" />
+                                    <h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Canvas Setup</h3>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { label: 'Classic RP', w: 800, h: 600, tip: '4:3' },
+                                        { label: 'Widescreen', w: 1280, h: 720, tip: '16:9' },
+                                        { label: 'Vertical', w: 720, h: 1280, tip: '9:16' },
+                                    ].map((preset) => (
+                                        <button
+                                            key={preset.label}
+                                            onClick={(e) => { e.stopPropagation(); onSettingsChange({ width: preset.w, height: preset.h }); }}
+                                            className="flex flex-col items-center gap-1 px-1 py-3 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-[#FF3B3B]/30 transition-all group"
+                                        >
+                                            <span className="text-[9px] text-center font-black text-white/40 group-hover:text-white transition-colors uppercase tracking-wider">{preset.label}</span>
+                                            <span className="text-[8px] font-mono text-white/20 px-2 py-0.5 bg-black/40 rounded-md">({preset.w}x{preset.h})</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* ATMOSPHERE CONTROL */}
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1 h-4 bg-[#FF3B3B] rounded-full" />
+                                        <h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Atmosphere Control</h3>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            onSettingsChange({ filters: { brightness: 100, contrast: 100, saturate: 100, sepia: 0, vignette: 0 } });
+                                            onCommitHistory();
+                                        }}
+                                        className="text-[8px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-colors"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                                <div className="space-y-5 p-5 bg-white/[0.02] border border-white/5 rounded-2xl">
+                                    {[
+                                        { label: 'Brightness', key: 'brightness', min: 0, max: 200, unit: '%' },
+                                        { label: 'Contrast', key: 'contrast', min: 0, max: 200, unit: '%' },
+                                        { label: 'Saturation', key: 'saturate', min: 0, max: 200, unit: '%' },
+                                        { label: 'Scanline/Retro', key: 'sepia', min: 0, max: 100, unit: '%' },
+                                        { label: 'Vignette', key: 'vignette', min: 0, max: 1, step: 0.05, unit: '' },
+                                    ].map((filter) => (
+                                        <div key={filter.key} className="space-y-2 group">
+                                            <div className="flex justify-between items-center px-1">
+                                                <span className="text-[9px] uppercase font-bold text-white/30 tracking-wider group-hover:text-white transition-colors">{filter.label}</span>
+                                                <span className="text-[10px] font-mono text-[#FF3B3B]">
+                                                    {(settings.filters as any)[filter.key]}{filter.unit}
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={filter.min}
+                                                max={filter.max}
+                                                step={(filter as any).step || 1}
+                                                value={(settings.filters as any)[filter.key]}
+                                                onChange={(e) => onSettingsChange({
+                                                    filters: { ...settings.filters, [filter.key]: Number(e.target.value) }
+                                                })}
+                                                onMouseUp={onCommitHistory}
+                                                className="w-full accent-[#FF3B3B] h-1"
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </section>
 

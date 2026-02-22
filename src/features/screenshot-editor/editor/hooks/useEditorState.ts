@@ -261,6 +261,12 @@ export const useEditorState = () => {
         writeCache(CACHE_KEY, next);
     };
 
+    const renameCacheItem = (id: string, name: string) => {
+        const next = cacheItems.map(item => item.id === id ? { ...item, name } : item);
+        setCacheItems(next);
+        writeCache(CACHE_KEY, next);
+    };
+
     // Atomic Actions
     const addOverlay = (newOverlay: OverlayImage) => {
         performAction(prev => ({
@@ -514,7 +520,7 @@ export const useEditorState = () => {
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,
             addRedactionArea, removeRedactionArea, setActiveTool,
-            updateSettings
+            updateSettings, renameCacheItem
         }
     };
 };
