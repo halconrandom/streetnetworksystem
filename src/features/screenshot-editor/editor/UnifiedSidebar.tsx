@@ -46,6 +46,7 @@ type UnifiedSidebarProps = {
     onUpdateBlockSettings: (id: string, update: Partial<TextBlockSettings>) => void;
     onAddBlock: () => void;
     onDuplicateBlock: (id: string) => void;
+    onClearColors: (id: string) => void;
     onRemoveBlock: (id: string) => void;
     onToggleBlockSettings: (id: string) => void;
     onToggleBlockCollapsed: (id: string) => void;
@@ -114,6 +115,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     onUpdateBlockSettings,
     onAddBlock,
     onDuplicateBlock,
+    onClearColors,
     onRemoveBlock,
     onToggleBlockSettings,
     onToggleBlockCollapsed,
@@ -446,6 +448,13 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                             title="Duplicate Block (Duplicar)"
                                                         >
                                                             <Copy size={12} className="opacity-50 group-hover/dup:opacity-100" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onClearColors(block.id)}
+                                                            className="p-1.5 text-white/10 hover:text-white transition-all group/clean"
+                                                            title="Clear Colors (Limpiar Colores)"
+                                                        >
+                                                            <Palette size={12} className="opacity-50 group-hover/clean:opacity-100" />
                                                         </button>
                                                         <button onClick={() => onToggleBlockCollapsed(block.id)} className="text-white/10 hover:text-white transition-colors">{block.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</button>
                                                         <button onClick={() => onToggleBlockSettings(block.id)} className={`transition-colors ${block.settingsOpen ? 'text-[#FF3B3B]' : 'text-white/20 hover:text-white'}`}><Settings size={14} /></button>

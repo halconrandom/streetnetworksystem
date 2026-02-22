@@ -350,6 +350,17 @@ export const useEditorState = () => {
         });
     };
 
+    const clearColorsInBlock = (id: string) => {
+        performAction(prev => ({
+            ...prev,
+            textBlocks: prev.textBlocks.map(b =>
+                b.id === id
+                    ? { ...b, text: b.text.replace(/\(#[0-9a-fA-F]{6}\)/g, '') }
+                    : b
+            )
+        }));
+    };
+
     const removeTextBlock = (id: string) => {
         performAction(prev => ({
             ...prev,
@@ -496,7 +507,7 @@ export const useEditorState = () => {
         actions: {
             addToCache, loadCache, removeCache,
             addOverlay, removeOverlay, updateOverlay,
-            addTextBlock, duplicateTextBlock, applyColorToSelection, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+            addTextBlock, duplicateTextBlock, applyColorToSelection, clearColorsInBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
             reorderLayers, toggleLayerVisibility, toggleLayerLock,
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,
