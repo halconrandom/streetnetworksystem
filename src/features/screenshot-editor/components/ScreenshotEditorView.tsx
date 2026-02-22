@@ -89,15 +89,36 @@ export const ScreenshotEditorView: React.FC = () => {
     }
   };
 
-  const handleSaveSnapshot = () => {
+  const handleSaveToCache = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dataUrl = canvas.toDataURL('image/png');
     addToCache(dataUrl);
+  };
+
+  const handleSaveToFile = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     link.download = `street-network-${imageName}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
+  };
+
+  const handleCopyScreenshot = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+    } catch (err) {
+      console.error('Failed to copy image: ', err);
+    }
   };
 
   useEffect(() => {
@@ -374,7 +395,9 @@ export const ScreenshotEditorView: React.FC = () => {
             canRedo={canRedo}
             onUndo={undo}
             onRedo={redo}
-            onSave={handleSaveSnapshot}
+            onSaveToCache={handleSaveToCache}
+            onSaveToFile={handleSaveToFile}
+            onCopyScreenshot={handleCopyScreenshot}
             onClear={handleClearBlocks}
           />
         )}
