@@ -175,7 +175,6 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
 
     const toolbarItems = [
         { id: 'source', icon: ImageIcon, label: 'Source Material' },
-        { id: 'characters', icon: UserPlus, label: 'Character Matrix' },
         { id: 'textEditor', icon: Type, label: 'Content Strategy' },
         { id: 'add', icon: Plus, label: 'Add Block', isAction: true, onClick: onAddBlock },
         { id: 'move', icon: Move, label: 'Move Tool', isTool: true },
@@ -183,7 +182,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
         { id: 'stripBuilder', icon: Layers, label: 'Strip Builder', isAction: true, onClick: () => onTogglePanel('stripBuilder') },
     ];
 
-    const [activeTab, setActiveTab] = useState<'source' | 'characters' | 'textEditor'>('source');
+    const [activeTab, setActiveTab] = useState<'source' | 'textEditor'>('source');
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredBlocks = textBlocks.filter(b =>
@@ -199,7 +198,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                     const Icon = item.icon;
                     const isActive = item.isTool
                         ? activeTool === item.id
-                        : (item.id === activeTab || (item.id === 'characters' && activeTab === 'characters'));
+                        : (item.id === activeTab);
 
                     return (
                         <button
@@ -330,53 +329,80 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                         </div>
                     )}
 
-                    {/* CHARACTER MATRIX */}
-                    {activeTab === 'characters' && (
-                        <div className="space-y-8 animate-fade-in">
+
+                    {/* CONTENT STRATEGY & CHARACTER MATRIX */}
+                    {activeTab === 'textEditor' && (
+                        <div className="space-y-10 animate-fade-in">
+                            {/* INTEGRATED CHARACTER MATRIX */}
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2"><div className="w-1 h-4 bg-[#FF3B3B] rounded-full" /><h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Character Matrix</h3></div>
-                                    <button onClick={onAddNameInput} className="px-3 py-1.5 bg-[#FF3B3B] text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-lg">+ Add Row</button>
+                                    <div className="flex items-center gap-2">
+                                        <UserPlus size={14} className="text-white/20" />
+                                        <h3 className="text-[10px] uppercase font-black tracking-widest text-white/40">Quick Action Matrix</h3>
+                                    </div>
+                                    <button
+                                        onClick={onAddNameInput}
+                                        className="px-2.5 py-1.5 bg-white/5 border border-white/5 text-white/40 text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-[#FF3B3B] hover:text-white transition-all shadow-lg"
+                                    >
+                                        + Row
+                                    </button>
                                 </div>
-                                <div className="space-y-4">
+                                <div className="grid grid-cols-1 gap-3">
                                     {nameInputs.map((input) => (
-                                        <div key={input.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
-                                            <div className="flex items-center gap-3">
+                                        <div key={input.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl group transition-all hover:bg-white/[0.04]">
+                                            <div className="flex items-center gap-2 mb-3">
                                                 <input
                                                     value={input.name}
                                                     onChange={(e) => onUpdateNameInput(input.id, e.target.value)}
                                                     onBlur={(e) => handleSaveName(e.target.value)}
-                                                    placeholder="Character Name"
+                                                    placeholder="Name..."
                                                     list="saved-names-unified"
-                                                    className="flex-1 bg-black/40 border border-white/5 rounded-xl px-4 py-2 text-[12px] text-white focus:border-[#FF3B3B]/50 transition-all outline-none"
+                                                    className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-1.5 text-[11px] text-white focus:border-[#FF3B3B]/50 transition-all outline-none"
                                                 />
                                                 <datalist id="saved-names-unified">
                                                     {savedNames.map(name => <option key={name} value={name} />)}
                                                 </datalist>
                                                 <button
                                                     onClick={() => handleRemoveSavedName(input.name)}
-                                                    className="p-2 text-white/5 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                    className="p-1.5 text-white/5 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                                                     title="Remove from history"
                                                 >
                                                     <Trash2 size={12} />
                                                 </button>
-                                                {nameInputs.length > 1 && <button onClick={() => onRemoveNameInput(input.id)} className="text-white/10 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>}
+                                                {nameInputs.length > 1 && (
+                                                    <button onClick={() => onRemoveNameInput(input.id)} className="p-1.5 text-white/5 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {['/ME', '/DO', 'CALL', 'DIALOG'].map(lbl => (
-                                                    <button key={lbl} onClick={() => onAppendToBlock(lbl === '/ME' ? `(#bd9dd4)* ${input.name || '[Nombre]'} ` : lbl === '/DO' ? `(#8fbe2e)* (( ${input.name || '[Nombre]'} )) ` : lbl === 'CALL' ? `(#b4b401)${input.name || '[Nombre]'} dice (phone): ` : `${input.name || '[Nombre]'} dice: `)} className="py-2.5 text-[9px] font-black uppercase tracking-widest bg-white/[0.03] border border-white/5 text-white/30 hover:text-white hover:bg-white/[0.08] rounded-xl transition-all">{lbl}</button>
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {[
+                                                    { label: '/ME', color: '#bd9dd4' },
+                                                    { label: '/DO', color: '#8fbe2e' },
+                                                    { label: 'CALL', color: '#b4b401' },
+                                                    { label: 'DIC', color: '' }
+                                                ].map(action => (
+                                                    <button
+                                                        key={action.label}
+                                                        onClick={() => onAppendToBlock(
+                                                            action.label === '/ME' ? `(#bd9dd4)* ${input.name || '[Nombre]'} ` :
+                                                                action.label === '/DO' ? `(#8fbe2e)* (( ${input.name || '[Nombre]'} )) ` :
+                                                                    action.label === 'CALL' ? `(#b4b401)${input.name || '[Nombre]'} dice (phone): ` :
+                                                                        `${input.name || '[Nombre]'} dice: `
+                                                        )}
+                                                        className="py-1.5 text-[8px] font-black uppercase tracking-widest bg-white/[0.03] border border-white/5 text-white/20 hover:text-white hover:bg-white/[0.08] rounded-lg transition-all"
+                                                    >
+                                                        {action.label}
+                                                    </button>
                                                 ))}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </section>
-                        </div>
-                    )}
 
-                    {/* CONTENT STRATEGY */}
-                    {activeTab === 'textEditor' && (
-                        <div className="space-y-8 animate-fade-in">
+                            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent mx-4" />
+
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2"><div className="w-1 h-4 bg-[#FF3B3B] rounded-full" /><h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Content Strategy</h3></div>
