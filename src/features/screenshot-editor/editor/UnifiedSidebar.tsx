@@ -506,7 +506,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                             onSelect={(e) => onSetSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })}
                                                             placeholder="Import logs or type narration..."
                                                             rows={6}
-                                                            className="w-full bg-transparent p-6 text-[12px] text-white/70 font-mono leading-relaxed outline-none border-none resize-none custom-scrollbar"
+                                                            className="w-full bg-transparent p-6 text-[12px] text-white/70 font-mono leading-relaxed outline-none border-none resize-y min-h-[150px] custom-scrollbar"
                                                         />
 
                                                         {block.settingsOpen && (
