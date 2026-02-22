@@ -56,7 +56,9 @@ export const ScreenshotEditorView: React.FC = () => {
     canRedo,
     visiblePanels,
     redactionAreas,
-    activeTool
+    activeTool,
+    redactIntensity,
+    setRedactIntensity
   } = state;
 
   const { visibleLines } = computed;
@@ -446,6 +448,8 @@ export const ScreenshotEditorView: React.FC = () => {
                 onTogglePanel={togglePanel}
                 activeCropOverlayId={activeCropOverlayId}
                 onSetActiveCropOverlayId={setActiveCropOverlayId}
+                redactIntensity={redactIntensity}
+                onRedactIntensityChange={setRedactIntensity}
               />
             </div>
           )}

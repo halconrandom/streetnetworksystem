@@ -96,6 +96,9 @@ type UnifiedSidebarProps = {
     // Crop Tool
     activeCropOverlayId: string | null;
     onSetActiveCropOverlayId: (id: string | null) => void;
+    // Redact Tool
+    redactIntensity: number;
+    onRedactIntensityChange: (value: number) => void;
 };
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -156,7 +159,9 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     visiblePanels,
     onTogglePanel,
     activeCropOverlayId,
-    onSetActiveCropOverlayId
+    onSetActiveCropOverlayId,
+    redactIntensity,
+    onRedactIntensityChange
 }) => {
     const [imageFileName, setImageFileName] = useState('');
     const [chatFileName, setChatFileName] = useState('');
@@ -235,6 +240,33 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
             {/* CONTENT AREA (Right) */}
             <div className="flex-1 flex flex-col min-w-0 bg-[#121316] overflow-y-auto custom-scrollbar relative">
                 <div className="p-6 space-y-8 pb-32">
+                    {/* Tool specific settings (Floating/Fixed Bar) */}
+                    {activeTool === 'redact' && (
+                        <div className="p-4 bg-[#FF3B3B]/10 border border-[#FF3B3B]/20 rounded-2xl animate-fade-in-up flex items-center gap-6">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-[#FF3B3B]/20 text-[#FF3B3B]">
+                                    <Shield size={16} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#FF3B3B]/60">Redact Tool</span>
+                                    <span className="text-[10px] text-white/40">Intensity Settings</span>
+                                </div>
+                            </div>
+                            <div className="flex-1 flex items-center gap-4">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-white/20">Pixel Size</label>
+                                <input
+                                    type="range"
+                                    min={2}
+                                    max={40}
+                                    step={1}
+                                    value={redactIntensity}
+                                    onChange={(e) => onRedactIntensityChange(Number(e.target.value))}
+                                    className="flex-1 accent-[#FF3B3B] h-1"
+                                />
+                                <span className="text-[10px] font-mono text-[#FF3B3B] w-6">{redactIntensity}</span>
+                            </div>
+                        </div>
+                    )}
 
                     {/* SOURCE MATERIAL */}
                     {activeTab === 'source' && (

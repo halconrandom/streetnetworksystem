@@ -60,6 +60,7 @@ export const useEditorState = () => {
         redactionAreas
     } = historyState;
 
+    const [redactIntensity, setRedactIntensity] = useState(10);
     const [activeTool, setActiveTool] = useState<'move' | 'redact'>('move');
     const [lines, setLines] = useState<ChatLine[]>([]);
     const [filterText, setFilterText] = useState<string>('');
@@ -445,8 +446,8 @@ export const useEditorState = () => {
         }));
     };
 
-    const addRedactionArea = (area: Omit<RedactionArea, 'id'>) => {
-        const newArea = { ...area, id: `redact-${Date.now()}` };
+    const addRedactionArea = (area: Omit<RedactionArea, 'id' | 'intensity'>) => {
+        const newArea: RedactionArea = { ...area, id: `redact-${Date.now()}`, intensity: redactIntensity };
         performAction(prev => ({
             ...prev,
             redactionAreas: [...prev.redactionAreas, newArea]
@@ -501,7 +502,8 @@ export const useEditorState = () => {
             imageDragState, setImageDragState,
             canUndo, canRedo,
             redactionAreas,
-            activeTool, setActiveTool
+            activeTool, setActiveTool,
+            redactIntensity, setRedactIntensity
         },
         computed: { visibleLines },
         actions: {

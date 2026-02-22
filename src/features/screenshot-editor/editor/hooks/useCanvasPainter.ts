@@ -281,7 +281,7 @@ export const useCanvasPainter = ({
         // --- Render Manual Redaction Masks (ON TOP OF IMAGE, BEFORE TEXT/OVERLAYS) ---
         if (redactionAreas && redactionAreas.length > 0) {
           redactionAreas.forEach(area => {
-            pixelateRect(ctx, area.x, area.y, area.width, area.height, 8);
+            pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
           });
         }
 
@@ -477,7 +477,7 @@ export const useCanvasPainter = ({
         // Render manual redaction masks (AFTER EVERYTHING)
         if (redactionAreas && redactionAreas.length > 0) {
           redactionAreas.forEach(area => {
-            pixelateRect(ctx, area.x, area.y, area.width, area.height, 10);
+            pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 10);
           });
         }
       };

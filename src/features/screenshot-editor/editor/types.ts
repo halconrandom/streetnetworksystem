@@ -96,6 +96,7 @@ export type RedactionArea = {
   y: number;
   width: number;
   height: number;
+  intensity: number;
 };
 
 export type FilterSettings = {
