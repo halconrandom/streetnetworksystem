@@ -586,18 +586,12 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
 
             {/* FOOTER ACTIONS (Sticky at bottom of Content Area) */}
             <div className="absolute bottom-0 left-[64px] right-0 p-6 bg-gradient-to-t from-[#121316] via-[#121316] to-transparent pointer-events-none z-20">
-                <div className="flex gap-4 pointer-events-auto">
+                <div className="flex pointer-events-auto">
                     <button
                         onClick={onClearBlocks}
-                        className="flex-1 py-4 bg-white/[0.03] text-white/40 text-[10px] font-black uppercase tracking-widest border border-white/5 rounded-2xl hover:bg-white/[0.08] hover:text-white transition-all active:scale-95"
+                        className="w-full py-4 bg-white/[0.03] text-white/40 text-[10px] font-black uppercase tracking-widest border border-white/5 rounded-2xl hover:bg-white/[0.08] hover:text-white transition-all active:scale-95"
                     >
-                        Flush
-                    </button>
-                    <button
-                        onClick={onParseChat}
-                        className="flex-[2] py-4 bg-[#FF3B3B] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-[0_10px_30px_rgba(255,59,59,0.3)] hover:brightness-110 active:scale-95 transition-all"
-                    >
-                        Bake into Canvas
+                        Flush All Blocks
                     </button>
                 </div>
             </div>
