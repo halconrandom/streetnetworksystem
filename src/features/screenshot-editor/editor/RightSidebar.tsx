@@ -46,6 +46,7 @@ type RightSidebarProps = {
     onToggleVisible: (id: string, type: 'text' | 'overlay') => void;
     onToggleLock: (id: string, type: 'text' | 'overlay') => void;
     onCommitHistory: () => void;
+    onApplyColor: (color: string) => void;
     visiblePanels: Record<string, boolean>;
 };
 
@@ -77,6 +78,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     onToggleVisible,
     onToggleLock,
     onCommitHistory,
+    onApplyColor,
     visiblePanels,
 }) => {
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -309,14 +311,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        const formatted = `(${colorPicker}, ${colorAlpha})`;
-                                        navigator.clipboard.writeText(formatted);
+                                        onApplyColor(colorPicker);
                                     }}
                                     className="flex-1 py-2 bg-[#FF3B3B]/10 border border-[#FF3B3B]/20 rounded-xl text-[#FF3B3B] text-[9px] font-black uppercase tracking-widest hover:bg-[#FF3B3B] hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
-                                    title="Copy Format (HEX, ALPHA)"
+                                    title="Apply color to selected text in active unit"
                                 >
-                                    <Copy size={12} />
-                                    Format
+                                    <Palette size={12} />
+                                    Apply
                                 </button>
                             </div>
 

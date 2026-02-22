@@ -108,6 +108,7 @@ export const useEditorState = () => {
     const [cacheItems, setCacheItems] = useState<CacheItem[]>([]);
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+    const [lastSelection, setLastSelection] = useState<{ start: number; end: number } | null>(null);
     const [spaceDown, setSpaceDown] = useState<boolean>(false);
     const [isPanning, setIsPanning] = useState<boolean>(false);
     const [isPreviewHover, setIsPreviewHover] = useState<boolean>(false);
@@ -326,6 +327,29 @@ export const useEditorState = () => {
         });
     };
 
+    const applyColorToSelection = (color: string) => {
+        if (!activeBlockId || !lastSelection) return;
+        performAction(prev => {
+            const block = prev.textBlocks.find(b => b.id === activeBlockId);
+            if (!block) return prev;
+
+            const { start, end } = lastSelection;
+            const text = block.text;
+            const selectedText = text.substring(start, end);
+
+            // If no selection, we could potentially just append or do nothing. 
+            // The request says "cuando subrayes", so we focus on selection.
+            if (start === end) return prev;
+
+            const newText = text.substring(0, start) + `(${color})` + selectedText + text.substring(end);
+
+            return {
+                ...prev,
+                textBlocks: prev.textBlocks.map(b => b.id === activeBlockId ? { ...b, text: newText } : b)
+            };
+        });
+    };
+
     const removeTextBlock = (id: string) => {
         performAction(prev => ({
             ...prev,
@@ -453,6 +477,7 @@ export const useEditorState = () => {
             cacheItems, setCacheItems,
             isDragging, setIsDragging,
             activeBlockId, setActiveBlockId,
+            lastSelection, setLastSelection,
             spaceDown, setSpaceDown,
             isPanning, setIsPanning,
             isPreviewHover, setIsPreviewHover,
@@ -471,7 +496,7 @@ export const useEditorState = () => {
         actions: {
             addToCache, loadCache, removeCache,
             addOverlay, removeOverlay, updateOverlay,
-            addTextBlock, duplicateTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+            addTextBlock, duplicateTextBlock, applyColorToSelection, removeTextBlock, updateTextBlock, updateTextBlockSettings,
             reorderLayers, toggleLayerVisibility, toggleLayerLock,
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,

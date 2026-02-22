@@ -40,6 +40,7 @@ export const ScreenshotEditorView: React.FC = () => {
     cacheItems,
     isDragging, setIsDragging,
     activeBlockId, setActiveBlockId,
+    lastSelection, setLastSelection,
     spaceDown, setSpaceDown,
     isPanning, setIsPanning,
     isPreviewHover, setIsPreviewHover,
@@ -62,7 +63,7 @@ export const ScreenshotEditorView: React.FC = () => {
   const {
     addToCache, loadCache, removeCache,
     addOverlay, removeOverlay, updateOverlay,
-    addTextBlock, duplicateTextBlock, removeTextBlock, updateTextBlock, updateTextBlockSettings,
+    addTextBlock, duplicateTextBlock, applyColorToSelection, removeTextBlock, updateTextBlock, updateTextBlockSettings,
     addNameInput, removeNameInput, updateNameInput,
     undo, redo, commitHistory, togglePanel, clearAll,
     addRedactionArea, removeRedactionArea, setActiveTool,
@@ -402,6 +403,7 @@ export const ScreenshotEditorView: React.FC = () => {
                 onToggleBlockCollapsed={toggleBlockCollapsed}
                 onToggleBlockAdvanced={toggleBlockAdvanced}
                 onSetActiveBlockId={setActiveBlockId}
+                onSetSelection={setLastSelection}
                 activeBlockId={activeBlockId}
                 // Global Settings & Canvas
                 settings={settings}
@@ -541,6 +543,7 @@ export const ScreenshotEditorView: React.FC = () => {
               onRawTextChange={setRawTextFile}
               onRemoveTimestamps={() => setRawTextFile(sanitizeChatInput(rawTextFile))}
               onApplyChatLines={handleParseChat}
+              onApplyColor={applyColorToSelection}
               lines={lines}
               onUpdateLine={(id, updateValue) => setLines((prev) => prev.map((l) => (l.id === id ? { ...l, ...updateValue } : l)))}
               onRemoveLine={(id) => setLines((prev) => prev.filter((l) => l.id !== id))}
