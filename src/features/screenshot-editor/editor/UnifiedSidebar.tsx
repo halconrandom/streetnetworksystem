@@ -176,7 +176,6 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     const toolbarItems = [
         { id: 'source', icon: ImageIcon, label: 'Source Material' },
         { id: 'textEditor', icon: Type, label: 'Content Strategy' },
-        { id: 'add', icon: Plus, label: 'Add Block', isAction: true, onClick: onAddBlock },
         { id: 'move', icon: Move, label: 'Move Tool', isTool: true },
         { id: 'redact', icon: Shield, label: 'Redact Tool', isTool: true },
         { id: 'stripBuilder', icon: Layers, label: 'Strip Builder', isAction: true, onClick: () => onTogglePanel('stripBuilder') },
