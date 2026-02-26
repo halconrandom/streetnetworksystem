@@ -74,7 +74,7 @@ const StripItem: React.FC<StripItemProps> = ({ item, index, moveItem, onRemove }
                 </div>
             </div>
             <div className="relative border-4 border-white/5 shadow-2xl overflow-hidden group-hover:border-terminal-accent/30 transition-all bg-black/40">
-                <img src={item.imageDataUrl} className="w-full" alt={item.name} />
+                <img src={item.bakedImage || item.imageDataUrl} className="w-full" alt={item.name} />
                 <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={() => onRemove(item.id)}
@@ -130,7 +130,7 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
                 const img = new Image();
                 img.onload = () => resolve(img);
                 img.onerror = reject;
-                img.src = item.imageDataUrl;
+                img.src = item.bakedImage || item.imageDataUrl;
             });
         }));
 
@@ -255,7 +255,7 @@ export const StripBuilder: React.FC<StripBuilderProps> = ({
                                 >
                                     <div className="aspect-video relative overflow-hidden">
                                         <img
-                                            src={item.imageDataUrl}
+                                            src={item.bakedImage || item.imageDataUrl}
                                             className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 ${selectedItemIds.includes(item.id) ? 'opacity-100' : 'opacity-40 group-hover:opacity-60'
                                                 }`}
                                             alt={item.name}

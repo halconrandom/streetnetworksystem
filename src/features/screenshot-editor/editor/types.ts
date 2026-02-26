@@ -11,6 +11,7 @@ export type CacheItem = {
   name: string;
   createdAt: number;
   imageDataUrl: string;
+  bakedImage?: string;
   chatInput?: string;
   textBlocks?: TextBlock[];
   overlays?: OverlayImage[];

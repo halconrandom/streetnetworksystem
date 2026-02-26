@@ -192,6 +192,7 @@ export const useEditorState = () => {
                         settings: r.state_data.settings || defaultSettings,
                         layerOrder: r.state_data.layerOrder || [],
                         redactionAreas: r.state_data.redactionAreas || [],
+                        bakedImage: r.state_data.bakedImage || r.image_data_url,
                     }));
                     setCacheItems(mapped);
                 }
@@ -225,6 +226,7 @@ export const useEditorState = () => {
             settings,
             layerOrder,
             redactionAreas,
+            bakedImage: renderedDataUrl || imageDataUrl, // Pass to backend via stateData
         };
 
         // Optimistic update
@@ -233,7 +235,8 @@ export const useEditorState = () => {
             id: tempId,
             name: imageName,
             createdAt: Date.now(),
-            imageDataUrl: renderedDataUrl || imageDataUrl,
+            imageDataUrl: imageDataUrl, // Always keep the clean background
+            bakedImage: renderedDataUrl || imageDataUrl, // The preview for the UI
             ...stateData
         };
 
@@ -246,7 +249,7 @@ export const useEditorState = () => {
                 credentials: 'include',
                 body: JSON.stringify({
                     name: imageName,
-                    imageDataUrl: renderedDataUrl || imageDataUrl,
+                    imageDataUrl: imageDataUrl, // Send only the clean background to DB
                     stateData
                 })
             });
@@ -264,7 +267,7 @@ export const useEditorState = () => {
     };
 
     const loadCache = (item: CacheItem) => {
-        setImageDataUrl(item.imageDataUrl);
+        setImageDataUrl(item.imageDataUrl); // Load the clean background, not the baked one
         setImageName(item.name);
 
         const nextBlocks = item.textBlocks && item.textBlocks.length > 0
