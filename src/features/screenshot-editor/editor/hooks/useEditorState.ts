@@ -552,6 +552,52 @@ export const useEditorState = () => {
         performAction(prev => ({ ...prev, settings: { ...prev.settings, ...update } }));
     };
 
+    const exportWorkspace = useCallback(() => {
+        const data = {
+            version: '1.0',
+            imageName,
+            imageDataUrl,
+            textBlocks,
+            overlays,
+            settings,
+            layerOrder,
+            redactionAreas,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `street-network-workspace-${imageName.replace(/\.[^/.]+$/, '')}-${Date.now()}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }, [imageName, imageDataUrl, textBlocks, overlays, settings, layerOrder, redactionAreas]);
+
+    const importWorkspace = useCallback((data: any) => {
+        try {
+            if (!data.textBlocks || !data.settings) {
+                throw new Error('Invalid workspace file');
+            }
+
+            if (data.imageDataUrl) setImageDataUrl(data.imageDataUrl);
+            if (data.imageName) setImageName(data.imageName);
+
+            const snapshot: EditorSnapshot = {
+                textBlocks: data.textBlocks,
+                overlays: data.overlays || [],
+                settings: data.settings,
+                layerOrder: data.layerOrder || [],
+                redactionAreas: data.redactionAreas || []
+            };
+
+            resetHistory(snapshot);
+            setAutoFit(true);
+        } catch (err) {
+            console.error('Failed to import workspace:', err);
+            alert('Error al importar el espacio de trabajo. El archivo podría estar corrupto.');
+        }
+    }, [resetHistory]);
+
     return {
         state: {
             imageDataUrl, setImageDataUrl,
@@ -597,7 +643,8 @@ export const useEditorState = () => {
             addNameInput, removeNameInput, updateNameInput,
             undo, redo, commitHistory, togglePanel, clearAll,
             addRedactionArea, removeRedactionArea, setActiveTool,
-            updateSettings, renameCacheItem
+            updateSettings, renameCacheItem,
+            exportWorkspace, importWorkspace
         }
     };
 };

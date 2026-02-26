@@ -399,6 +399,8 @@ export const ScreenshotEditorView: React.FC = () => {
             onSaveToFile={handleSaveToFile}
             onCopyScreenshot={handleCopyScreenshot}
             onClear={handleClearBlocks}
+            onExportWorkspace={actions.exportWorkspace}
+            onImportWorkspace={actions.importWorkspace}
           />
         )}
 

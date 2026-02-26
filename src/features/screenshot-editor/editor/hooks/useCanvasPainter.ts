@@ -417,14 +417,22 @@ export const useCanvasPainter = ({
           renderLines.forEach((line, index) => {
             const lineTopY = localStartY + index * effectiveLineHeight;
             const lineMetrics = ctx.measureText(line.text);
+            const textWidth = Math.min(lineMetrics.width, maxWidth);
+
+            let lineX = localBaseX;
+            if (blockSettings.align === 'center') {
+              lineX = localBaseX + (maxWidth - textWidth) / 2;
+            } else if (blockSettings.align === 'right') {
+              lineX = localBaseX + (maxWidth - textWidth);
+            }
+
             if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
-              const textWidth = Math.min(lineMetrics.width, maxWidth);
               const backdropWidth = Math.max(0, textWidth);
               const backdropHeight = fontHeight + blockSettings.backdropPadding * 2;
               const backdropY = lineTopY - blockSettings.backdropPadding;
               ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
               ctx.fillRect(
-                localBaseX - blockSettings.backdropPadding,
+                lineX - blockSettings.backdropPadding,
                 backdropY,
                 backdropWidth + blockSettings.backdropPadding * 2,
                 backdropHeight
@@ -432,15 +440,15 @@ export const useCanvasPainter = ({
             }
             ctx.fillStyle = line.color;
             if (blockSettings.strokeWidth > 0) {
-              ctx.strokeText(line.text, localBaseX, lineTopY);
+              ctx.strokeText(line.text, lineX, lineTopY);
             }
-            ctx.fillText(line.text, localBaseX, lineTopY);
+            ctx.fillText(line.text, lineX, lineTopY);
 
             // Apply redactions (Pixelate)
             if (line.redactions && line.redactions.length > 0) {
               line.redactions.forEach(reg => {
                 const pixelSize = Math.max(3, Math.floor(fontHeight / 3));
-                pixelateRect(ctx, localBaseX + reg.startX, lineTopY, reg.width, fontHeight, pixelSize);
+                pixelateRect(ctx, lineX + reg.startX, lineTopY, reg.width, fontHeight, pixelSize);
               });
             }
           });

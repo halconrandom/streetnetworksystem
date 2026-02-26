@@ -172,9 +172,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                     className="flex-1 bg-black/40 border border-white/5 rounded-xl px-3 py-2 text-[12px] text-white font-mono focus:border-[#FF3B3B]/30 outline-none"
                                 />
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(colorPicker); }}
+                                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`(${colorPicker})`); }}
                                     className="p-2.5 bg-white/[0.03] border border-white/5 rounded-xl text-white/40 hover:text-white transition-all"
-                                    title="Copy HEX"
+                                    title="Copy Tag (#HEX)"
                                 >
                                     <Copy size={14} />
                                 </button>
@@ -204,8 +204,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                     ].map((item) => (
                                         <button
                                             key={item.label}
-                                            onClick={(e) => { e.stopPropagation(); onColorPickerChange(item.val); }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onColorPickerChange(item.val);
+                                                navigator.clipboard.writeText(`(${item.val})`);
+                                            }}
                                             className="flex items-center gap-2 p-2 bg-white/[0.01] border border-white/5 rounded-xl hover:bg-white/[0.04] transition-all group"
+                                            title={`Select & Copy (${item.val})`}
                                         >
                                             <div className="w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: item.val, color: item.val }} />
                                             <span className="text-[9px] font-bold uppercase tracking-wider text-white/30 group-hover:text-white/60 transition-colors">{item.label}</span>

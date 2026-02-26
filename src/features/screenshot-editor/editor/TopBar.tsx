@@ -10,11 +10,37 @@ type TopBarProps = {
     onSaveToFile: () => void;
     onCopyScreenshot: () => void;
     onClear: () => void;
+    onExportWorkspace: () => void;
+    onImportWorkspace: (data: any) => void;
 };
 
 export const TopBar: React.FC<TopBarProps> = ({
-    canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear
+    canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear, onExportWorkspace, onImportWorkspace
 }) => {
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target?.result as string);
+                onImportWorkspace(data);
+            } catch (err) {
+                alert('Error al leer el archivo JSON.');
+            }
+        };
+        reader.readAsText(file);
+        // Reset input
+        e.target.value = '';
+    };
+
     return (
         <div className="flex items-center justify-end px-6 py-4 bg-[#0a0a0c] border-b border-white/5 gap-6">
             <div className="flex items-center gap-4 mr-auto">
@@ -41,6 +67,34 @@ export const TopBar: React.FC<TopBarProps> = ({
                 <Trash2 size={14} />
                 Clear All
             </button>
+
+            <div className="h-6 w-[1px] bg-white/5" />
+
+            <div className="flex items-center gap-2">
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".json"
+                    className="hidden"
+                />
+                <button
+                    onClick={handleImportClick}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                    title="Import Workspace JSON"
+                >
+                    Import
+                </button>
+                <button
+                    onClick={onExportWorkspace}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
+                    title="Export Workspace JSON"
+                >
+                    Export
+                </button>
+            </div>
+
+            <div className="h-6 w-[1px] bg-white/5" />
 
             <div className="flex items-center gap-2">
                 <button
