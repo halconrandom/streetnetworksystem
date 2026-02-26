@@ -263,7 +263,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
       const w = Math.abs(drawingRect.currentX - drawingRect.startX);
       const h = Math.abs(drawingRect.currentY - drawingRect.startY);
       if (w > 5 && h > 5) {
-        onAddRedactionArea({ x, y, width: w, height: h });
+        onAddRedactionArea({ x, y, width: w, height: h, intensity: 10 });
         committed = true;
       }
       setDrawingRect(null);

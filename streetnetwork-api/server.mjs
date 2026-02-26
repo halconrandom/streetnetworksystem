@@ -261,6 +261,7 @@ const buildUserPayload = async (userRow) => {
   const flags = await getUserFlags(userRow.id);
   return {
     id: userRow.id,
+    name: userRow.name || null,
     email: userRow.email,
     role: userRow.role,
     isVerified: userRow.is_verified,
@@ -334,10 +335,10 @@ app.post('/api/auth/register', async (req, res) => {
   if (!ALLOW_REGISTRATION) {
     return res.status(403).json({ error: 'Registration disabled' });
   }
-  const { email, password } = req.body || {};
+  const { email, password, name } = req.body || {};
   const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  if (!normalizedEmail || !password || !name) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
   }
   if (!passwordMeetsPolicy(password)) {
     return res.status(400).json({
@@ -347,10 +348,10 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const hashed = await argon2.hash(password, { type: argon2.argon2id });
     const result = await pool.query(
-      `insert into public.sn_users (email, password_hash, role)
-       values ($1, $2, 'user')
-       returning id, email, role, is_active, is_verified`,
-      [normalizedEmail, hashed]
+      `insert into public.sn_users (email, password_hash, role, name)
+       values ($1, $2, 'user', $3)
+       returning id, email, role, is_active, is_verified, name`,
+      [normalizedEmail, hashed, name]
     );
     await auditLog({
       action: 'user.register',
@@ -382,7 +383,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `select id, email, role, password_hash, is_active, is_verified
+      `select id, name, email, role, password_hash, is_active, is_verified
        from public.sn_users
        where email = $1
        limit 1`,
@@ -460,6 +461,63 @@ app.get('/api/auth/me', async (req, res) => {
   } catch (err) {
     console.error('auth me failed', err);
     return res.status(500).json({ error: 'Failed to fetch session' });
+  }
+});
+
+app.put('/api/users/me', requireAuth, async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+    const userId = req.adminUser.id;
+
+    // Updates
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (name) {
+      // Check if name is taken
+      const nameCheck = await pool.query('SELECT id FROM public.sn_users WHERE name = $1 AND id != $2', [name, userId]);
+      if (nameCheck.rowCount > 0) return res.status(409).json({ error: 'Nombre de usuario ya en uso' });
+      updates.push(`name = $${idx++}`);
+      values.push(name);
+    }
+
+    if (email) {
+      const normalizedEmail = normalizeEmail(email);
+      const emailCheck = await pool.query('SELECT id FROM public.sn_users WHERE email = $1 AND id != $2', [normalizedEmail, userId]);
+      if (emailCheck.rowCount > 0) return res.status(409).json({ error: 'Correo ya en uso' });
+      updates.push(`email = $${idx++}`);
+      values.push(normalizedEmail);
+    }
+
+    if (password) {
+      if (!passwordMeetsPolicy(password)) {
+        return res.status(400).json({
+          error: 'La contraseña debe tener al menos 12 caracteres, incluir mayúsculas, minúsculas, números y símbolos.',
+        });
+      }
+      const hashed = await argon2.hash(password, { type: argon2.argon2id });
+      updates.push(`password_hash = $${idx++}`);
+      values.push(hashed);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No se enviaron datos para actualizar' });
+    }
+
+    values.push(userId);
+    const result = await pool.query(
+      `UPDATE public.sn_users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING id, name, email, role, is_verified`,
+      values
+    );
+
+    return res.json(await buildUserPayload(result.rows[0]));
+  } catch (err) {
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: 'El correo o nombre de usuario ya está en uso' });
+    }
+    console.error('Update failed', err);
+    return res.status(500).json({ error: 'Error al actualizar el usuario' });
   }
 });
 
