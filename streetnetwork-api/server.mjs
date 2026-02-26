@@ -109,6 +109,13 @@ const normalizeAudit = (row) => ({
   created_at: toIsoUtc(row.created_at),
 });
 
+const normalizeLiveUpdate = (row) => ({
+  ...row,
+  date: toIsoUtc(row.date),
+  created_at: toIsoUtc(row.created_at),
+  updated_at: toIsoUtc(row.updated_at),
+});
+
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -1121,6 +1128,109 @@ app.delete('/api/message-builder/mentions/:id', async (req, res) => {
   } catch (err) {
     console.error('delete mention failed', err);
     res.status(500).json({ error: 'Failed to delete mention' });
+  }
+});
+
+/**
+ * --- LIVE UPDATES (MANUAL CHANGELOG) ---
+ */
+
+app.get('/api/live-updates', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `select * from public.sn_live_updates 
+       where is_active = true 
+       order by date desc, created_at desc`
+    );
+    res.json(result.rows.map(normalizeLiveUpdate));
+  } catch (err) {
+    console.error('list live updates failed', err);
+    res.status(500).json({ error: 'Failed to list updates' });
+  }
+});
+
+// Admin management endpoints
+app.get('/api/admin/live-updates', requireAdmin, async (_req, res) => {
+  try {
+    const result = await pool.query(`select * from public.sn_live_updates order by date desc, created_at desc`);
+    res.json(result.rows.map(normalizeLiveUpdate));
+  } catch (err) {
+    console.error('admin list updates failed', err);
+    res.status(500).json({ error: 'Failed to list updates for admin' });
+  }
+});
+
+app.post('/api/admin/live-updates', requireAdmin, async (req, res) => {
+  const { type, message, description, date, is_active } = req.body || {};
+  if (!type || !message) return res.status(400).json({ error: 'Type and message are required' });
+  try {
+    const result = await pool.query(
+      `insert into public.sn_live_updates (type, message, description, date, is_active)
+       values ($1, $2, $3, $4, $5)
+       returning *`,
+      [type, message, description || null, date || new Date(), is_active !== false]
+    );
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'live_updates.create',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { updateId: result.rows[0].id, type, message },
+    });
+    res.status(201).json(normalizeLiveUpdate(result.rows[0]));
+  } catch (err) {
+    console.error('create live update failed', err);
+    res.status(500).json({ error: 'Failed to create update' });
+  }
+});
+
+app.put('/api/admin/live-updates/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { type, message, description, date, is_active } = req.body || {};
+  try {
+    const result = await pool.query(
+      `update public.sn_live_updates 
+       set type = coalesce($1, type),
+           message = coalesce($2, message),
+           description = coalesce($3, description),
+           date = coalesce($4, date),
+           is_active = coalesce($5, is_active),
+           updated_at = now()
+       where id = $6
+       returning *`,
+      [type, message, description, date, is_active, id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'live_updates.update',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { updateId: id },
+    });
+    res.json(normalizeLiveUpdate(result.rows[0]));
+  } catch (err) {
+    console.error('update live update failed', err);
+    res.status(500).json({ error: 'Failed to update entry' });
+  }
+});
+
+app.delete('/api/admin/live-updates/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(`delete from public.sn_live_updates where id = $1 returning id`, [id]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Not found' });
+    await auditLog({
+      actorUserId: req.adminUser.id,
+      action: 'live_updates.delete',
+      ip: getRequestIp(req),
+      userAgent: req.get('user-agent'),
+      metadata: { updateId: id },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('delete live update failed', err);
+    res.status(500).json({ error: 'Failed to delete update' });
   }
 });
 

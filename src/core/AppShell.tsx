@@ -6,7 +6,7 @@ import { Menu, Bell, User } from '@shared/icons';
 type AppShellProps = {
   currentView: string;
   title?: string;
-  children: React.ReactNode | ((props: { flags: string[] }) => React.ReactNode);
+  children: React.ReactNode | ((props: { flags: string[], role: string }) => React.ReactNode);
 };
 
 function AppShell({ currentView, title, children }: AppShellProps) {
@@ -14,6 +14,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [userFlags, setUserFlags] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>('user');
   const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
 
   useEffect(() => {
@@ -37,6 +38,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
 
         if (isMounted) {
           setUserFlags(payload.flags || []);
+          setUserRole(payload.role || 'user');
           setCheckingAccess(false);
         }
       } catch {
@@ -109,7 +111,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
         </header>
 
         <main className="flex-1 overflow-auto relative">
-          {typeof children === 'function' ? children({ flags: userFlags }) : children}
+          {typeof children === 'function' ? children({ flags: userFlags, role: userRole }) : children}
         </main>
       </div>
 

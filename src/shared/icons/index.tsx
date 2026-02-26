@@ -76,6 +76,10 @@ import {
   Phone,
   Mail,
   Square,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
 } from 'lucide-react';
 
 export {
@@ -156,4 +160,8 @@ export {
   Phone,
   Mail,
   Square,
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
 };

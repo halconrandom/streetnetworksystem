@@ -6,11 +6,18 @@ import 'dotenv/config';
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
 async function runMigration() {
-    const sqlPath = path.join(process.cwd(), 'migrations', '004_vault.sql');
+    const filename = process.argv[2] || '004_vault.sql';
+    const sqlPath = path.join(process.cwd(), 'migrations', filename);
+
+    if (!fs.existsSync(sqlPath)) {
+        console.error(`Migration file not found: ${sqlPath}`);
+        process.exit(1);
+    }
+
     const sql = fs.readFileSync(sqlPath, 'utf8');
 
     try {
-        console.log('--- RUNNING MIGRATION: 004_vault.sql ---');
+        console.log(`--- RUNNING MIGRATION: ${filename} ---`);
         await pool.query(sql);
         console.log('Migration successful!');
         process.exit(0);
