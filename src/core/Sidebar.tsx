@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import {
@@ -20,6 +20,16 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
   const router = useRouter();
   const currentPath = router.asPath;
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
     { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
@@ -53,6 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
       router.push('/login');
     }
   };
+
+  if (isFullscreen) return null;
 
   return (
     <aside className="w-64 bg-terminal-panel border-r border-terminal-border flex flex-col hidden md:flex">

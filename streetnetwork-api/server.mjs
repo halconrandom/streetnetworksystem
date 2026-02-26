@@ -62,7 +62,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(cookieParser());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 const toIsoUtc = (value) => {
   if (!value) return null;
@@ -232,6 +232,7 @@ app.use((req, res, next) => {
     req.path.startsWith('/api/nexus') ||
     req.path.startsWith('/api/vault') ||
     req.path.startsWith('/api/tickets') ||
+    req.path.startsWith('/api/screenshot-editor') ||
     req.path.startsWith('/api/message-builder');
 
   if (isWhitelisted) {
@@ -516,6 +517,100 @@ app.post('/api/nexus', requireFlag('nexus'), async (req, res) => {
       return res.status(500).json({ error: 'Database table missing. Please run the SQL migration 003_nexus.sql.' });
     }
     return res.status(500).json({ error: 'Failed to save nexus data' });
+  }
+});
+
+app.get('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select id, name, image_data_url, state_data, created_at
+       from public.sn_seditorLoadPoints
+       where user_id = $1
+       order by created_at desc
+       limit 50`,
+      [req.adminUser.id]
+    );
+    return res.json({ rows: result.rows });
+  } catch (err) {
+    console.error('[S_EDITOR] Fetch failed for user:', req.adminUser.id, err);
+    return res.status(500).json({ error: 'Failed to fetch load points' });
+  }
+});
+
+app.post('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'), async (req, res) => {
+  try {
+    const { name, imageDataUrl, stateData } = req.body || {};
+    if (!name || !imageDataUrl || !stateData) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const countResult = await pool.query(
+      `select count(*)::int from public.sn_seditorLoadPoints where user_id = $1`,
+      [req.adminUser.id]
+    );
+
+    // Limit points to 20 per user to avoid bloat
+    if (countResult.rows[0].count >= 20) {
+      // delete oldest
+      await pool.query(
+        `delete from public.sn_seditorLoadPoints
+         where id in (
+             select id from public.sn_seditorLoadPoints
+             where user_id = $1
+             order by created_at asc
+             limit 1
+         )`,
+        [req.adminUser.id]
+      );
+    }
+
+    const result = await pool.query(
+      `insert into public.sn_seditorLoadPoints (user_id, name, image_data_url, state_data)
+       values ($1, $2, $3, $4::jsonb)
+       returning id, name, image_data_url, state_data, created_at`,
+      [req.adminUser.id, name, imageDataUrl, JSON.stringify(stateData)]
+    );
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[S_EDITOR] Save failed for user:', req.adminUser.id, err);
+    return res.status(500).json({ error: 'Failed to save load point' });
+  }
+});
+
+app.put('/api/screenshot-editor/load-points/:id', requireFlag('screenshot_editor'), async (req, res) => {
+  try {
+    const { name } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+
+    const result = await pool.query(
+      `update public.sn_seditorLoadPoints
+       set name = $1, updated_at = now()
+       where id = $2 and user_id = $3
+       returning id, name, image_data_url, state_data, created_at`,
+      [name, req.params.id, req.adminUser.id]
+    );
+
+    if (!result.rowCount) return res.status(404).json({ error: 'Load point not found' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[S_EDITOR] Update failed for user:', req.adminUser.id, err);
+    return res.status(500).json({ error: 'Failed to update load point' });
+  }
+});
+
+app.delete('/api/screenshot-editor/load-points/:id', requireFlag('screenshot_editor'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `delete from public.sn_seditorLoadPoints
+       where id = $1 and user_id = $2`,
+      [req.params.id, req.adminUser.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Load point not found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[S_EDITOR] Delete failed for user:', req.adminUser.id, err);
+    return res.status(500).json({ error: 'Failed to delete load point' });
   }
 });
 

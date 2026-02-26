@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings } from '../constants';
 import type { CacheItem, ChatLine, EditorSettings, OverlayImage, RedactionArea, TextBlock, TextBlockSettings } from '../types';
-import { buildLinesFromBlocks, getCombinedText, readCache, writeCache } from '../utils';
+import { buildLinesFromBlocks, getCombinedText } from '../utils';
 import { useHistory } from './useHistory';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_PLATFORM_API || 'http://localhost:8788';
 
 export type EditorSnapshot = {
     textBlocks: TextBlock[];
@@ -166,7 +168,38 @@ export const useEditorState = () => {
     } | null>(null);
 
     useEffect(() => {
-        setCacheItems(readCache(CACHE_KEY));
+        const fetchCache = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, { credentials: 'omit' }); // Actually needs credentials include to work with cookies
+            } catch (err) { }
+        };
+        const fetchCacheActual = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+
+                    // Map API responses back to CacheItem shape
+                    const mapped = data.rows.map((r: any) => ({
+                        id: r.id,
+                        name: r.name,
+                        createdAt: new Date(r.created_at).getTime(),
+                        imageDataUrl: r.image_data_url,
+                        textBlocks: r.state_data.textBlocks || [],
+                        overlays: r.state_data.overlays || [],
+                        chatInput: r.state_data.chatInput || '',
+                        lines: r.state_data.lines || [],
+                        settings: r.state_data.settings || defaultSettings,
+                        layerOrder: r.state_data.layerOrder || [],
+                        redactionAreas: r.state_data.redactionAreas || [],
+                    }));
+                    setCacheItems(mapped);
+                }
+            } catch (err) {
+                console.error("Failed to fetch load points", err);
+            }
+        };
+        fetchCacheActual();
     }, []);
 
     useEffect(() => {
@@ -182,14 +215,9 @@ export const useEditorState = () => {
         });
     }, [filterText, lines]);
 
-    const addToCache = (renderedDataUrl?: string) => {
+    const addToCache = async (renderedDataUrl?: string) => {
         if (!imageDataUrl) return;
-        const item: CacheItem = {
-            id: `${Date.now()}`,
-            name: imageName,
-            createdAt: Date.now(),
-            // Use renderedDataUrl if provided (the "snapshot"), otherwise fallback to raw image
-            imageDataUrl: renderedDataUrl || imageDataUrl,
+        const stateData = {
             textBlocks,
             overlays,
             chatInput: getCombinedText(textBlocks),
@@ -198,9 +226,41 @@ export const useEditorState = () => {
             layerOrder,
             redactionAreas,
         };
-        const next = [item, ...cacheItems].slice(0, 15); // Increased cache limit for strips
-        setCacheItems(next);
-        writeCache(CACHE_KEY, next);
+
+        // Optimistic update
+        const tempId = `temp-${Date.now()}`;
+        const item: CacheItem = {
+            id: tempId,
+            name: imageName,
+            createdAt: Date.now(),
+            imageDataUrl: renderedDataUrl || imageDataUrl,
+            ...stateData
+        };
+
+        setCacheItems(prev => [item, ...prev]);
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    name: imageName,
+                    imageDataUrl: renderedDataUrl || imageDataUrl,
+                    stateData
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setCacheItems(prev => prev.map(p => p.id === tempId ? { ...item, id: data.id } : p));
+            } else {
+                // Revert if failed
+                setCacheItems(prev => prev.filter(p => p.id !== tempId));
+            }
+        } catch (err) {
+            console.error("Failed to save load point", err);
+            setCacheItems(prev => prev.filter(p => p.id !== tempId));
+        }
     };
 
     const loadCache = (item: CacheItem) => {
@@ -255,16 +315,30 @@ export const useEditorState = () => {
         setAutoFit(true);
     };
 
-    const removeCache = (id: string) => {
-        const next = cacheItems.filter((item) => item.id !== id);
-        setCacheItems(next);
-        writeCache(CACHE_KEY, next);
+    const removeCache = async (id: string) => {
+        setCacheItems(prev => prev.filter((item) => item.id !== id));
+        try {
+            await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+        } catch (err) {
+            console.error("Failed to delete load point", err);
+        }
     };
 
-    const renameCacheItem = (id: string, name: string) => {
-        const next = cacheItems.map(item => item.id === id ? { ...item, name } : item);
-        setCacheItems(next);
-        writeCache(CACHE_KEY, next);
+    const renameCacheItem = async (id: string, name: string) => {
+        setCacheItems(prev => prev.map(item => item.id === id ? { ...item, name } : item));
+        try {
+            await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ name })
+            });
+        } catch (err) {
+            console.error("Failed to rename load point", err);
+        }
     };
 
     // Atomic Actions

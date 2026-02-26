@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Copy, Download, Image as ImageIcon, Minus, Plus, Save } from '@/components/Icons';
 import type { EditorSettings, FitMode, OverlayImage, RedactionArea, TextBlockSettings } from './types';
 
@@ -114,6 +114,15 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
   redactionAreas,
 }) => {
   const [drawingRect, setDrawingRect] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const getCanvasCoords = useCallback((clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -271,7 +280,7 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-[#0a0a0c] animate-fade-in relative">
+    <div className="flex-1 min-h-0 min-w-0 flex flex-col bg-[#0a0a0c] animate-fade-in relative">
       {/* Viewport Header */}
       <div className="px-6 py-4 flex items-center justify-between pointer-events-none select-none z-10">
         <div className="flex items-center gap-3">
@@ -296,10 +305,25 @@ export const CenterColumn: React.FC<CenterColumnProps> = ({
           </button>
           <div className="w-px h-3 bg-white/10 mx-1" />
           <button
-            onClick={() => { /* Maximize logic if any */ }}
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(console.error);
+              } else {
+                document.exitFullscreen().catch(console.error);
+              }
+            }}
             className="text-white/20 hover:text-white transition-colors"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            )}
           </button>
         </div>
       </div>

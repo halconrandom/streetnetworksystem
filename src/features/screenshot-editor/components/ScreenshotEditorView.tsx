@@ -479,7 +479,7 @@ export const ScreenshotEditorView: React.FC = () => {
           )}
 
           {/* MAIN VIEWPORT */}
-          <div className="flex-1 min-h-0 flex flex-col relative bg-[#0a0a0c]">
+          <div className="flex-1 min-h-0 min-w-0 flex flex-col relative bg-[#0a0a0c]">
             {activeCropOverlayId ? (
               <div className="flex-1 min-h-0 p-6 flex flex-col">
                 <CropEditor
