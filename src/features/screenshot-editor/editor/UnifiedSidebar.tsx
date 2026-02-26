@@ -214,11 +214,11 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     };
 
     const toolbarItems = [
-        { id: 'source', icon: ImageIcon, label: 'Source Material' },
-        { id: 'textEditor', icon: Type, label: 'Content Strategy' },
+        { id: 'source', icon: ImageIcon, label: 'Background & Overlays' },
+        { id: 'textEditor', icon: Type, label: 'Chat Boxes' },
         { id: 'move', icon: Move, label: 'Move Tool', isTool: true },
-        { id: 'redact', icon: Shield, label: 'Redact Tool', isTool: true },
-        { id: 'stripBuilder', icon: Layers, label: 'Strip Builder', isAction: true, onClick: () => onTogglePanel('stripBuilder') },
+        { id: 'redact', icon: Shield, label: 'Censor Tool', isTool: true },
+        { id: 'stripBuilder', icon: Layers, label: 'Comic Maker', isAction: true, onClick: () => onTogglePanel('stripBuilder') },
     ];
 
     const [activeTab, setActiveTab] = useState<'source' | 'textEditor'>('source');
@@ -277,7 +277,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                     <Shield size={16} />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#FF3B3B]/60">Redact Tool</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-[#FF3B3B]/60">Censor Tool</span>
                                     <span className="text-[10px] text-white/40">Intensity Settings</span>
                                 </div>
                             </div>
@@ -301,7 +301,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                     {activeTab === 'source' && (
                         <div className="space-y-8 animate-fade-in">
                             <section className="space-y-4">
-                                <SectionHeader id="source" label="Source Material" />
+                                <SectionHeader id="source" label="Background & Overlays" />
                                 {expandedSections.source && (
                                     <div className="grid grid-cols-3 gap-2 animate-fade-in">
                                         <label className="flex flex-col items-center justify-center gap-2 p-4 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl cursor-pointer hover:bg-white/[0.05] hover:border-[#FF3B3B]/50 transition-all group">
@@ -325,7 +325,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
 
                             {/* CANVAS SETUP */}
                             <section className="space-y-4">
-                                <SectionHeader id="canvas" label="Canvas Setup" />
+                                <SectionHeader id="canvas" label="Image Size & Format" />
                                 {expandedSections.canvas && (
                                     <div className="space-y-4 bg-white/[0.02] border border-white/5 rounded-2xl p-5 animate-fade-in">
                                         <div className="grid grid-cols-2 gap-3">
@@ -454,7 +454,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex-1">
-                                        <SectionHeader id="atmosphere" label="Atmosphere Control" />
+                                        <SectionHeader id="atmosphere" label="Filters & Lighting" />
                                     </div>
                                     {expandedSections.atmosphere && (
                                         <button
@@ -583,7 +583,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <UserPlus size={14} className="text-white/20" />
-                                        <h3 className="text-[10px] uppercase font-black tracking-widest text-white/40">Quick Action Matrix</h3>
+                                        <h3 className="text-[10px] uppercase font-black tracking-widest text-white/40">Character Name Quick Actions</h3>
                                     </div>
                                     <button
                                         onClick={onAddNameInput}
@@ -650,7 +650,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
 
                             <section className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2"><div className="w-1 h-4 bg-[#FF3B3B] rounded-full" /><h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Content Strategy</h3></div>
+                                    <div className="flex items-center gap-2"><div className="w-1 h-4 bg-[#FF3B3B] rounded-full" /><h3 className="text-[11px] uppercase font-black tracking-widest text-white/50">Chat Boxes</h3></div>
                                     <div className="flex items-center gap-3">
                                         <div className="relative">
                                             <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
@@ -672,7 +672,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                             <div key={block.id} className={`bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden transition-all ${block.collapsed ? 'opacity-50' : 'opacity-100 shadow-xl'}`}>
                                                 <div className="flex items-center justify-between px-4 py-3 bg-white/[0.02]">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="px-3 py-1 bg-[#FF3B3B] text-white text-[9px] font-black uppercase tracking-widest rounded-lg">UNIT #{actualIndex + 1}</span>
+                                                        <span className="px-3 py-1 bg-[#FF3B3B] text-white text-[9px] font-black uppercase tracking-widest rounded-lg">BOX #{actualIndex + 1}</span>
                                                         <span className="text-[9px] font-mono text-white/20">{block.id.split('-')[0]}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -773,7 +773,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                                     </div>
                                                                 )}
 
-                                                                <button onClick={() => onToggleBlockAdvanced(block.id)} className="w-full py-3 border border-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all">Advanced Visuals</button>
+                                                                <button onClick={() => onToggleBlockAdvanced(block.id)} className="w-full py-3 border border-white/5 rounded-2xl text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white transition-all">Extra Text Styles</button>
 
                                                                 {block.advancedOpen && (
                                                                     <div className="space-y-4 pt-2 animate-fade-in">

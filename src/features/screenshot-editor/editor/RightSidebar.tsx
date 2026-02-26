@@ -119,7 +119,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
                 {/* LAYERS & DEPTH */}
                 <section className="space-y-4">
-                    <SectionHeader id="layers" label="Layers & Depth" icon={Layers} />
+                    <SectionHeader id="layers" label="Image Layers" icon={Layers} />
                     {expandedSections.layers && (
                         <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-2 animate-fade-in">
                             <LayersPanel
@@ -138,7 +138,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
                 {/* COLOR PALETTE */}
                 <section className="space-y-4">
-                    <SectionHeader id="colors" label="Vibe & Palette" icon={Palette} />
+                    <SectionHeader id="colors" label="Color Settings" icon={Palette} />
                     {expandedSections.colors && (
                         <div className="space-y-4 animate-fade-in">
                             <div className="flex items-center gap-4">
@@ -221,14 +221,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <section className="space-y-4">
                     <SectionHeader
                         id="logs"
-                        label="Log Analysis"
+                        label="Chat Logs"
                         icon={MessageSquare}
                         extra={
                             <button
                                 onClick={(e) => { e.stopPropagation(); onRemoveTimestamps(); }}
                                 className="px-2 py-1 bg-white/[0.05] text-[8px] font-black uppercase tracking-widest text-white/30 hover:text-white hover:bg-white/10 rounded-md transition-all border border-white/5"
                             >
-                                Strip Times
+                                Remove Time
                             </button>
                         }
                     />
@@ -245,14 +245,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                                 onClick={onApplyChatLines}
                                 className="w-full py-3.5 bg-[#FF3B3B] text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all"
                             >
-                                Extract Lines from Log
+                                Import Text to Workspace
                             </button>
 
                             {/* PROCESSED STREAM (Inline) */}
                             {lines.length > 0 && (
                                 <div className="pt-4 space-y-4">
                                     <div className="flex items-center justify-between px-1">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-white/15">Processed Stream</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-white/15">Prepared Text Lines</span>
                                         <span className="text-[9px] font-mono text-[#FF3B3B] font-bold">{lines.length} Lines</span>
                                     </div>
                                     <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
@@ -299,13 +299,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
                 {/* HISTORY & CACHE */}
                 <section className="space-y-4">
-                    <SectionHeader id="history" label="Save Points" icon={Clock} />
+                    <SectionHeader id="history" label="Saved Drafts" icon={Clock} />
                     {expandedSections.history && (
                         <div className="space-y-3 animate-fade-in">
                             {cacheItems.length === 0 ? (
                                 <div className="py-8 text-center border border-dashed border-white/5 rounded-2xl">
                                     <Clock size={24} className="mx-auto text-white/5 mb-2" />
-                                    <span className="text-[10px] text-white/15 uppercase font-bold tracking-widest">No Save Points</span>
+                                    <span className="text-[10px] text-white/15 uppercase font-bold tracking-widest">No Saved Drafts</span>
                                 </div>
                             ) : (
                                 cacheItems.map((item) => (
