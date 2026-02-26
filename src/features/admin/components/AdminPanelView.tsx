@@ -5,6 +5,7 @@ import { Check, X, Search, Save, RefreshCw, Shield } from '@/components/Icons';
 type AdminUser = {
   id: string;
   email: string;
+  name: string | null;
   role: 'admin' | 'user';
   is_active: boolean;
   is_verified: boolean;
@@ -368,10 +369,10 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-terminal-dark to-terminal-border border border-terminal-border flex items-center justify-center overflow-hidden">
-                                  <span className="text-[10px] font-bold text-white uppercase">{deriveName(user.email).slice(0, 2)}</span>
+                                  <span className="text-[10px] font-bold text-white uppercase">{(user.name || deriveName(user.email)).slice(0, 2)}</span>
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-white font-medium">{deriveName(user.email)}</span>
+                                  <span className="text-white font-medium">{user.name || deriveName(user.email)}</span>
                                   <span className="text-[9px] uppercase tracking-tighter text-terminal-muted font-mono">ID: {user.id.slice(0, 8)}</span>
                                 </div>
                               </div>

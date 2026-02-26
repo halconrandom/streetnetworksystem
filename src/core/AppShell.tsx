@@ -6,7 +6,7 @@ import { Menu, Bell, User } from '@shared/icons';
 type AppShellProps = {
   currentView: string;
   title?: string;
-  children: React.ReactNode;
+  children: React.ReactNode | ((props: { flags: string[] }) => React.ReactNode);
 };
 
 function AppShell({ currentView, title, children }: AppShellProps) {
@@ -53,7 +53,7 @@ function AppShell({ currentView, title, children }: AppShellProps) {
     if (checkingAccess || !userFlags.length) return;
 
     const routeFlagMap: Record<string, string> = {
-      '/': 'dashboard',
+      '/dashboard': 'dashboard',
       '/tickets': 'transcripts',
       '/message-builder': 'message_builder',
       '/screenshot-editor': 'screenshot_editor',
@@ -104,17 +104,13 @@ function AppShell({ currentView, title, children }: AppShellProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative text-terminal-muted hover:text-white transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-terminal-accent rounded-full"></span>
-            </button>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 border border-gray-500 flex items-center justify-center">
-              <User size={16} className="text-white" />
-            </div>
+            {/* Action items removed as per request */}
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto relative">{children}</main>
+        <main className="flex-1 overflow-auto relative">
+          {typeof children === 'function' ? children({ flags: userFlags }) : children}
+        </main>
       </div>
 
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-[-1] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-terminal-panel via-terminal-dark to-terminal-dark opacity-40"></div>

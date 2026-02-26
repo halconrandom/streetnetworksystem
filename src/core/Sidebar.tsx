@@ -32,9 +32,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
+    { id: 'home', label: 'Control Center', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
+    { id: 'dashboard', label: 'System Dashboard', icon: Activity, path: '/dashboard', flag: 'dashboard' },
     { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
-    { id: 'v2_builder', label: 'Message Builder', icon: PenTool, path: '/message-builder', flag: 'message_builder' },
     { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor', flag: 'screenshot_editor' },
     { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus', flag: 'nexus' },
     { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit', flag: 'audit_logs' },
@@ -69,13 +69,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
 
   return (
     <aside className="w-64 bg-terminal-panel border-r border-terminal-border flex flex-col hidden md:flex">
-      <div className="h-16 flex items-center px-6 border-b border-terminal-border">
-        <div className="w-8 h-8 rounded bg-terminal-accent/20 flex items-center justify-center mr-3">
-          <Shield size={18} className="text-terminal-accent" />
+      <div className="h-24 flex items-center px-6 border-b border-terminal-border">
+        <div className="w-14 h-14 rounded-2xl bg-terminal-panel border border-terminal-border flex items-center justify-center mr-4 overflow-hidden shadow-md">
+          <img src="https://i.imgur.com/NBGmNrx.png" alt="Hub Logo" className="w-12 h-12 object-contain" />
         </div>
         <div>
           <h1 className="font-bold text-white tracking-wider text-sm">STREET NETWORK</h1>
-          <p className="text-[10px] text-terminal-muted uppercase tracking-widest">System Admin</p>
+          <p className="text-[10px] text-terminal-muted uppercase tracking-widest">Hub Center</p>
         </div>
       </div>
 
@@ -103,8 +103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
         <Link
           href="/settings"
           className={`flex items-center gap-3 px-3 py-2 w-full text-sm rounded-lg transition-all active:scale-95 ${currentView === 'settings' || currentPath === '/settings'
-              ? 'bg-terminal-accent/10 text-terminal-accent shadow-sm border border-terminal-accent/20'
-              : 'text-terminal-muted hover:text-white hover:bg-white/5 border border-transparent'
+            ? 'bg-terminal-accent/10 text-terminal-accent shadow-sm border border-terminal-accent/20'
+            : 'text-terminal-muted hover:text-white hover:bg-white/5 border border-transparent'
             }`}
         >
           <Settings size={18} className={currentView === 'settings' || currentPath === '/settings' ? 'text-terminal-accent' : ''} />

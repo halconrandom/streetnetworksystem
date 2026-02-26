@@ -127,10 +127,10 @@ export default function LoginPage() {
 
       <div className={styles.card}>
         <div className={styles.header}>
-          <div className={styles.badge}>
-            <Shield size={32} />
+          <div className={styles.badge} style={{ background: 'transparent', border: 'none' }}>
+            <img src="https://i.imgur.com/NBGmNrx.png" alt="Hub Logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
           </div>
-          <h1>STREET NETWORK</h1>
+          <h1>STREET NETWORK HUB CENTER</h1>
           <p>
             <span className={styles.dot}></span>
             System Access Restricted

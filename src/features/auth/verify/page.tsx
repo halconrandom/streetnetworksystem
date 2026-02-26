@@ -28,8 +28,8 @@ export default function VerifyPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.header}>
-          <div className={styles.badge}>
-            <Shield size={32} />
+          <div className={styles.badge} style={{ background: 'transparent', border: 'none' }}>
+            <img src="https://i.imgur.com/NBGmNrx.png" alt="Hub Logo" style={{ width: '64px', height: '64px', objectFit: 'contain' }} />
           </div>
           <h1>Verificación pendiente</h1>
           <p>Tu cuenta está creada, pero necesita aprobación manual.</p>

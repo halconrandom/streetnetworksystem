@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, User, Mail, Lock, Globe, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Save, User, Mail, Lock, Globe, RefreshCw, AlertCircle, CheckCircle2, ChevronRight, HelpCircle, ShieldCheck } from 'lucide-react';
 
 export default function SettingsForm() {
     const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
@@ -12,7 +12,9 @@ export default function SettingsForm() {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        password: '',
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: '',
         language: 'es'
     });
 
@@ -20,7 +22,7 @@ export default function SettingsForm() {
         const fetchUser = async () => {
             try {
                 const res = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
-                if (!res.ok) throw new Error('Failed to load user data');
+                if (!res.ok) throw new Error('Error al cargar datos de usuario');
                 const data = await res.json();
                 setFormData(prev => ({
                     ...prev,
@@ -28,7 +30,7 @@ export default function SettingsForm() {
                     email: data.email || ''
                 }));
             } catch (err: any) {
-                setError(err.message || 'Connection error');
+                setError(err.message || 'Error de conexión');
             } finally {
                 setLoading(false);
             }
@@ -42,11 +44,27 @@ export default function SettingsForm() {
         setError(null);
         setSuccess(null);
 
+        if (formData.newPassword) {
+            if (formData.newPassword !== formData.confirmPassword) {
+                setError('La nueva contraseña y la confirmación no coinciden.');
+                setSaving(false);
+                return;
+            }
+            if (!formData.oldPassword) {
+                setError('Debes ingresar tu contraseña actual para establecer una nueva.');
+                setSaving(false);
+                return;
+            }
+        }
+
         try {
             const payload: any = {};
             if (formData.name) payload.name = formData.name;
             if (formData.email) payload.email = formData.email;
-            if (formData.password) payload.password = formData.password;
+            if (formData.newPassword) {
+                payload.password = formData.newPassword;
+                payload.oldPassword = formData.oldPassword;
+            }
 
             const res = await fetch(`${apiBase}/users/me`, {
                 method: 'PUT',
@@ -56,12 +74,17 @@ export default function SettingsForm() {
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to update settings');
+            if (!res.ok) throw new Error(data.error || 'Fallo en la actualización');
 
-            setSuccess('Configuración actualizada correctamente.');
-            setFormData(prev => ({ ...prev, password: '' })); // Clear password after save
+            setSuccess('Configuración guardada correctamente');
+            setFormData(prev => ({
+                ...prev,
+                oldPassword: '',
+                newPassword: '',
+                confirmPassword: ''
+            }));
         } catch (err: any) {
-            setError(err.message || 'Error al actualizar');
+            setError(err.message || 'Error al guardar los cambios');
         } finally {
             setSaving(false);
         }
@@ -71,111 +94,215 @@ export default function SettingsForm() {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    const InputBlock = ({ label, name, type = "text", value, onChange, placeholder, required = false, mono = false }: any) => (
+        <div className="group space-y-3">
+            <label className="text-[11px] text-white/50 uppercase font-black tracking-[0.2em] px-1 group-focus-within:text-terminal-accent transition-colors duration-300">
+                {label}
+            </label>
+            <div className="relative">
+                <input
+                    type={type}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    required={required}
+                    placeholder={placeholder}
+                    className={`w-full bg-[#050505] border-2 border-terminal-border rounded-2xl h-16 px-6 text-base text-white focus:border-terminal-accent focus:bg-[#080808] outline-none transition-all duration-300 placeholder:text-white/20 shadow-inner ${mono ? 'font-mono tracking-widest' : 'font-semibold'}`}
+                />
+                <div className="absolute inset-0 rounded-2xl ring-4 ring-terminal-accent/0 group-focus-within:ring-terminal-accent/5 transition-all duration-500 pointer-events-none" />
+            </div>
+        </div>
+    );
+
+    const BlockHeader = ({ icon: Icon, title, subtitle }: { icon: any, title: string, subtitle: string }) => (
+        <div className="flex items-center gap-6 mb-10 pb-8 border-b border-terminal-border">
+            <div className="w-16 h-16 rounded-[2rem] bg-terminal-accent/10 border-2 border-terminal-accent/30 flex items-center justify-center text-terminal-accent shadow-[0_0_30px_rgba(var(--terminal-accent-rgb),0.15)]">
+                <Icon size={32} strokeWidth={2.5} />
+            </div>
+            <div>
+                <h3 className="text-xl font-black uppercase tracking-[0.3em] text-white">{title}</h3>
+                <p className="text-[10px] text-white/40 uppercase tracking-[0.4em] mt-2 font-black">{subtitle}</p>
+            </div>
+        </div>
+    );
+
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-12 text-terminal-muted">
-                <RefreshCw size={24} className="animate-spin" />
+            <div className="flex flex-col justify-center items-center py-40 text-terminal-muted space-y-10">
+                <div className="relative w-24 h-24">
+                    <RefreshCw size={96} className="animate-spin text-terminal-accent/10" style={{ animationDuration: '4s' }} />
+                    <RefreshCw size={48} className="animate-spin absolute inset-0 m-auto text-terminal-accent" style={{ animationDirection: 'reverse', animationDuration: '2s' }} />
+                </div>
+                <div className="text-center space-y-2">
+                    <span className="block text-xs uppercase tracking-[1em] font-black text-terminal-accent">Cargando</span>
+                    <span className="block text-[10px] uppercase tracking-[0.5em] text-white/40">Sincronizando datos...</span>
+                </div>
             </div>
         );
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm font-mono">
-                    <AlertCircle size={16} />
-                    {error}
+        <form onSubmit={handleSubmit} className="space-y-16 animate-fade-in max-w-full">
+            <div className="space-y-4">
+                {error && (
+                    <div className="flex items-center gap-6 p-8 bg-red-950/30 border-2 border-red-500 text-red-500 rounded-3xl animate-shake backdrop-blur-xl">
+                        <AlertCircle size={28} />
+                        <span className="text-sm font-black uppercase tracking-[0.2em]">{error}</span>
+                    </div>
+                )}
+
+                {success && (
+                    <div className="flex items-center gap-6 p-8 bg-terminal-accent/10 border-2 border-terminal-accent text-terminal-accent rounded-3xl animate-fade-in backdrop-blur-xl">
+                        <CheckCircle2 size={28} />
+                        <span className="text-sm font-black uppercase tracking-[0.2em]">{success}</span>
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+
+                {/* COLUMNA 1: PERFIL */}
+                <div className="space-y-12">
+                    <section className="bg-[#0c0c0d] p-12 rounded-[3rem] border-2 border-terminal-border shadow-2xl relative overflow-hidden group/card shadow-[0_20px_100px_rgba(0,0,0,0.8)]">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-terminal-accent/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none group-hover/card:bg-terminal-accent/10 transition-all duration-1000" />
+
+                        <BlockHeader icon={User} title="Perfil" subtitle="Datos de Usuario" />
+
+                        <div className="space-y-10">
+                            <InputBlock
+                                label="Nombre de Usuario"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                required
+                                placeholder="Tu nombre..."
+                            />
+
+                            <InputBlock
+                                label="Correo Electrónico"
+                                name="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                                placeholder="usuario@correo.com"
+                            />
+
+                            <div className="group space-y-3">
+                                <label className="text-[11px] text-white/50 uppercase font-black tracking-[0.2em] px-1 group-focus-within:text-terminal-accent transition-colors">
+                                    Idioma del Sistema
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        name="language"
+                                        value={formData.language}
+                                        onChange={handleChange}
+                                        className="w-full bg-[#050505] border-2 border-terminal-border rounded-2xl h-16 px-6 text-base text-white focus:border-terminal-accent focus:bg-[#080808] outline-none appearance-none transition-all duration-300 cursor-pointer font-semibold"
+                                    >
+                                        <option value="es">Español</option>
+                                        <option value="en">Inglés</option>
+                                    </select>
+                                    <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 group-focus-within:text-terminal-accent transition-colors">
+                                        <ChevronRight size={24} className="rotate-90" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* SECCIÓN OTROS */}
+                    <section className="bg-[#080809]/50 p-12 rounded-[3rem] border-2 border-dashed border-terminal-border/40 opacity-50 hover:opacity-100 transition-all duration-700 grayscale hover:grayscale-0 group/misc">
+                        <BlockHeader icon={HelpCircle} title="Otros" subtitle="Funciones Adicionales" />
+                        <div className="h-40 flex flex-col items-center justify-center space-y-4 rounded-3xl bg-black/40 group-hover/misc:bg-black/60 transition-all">
+                            <span className="text-[12px] font-black uppercase tracking-[0.8em] text-white/20 animate-pulse text-center">Próximamente</span>
+                            <div className="w-12 h-1 bg-white/5 rounded-full" />
+                        </div>
+                    </section>
                 </div>
-            )}
 
-            {success && (
-                <div className="flex items-center gap-2 p-3 bg-terminal-accent/10 border border-terminal-accent/20 text-terminal-accent rounded-lg text-sm font-mono">
-                    <CheckCircle2 size={16} />
-                    {success}
+                {/* COLUMNA 2: SEGURIDAD */}
+                <div className="space-y-12">
+                    <section className="bg-[#0c0c0d] p-12 rounded-[3rem] border-2 border-terminal-border shadow-2xl relative overflow-hidden group/card h-full shadow-[0_20px_100px_rgba(0,0,0,0.8)]">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-terminal-accent/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none group-hover/card:bg-terminal-accent/10 transition-all duration-1000" />
+
+                        <BlockHeader icon={ShieldCheck} title="Seguridad" subtitle="Cambio de Contraseña" />
+
+                        <div className="space-y-10">
+                            <InputBlock
+                                label="Contraseña Actual"
+                                name="oldPassword"
+                                type="password"
+                                value={formData.oldPassword}
+                                onChange={handleChange}
+                                placeholder="Ingresa tu clave actual..."
+                                mono
+                            />
+
+                            <div className="pt-6">
+                                <div className="h-px bg-terminal-border/20 w-full mb-10" />
+
+                                <InputBlock
+                                    label="Nueva Contraseña"
+                                    name="newPassword"
+                                    type="password"
+                                    value={formData.newPassword}
+                                    onChange={handleChange}
+                                    placeholder="Nueva clave..."
+                                    mono
+                                />
+                            </div>
+
+                            <InputBlock
+                                label="Confirmar Nueva Contraseña"
+                                name="confirmPassword"
+                                type="password"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                placeholder="Repite la nueva clave..."
+                                mono
+                            />
+
+                            <div className="mt-8 p-8 bg-terminal-accent/5 rounded-[2rem] border-2 border-terminal-accent/20 flex items-start gap-6">
+                                <div className="p-3 bg-terminal-accent/10 rounded-2xl text-terminal-accent shadow-lg shadow-terminal-accent/20">
+                                    <Lock size={24} strokeWidth={3} />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-[0.2em] font-black text-terminal-accent">Seguridad de la Cuenta</p>
+                                    <p className="text-[10px] uppercase tracking-[0.15em] text-white/50 mt-2 font-bold leading-relaxed">Usa una contraseña fuerte con letras, números y símbolos para mayor protección.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
-            )}
-
-            {/* Name Field */}
-            <div className="space-y-2">
-                <label className="text-[10px] text-terminal-muted uppercase font-bold tracking-widest flex items-center gap-2">
-                    <User size={12} /> Operator Name
-                </label>
-                <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter your operator alias..."
-                    className="w-full bg-terminal-dark/50 border border-terminal-border rounded-lg px-4 py-2.5 text-white focus:border-terminal-accent outline-none font-mono transition-colors"
-                />
             </div>
 
-            {/* Email Field */}
-            <div className="space-y-2">
-                <label className="text-[10px] text-terminal-muted uppercase font-bold tracking-widest flex items-center gap-2">
-                    <Mail size={12} /> Uplink Address (Email)
-                </label>
-                <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="operator@network.local"
-                    className="w-full bg-terminal-dark/50 border border-terminal-border rounded-lg px-4 py-2.5 text-white focus:border-terminal-accent outline-none font-mono transition-colors"
-                />
-            </div>
-
-            {/* Password Field */}
-            <div className="space-y-2">
-                <label className="text-[10px] text-terminal-muted uppercase font-bold tracking-widest flex items-center gap-2">
-                    <Lock size={12} /> Security Key (Password)
-                </label>
-                <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Leave blank to keep current key..."
-                    className="w-full bg-terminal-dark/50 border border-terminal-border rounded-lg px-4 py-2.5 text-white focus:border-terminal-accent outline-none font-mono placeholder:text-terminal-muted/40 transition-colors"
-                />
-            </div>
-
-            {/* Language Field - Visual Only */}
-            <div className="space-y-2">
-                <label className="text-[10px] text-terminal-muted uppercase font-bold tracking-widest flex items-center gap-2">
-                    <Globe size={12} /> Interface Protocol
-                </label>
-                <div className="relative">
-                    <select
-                        name="language"
-                        value={formData.language}
-                        onChange={handleChange}
-                        className="w-full bg-terminal-dark/50 border border-terminal-border rounded-lg px-4 py-2.5 text-white focus:border-terminal-accent outline-none font-mono appearance-none transition-colors"
-                    >
-                        <option value="es">ES - Spanish Protocol</option>
-                        <option value="en">EN - English Protocol</option>
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-terminal-muted">
-                        ▼
+            {/* BARRA DE ACCIÓN FINAL */}
+            <div className="pt-20 border-t-2 border-terminal-border flex flex-col xl:flex-row justify-between items-center gap-12">
+                <div className="flex items-center gap-8 text-center xl:text-left">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-black uppercase tracking-[0.5em] text-white">Hub Center — System</span>
+                        <span className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-black mt-2">Versión 2.4.0 — Conexión Segura</span>
                     </div>
                 </div>
-            </div>
 
-            <div className="pt-6 border-t border-terminal-border">
-                <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full flex justify-center items-center gap-2 px-6 py-3 bg-terminal-accent text-white rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-terminal-accent/80 transition-all shadow-lg shadow-terminal-accent/20 active:scale-95 disabled:opacity-50"
-                >
-                    {saving ? (
-                        <RefreshCw size={16} className="animate-spin" />
-                    ) : (
-                        <Save size={16} />
-                    )}
-                    {saving ? 'Transmitting...' : 'Commit Changes'}
-                </button>
+                <div className="relative group/btn-container w-full xl:w-auto">
+                    <div className="absolute -inset-1 bg-terminal-accent blur opacity-40 group-hover/btn-container:opacity-70 transition duration-1000" />
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="relative w-full xl:w-[450px] flex justify-center items-center gap-6 px-16 py-8 bg-terminal-accent text-white rounded-[2rem] text-[16px] font-black uppercase tracking-[0.4em] hover:bg-terminal-accent/90 transition-all duration-500 shadow-2xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-wait overflow-hidden"
+                    >
+                        <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        {saving ? (
+                            <RefreshCw size={28} className="animate-spin" />
+                        ) : (
+                            <Save size={32} className="group-hover:translate-x-1 transition-transform duration-500" />
+                        )}
+                        <span>
+                            {saving ? 'Guardando...' : 'Guardar Cambios'}
+                        </span>
+                    </button>
+                </div>
             </div>
         </form>
     );

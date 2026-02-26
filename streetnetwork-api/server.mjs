@@ -195,7 +195,7 @@ const loadSessionUser = async (req) => {
   if (!token) return null;
   const tokenHash = hashToken(token);
   const result = await pool.query(
-    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.role, u.is_active, u.is_verified
+    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.name, u.role, u.is_active, u.is_verified
      from public.sn_sessions s
      join public.sn_users u on u.id = s.user_id
      where s.token_hash = $1 and s.revoked_at is null and s.expires_at > now()
@@ -205,6 +205,26 @@ const loadSessionUser = async (req) => {
   if (!result.rowCount) return null;
   await pool.query(`update public.sn_sessions set last_used_at = now() where id = $1`, [result.rows[0].session_id]);
   return result.rows[0];
+};
+
+const requireAuth = async (req, res, next) => {
+  try {
+    const sessionUser = await loadSessionUser(req);
+    if (!sessionUser) {
+      console.warn('[AUTH] Unauthorized access attempt to:', req.path);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!sessionUser.is_active) {
+      console.warn('[AUTH] Inactive user attempt:', sessionUser.email);
+      return res.status(403).json({ error: 'User disabled' });
+    }
+    const flags = await getUserFlags(sessionUser.id);
+    req.adminUser = { ...sessionUser, flags };
+    return next();
+  } catch (err) {
+    console.error('[AUTH] Middleware error:', err);
+    return res.status(500).json({ error: 'Authentication failed' });
+  }
 };
 
 const auditLog = async ({ actorUserId, action, targetUserId, metadata, ip, userAgent }) => {
@@ -226,14 +246,16 @@ app.get('/api/tickets/health', (_req, res) => res.json({ ok: true }));
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
 
+  const path = req.path || req.url || '';
   const isWhitelisted =
-    req.path.startsWith('/api/auth') ||
-    req.path.startsWith('/api/admin') ||
-    req.path.startsWith('/api/nexus') ||
-    req.path.startsWith('/api/vault') ||
-    req.path.startsWith('/api/tickets') ||
-    req.path.startsWith('/api/screenshot-editor') ||
-    req.path.startsWith('/api/message-builder');
+    path.startsWith('/api/auth') ||
+    path.startsWith('/api/users') ||
+    path.startsWith('/api/admin') ||
+    path.startsWith('/api/nexus') ||
+    path.startsWith('/api/vault') ||
+    path.startsWith('/api/tickets') ||
+    path.startsWith('/api/screenshot-editor') ||
+    path.startsWith('/api/message-builder');
 
   if (isWhitelisted) {
     return next();
@@ -466,7 +488,7 @@ app.get('/api/auth/me', async (req, res) => {
 
 app.put('/api/users/me', requireAuth, async (req, res) => {
   try {
-    const { name, email, password } = req.body || {};
+    const { name, email, password, oldPassword } = req.body || {};
     const userId = req.adminUser.id;
 
     // Updates
@@ -475,7 +497,6 @@ app.put('/api/users/me', requireAuth, async (req, res) => {
     let idx = 1;
 
     if (name) {
-      // Check if name is taken
       const nameCheck = await pool.query('SELECT id FROM public.sn_users WHERE name = $1 AND id != $2', [name, userId]);
       if (nameCheck.rowCount > 0) return res.status(409).json({ error: 'Nombre de usuario ya en uso' });
       updates.push(`name = $${idx++}`);
@@ -491,11 +512,29 @@ app.put('/api/users/me', requireAuth, async (req, res) => {
     }
 
     if (password) {
+      if (!oldPassword) {
+        return res.status(400).json({ error: 'Se requiere la contraseña actual para establecer una nueva.' });
+      }
+
+      // Verify old password
+      const userRes = await pool.query('SELECT password_hash FROM public.sn_users WHERE id = $1', [userId]);
+      const currentHash = userRes.rows[0]?.password_hash;
+
+      if (!currentHash) {
+        return res.status(400).json({ error: 'No se encontró una contraseña actual registrada para este usuario.' });
+      }
+
+      const verified = await argon2.verify(currentHash, oldPassword);
+      if (!verified) {
+        return res.status(401).json({ error: 'La contraseña actual no es correcta.' });
+      }
+
       if (!passwordMeetsPolicy(password)) {
         return res.status(400).json({
-          error: 'La contraseña debe tener al menos 12 caracteres, incluir mayúsculas, minúsculas, números y símbolos.',
+          error: 'La nueva contraseña debe tener al menos 12 caracteres, incluir mayúsculas, minúsculas, números y símbolos.',
         });
       }
+
       const hashed = await argon2.hash(password, { type: argon2.argon2id });
       updates.push(`password_hash = $${idx++}`);
       values.push(hashed);
@@ -521,24 +560,6 @@ app.put('/api/users/me', requireAuth, async (req, res) => {
   }
 });
 
-const requireAuth = async (req, res, next) => {
-  try {
-    const sessionUser = await loadSessionUser(req);
-    if (!sessionUser) {
-      console.warn('[AUTH] Unauthorized access attempt to:', req.path);
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    if (!sessionUser.is_active) {
-      console.warn('[AUTH] Inactive user attempt:', sessionUser.email);
-      return res.status(403).json({ error: 'User disabled' });
-    }
-    req.user = sessionUser;
-    return next();
-  } catch (err) {
-    console.error('[AUTH] Middleware error:', err);
-    return res.status(500).json({ error: 'Authentication failed' });
-  }
-};
 
 app.get('/api/nexus', requireFlag('nexus'), async (req, res) => {
   try {
@@ -716,7 +737,7 @@ app.get('/api/admin/users', requireFlag('users'), async (req, res) => {
   params.push(pageSize);
   params.push((page - 1) * pageSize);
   const rowsResult = await pool.query(
-    `select u.id, u.email, u.role, u.is_active, u.is_verified, u.created_at, u.updated_at, u.last_login_at
+    `select u.id, u.email, u.name, u.role, u.is_active, u.is_verified, u.created_at, u.updated_at, u.last_login_at
      from public.sn_users u
      ${where}
      order by u.created_at desc
