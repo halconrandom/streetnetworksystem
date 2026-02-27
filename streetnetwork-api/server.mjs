@@ -607,7 +607,7 @@ app.post('/api/nexus', requireFlag('nexus'), async (req, res) => {
   }
 });
 
-app.get('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'), async (req, res) => {
+app.get('/api/screenshot-editor/load-points', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
       `select id, name, image_data_url, state_data, created_at
@@ -624,7 +624,7 @@ app.get('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'), 
   }
 });
 
-app.post('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'), async (req, res) => {
+app.post('/api/screenshot-editor/load-points', requireAuth, async (req, res) => {
   try {
     const { name, imageDataUrl, stateData } = req.body || {};
     if (!name || !imageDataUrl || !stateData) {
@@ -665,7 +665,7 @@ app.post('/api/screenshot-editor/load-points', requireFlag('screenshot_editor'),
   }
 });
 
-app.put('/api/screenshot-editor/load-points/:id', requireFlag('screenshot_editor'), async (req, res) => {
+app.put('/api/screenshot-editor/load-points/:id', requireAuth, async (req, res) => {
   try {
     const { name } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Name is required' });
@@ -686,7 +686,7 @@ app.put('/api/screenshot-editor/load-points/:id', requireFlag('screenshot_editor
   }
 });
 
-app.delete('/api/screenshot-editor/load-points/:id', requireFlag('screenshot_editor'), async (req, res) => {
+app.delete('/api/screenshot-editor/load-points/:id', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
       `delete from public.sn_seditorLoadPoints
