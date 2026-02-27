@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic';
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 
 const ScreenshotEditorView = dynamic(
   () => import('./components/ScreenshotEditorView').then((mod) => mod.ScreenshotEditorView),

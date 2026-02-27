@@ -1,4 +1,4 @@
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 import VaultView from './components/VaultView';
 
 export default function VaultPage() {

@@ -320,6 +320,7 @@ export const useEditorState = () => {
 
     const removeCache = async (id: string) => {
         setCacheItems(prev => prev.filter((item) => item.id !== id));
+        if (id.startsWith('temp-')) return; // Not yet persisted
         try {
             await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
                 method: 'DELETE',
@@ -332,6 +333,7 @@ export const useEditorState = () => {
 
     const renameCacheItem = async (id: string, name: string) => {
         setCacheItems(prev => prev.map(item => item.id === id ? { ...item, name } : item));
+        if (id.startsWith('temp-')) return; // Not yet persisted
         try {
             await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
                 method: 'PUT',

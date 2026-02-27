@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { Sidebar } from '@app/Sidebar';
 import { Menu, Bell, User } from '@shared/icons';
+import { Toaster } from 'sonner';
 
 type AppShellProps = {
   currentView: string;
@@ -116,6 +117,18 @@ function AppShell({ currentView, title, children }: AppShellProps) {
       </div>
 
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-[-1] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-terminal-panel via-terminal-dark to-terminal-dark opacity-40"></div>
+      <Toaster
+        theme="dark"
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#0a0a0a',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#fff',
+            fontFamily: 'inherit'
+          }
+        }}
+      />
     </div>
   );
 }

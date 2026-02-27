@@ -36,13 +36,7 @@ interface ChangelogEntry {
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     if (!content) return null;
 
-    // Split by lines to handle lists
-    const lines = content.split('\n');
-    const result: React.ReactNode[] = [];
-    let currentList: { type: 'ul' | 'ol', items: string[] } | null = null;
-
     const renderText = (text: string) => {
-        // Simple Bold and Italic
         const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
         return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
@@ -55,59 +49,74 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         });
     };
 
-    const flushList = (key: number) => {
-        if (!currentList) return null;
-        const ListTag = currentList.type;
-        const list = (
-            <ListTag key={key} className={`my-3 ml-4 space-y-1 ${ListTag === 'ul' ? 'list-disc' : 'list-decimal'}`}>
-                {currentList.items.map((item, i) => (
-                    <li key={i} className="pl-2">{renderText(item)}</li>
-                ))}
-            </ListTag>
-        );
-        currentList = null;
-        return list;
-    };
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
 
-    lines.forEach((line, index) => {
-        const ulMatch = line.match(/^[\s]*[-*+]\s+(.*)/);
-        const olMatch = line.match(/^[\s]*\d+\.\s+(.*)/);
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        const trimmedLine = line.trim();
 
-        if (ulMatch) {
-            if (currentList && currentList.type !== 'ul') {
-                result.push(flushList(index));
-            }
-            if (!currentList) currentList = { type: 'ul', items: [] };
-            currentList.items.push(ulMatch[1]);
-        } else if (olMatch) {
-            if (currentList && currentList.type !== 'ol') {
-                result.push(flushList(index));
-            }
-            if (!currentList) currentList = { type: 'ol', items: [] };
-            currentList.items.push(olMatch[1]);
-        } else {
-            if (currentList) {
-                result.push(flushList(index));
-            }
-            if (line.trim() === '') {
-                result.push(<div key={index} className="h-2" />);
-            } else {
-                result.push(<p key={index} className="mb-2">{renderText(line)}</p>);
-            }
+        if (trimmedLine === '') {
+            elements.push(<div key={`empty-${i}`} className="h-3" />);
+            i++;
+            continue;
         }
-    });
 
-    if (currentList) {
-        result.push(flushList(lines.length));
+        // List detection
+        const ulMatch = line.match(/^(\s*)([-*+])\s+(.*)/);
+        const olMatch = line.match(/^(\s*)(\d+\.)\s+(.*)/);
+
+        if (ulMatch || olMatch) {
+            const listType = ulMatch ? 'ul' : 'ol';
+            const baseIndent = (ulMatch || olMatch)![1].length;
+            const listItems: React.ReactNode[] = [];
+
+            while (i < lines.length) {
+                const currentLine = lines[i];
+                const mU = currentLine.match(/^(\s*)([-*+])\s+(.*)/);
+                const mO = currentLine.match(/^(\s*)(\d+\.)\s+(.*)/);
+
+                if (!mU && !mO) break;
+
+                const indent = (mU || mO)![1].length;
+                if (indent < baseIndent) break; // Dedent ends list
+
+                const itemContent = (mU || mO)![3];
+                listItems.push(
+                    <li key={`li-${i}`} className={`pl-1 mb-1 ${indent > baseIndent ? 'ml-4' : ''}`}>
+                        {renderText(itemContent)}
+                    </li>
+                );
+                i++;
+            }
+
+            const ListTag = listType;
+            elements.push(
+                <ListTag
+                    key={`list-${i}`}
+                    className={`my-2 ml-5 space-y-0.5 ${listType === 'ul' ? 'list-disc' : 'list-decimal'} marker:text-terminal-accent/50`}
+                >
+                    {listItems}
+                </ListTag>
+            );
+        } else {
+            elements.push(
+                <p key={`p-${i}`} className="mb-2 text-[11px] leading-relaxed text-terminal-muted/90">
+                    {renderText(line)}
+                </p>
+            );
+            i++;
+        }
     }
 
-    return <div className="markdown-content break-words whitespace-pre-wrap">{result}</div>;
+    return <div className="markdown-content break-words whitespace-pre-wrap selection:bg-terminal-accent/20">{elements}</div>;
 };
 
 const DetailModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({ entry, onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in shadow-2xl">
-            <div className="bg-terminal-panel border border-terminal-border rounded-3xl p-8 max-w-lg w-full relative shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            <div className="bg-terminal-panel border border-terminal-border rounded-3xl p-8 max-w-3xl w-full relative shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                 <button
                     onClick={onClose}
                     className="absolute top-6 right-6 p-2 text-terminal-muted hover:text-white transition-colors"
@@ -359,38 +368,62 @@ export const HomeView: React.FC<HomeViewProps> = ({ flags, role }) => {
                             <span className="text-[9px] font-mono text-terminal-muted opacity-40">v2.4.0-build.829</span>
                         </div>
 
-                        <div className="space-y-6 max-h-[700px] overflow-y-auto custom-scrollbar pr-2">
+                        <div className="space-y-4 max-h-[700px] overflow-y-auto custom-scrollbar pr-2">
                             {isLoading ? (
                                 <div className="flex flex-col gap-4 animate-pulse">
                                     {[1, 2, 3].map(i => (
-                                        <div key={i} className="h-20 bg-white/5 rounded-2xl" />
+                                        <div key={i} className="h-24 bg-white/5 rounded-2xl" />
                                     ))}
                                 </div>
                             ) : updates.length > 0 ? (
-                                updates.map((entry) => (
-                                    <div
-                                        key={entry.id || entry.hash}
-                                        onClick={() => setSelectedUpdate(entry)}
-                                        className="group relative pl-6 border-l border-white/5 pb-2 transition-all cursor-pointer hover:bg-white/[0.01]"
-                                    >
-                                        {/* Timeline dot */}
-                                        <div className="absolute left-[-4.5px] top-1.5 w-2 h-2 rounded-full bg-terminal-dark border border-white/10 group-hover:border-terminal-accent/50 group-hover:bg-terminal-accent transition-all duration-300" />
+                                updates.map((entry, idx) => {
+                                    const typeConfig: Record<string, { bg: string; text: string; border: string; label: string; glow: string }> = {
+                                        feat: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-l-emerald-500/60', label: 'MEJORA', glow: 'group-hover:shadow-emerald-500/10' },
+                                        fix: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-l-red-500/60', label: 'PARCHE', glow: 'group-hover:shadow-red-500/10' },
+                                        refactor: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-l-blue-500/60', label: 'OPTIMIZACIÓN', glow: 'group-hover:shadow-blue-500/10' },
+                                        security: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-l-amber-500/60', label: 'SEGURIDAD', glow: 'group-hover:shadow-amber-500/10' },
+                                    };
+                                    const cfg = typeConfig[entry.type] || { bg: 'bg-white/5', text: 'text-terminal-muted', border: 'border-l-white/10', label: entry.type?.toUpperCase() || 'INFO', glow: 'group-hover:shadow-white/5' };
+                                    const descPreview = entry.description ? entry.description.replace(/[*#\-_]/g, '').slice(0, 80) + (entry.description.length > 80 ? '...' : '') : null;
 
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center justify-between">
-                                                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${entry.type === 'feat' ? 'bg-terminal-accent/10 text-terminal-accent' :
-                                                    entry.type === 'fix' ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-terminal-muted'
-                                                    }`}>
-                                                    {entry.type}
-                                                </span>
+                                    return (
+                                        <div
+                                            key={entry.id || entry.hash}
+                                            onClick={() => setSelectedUpdate(entry)}
+                                            className={`group relative border-l-[3px] ${cfg.border} rounded-xl p-4 cursor-pointer transition-all duration-300 hover:bg-white/[0.04] hover:shadow-lg ${cfg.glow} bg-white/[0.015]`}
+                                            style={{ animationDelay: `${idx * 60}ms` }}
+                                        >
+                                            {/* Hover glow */}
+                                            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                                            <div className="relative z-10 flex flex-col gap-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`text-[8px] font-black uppercase tracking-[0.15em] px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.text}`}>
+                                                        {cfg.label}
+                                                    </span>
+                                                    <span className="text-[9px] font-mono text-terminal-muted/40 group-hover:text-terminal-muted/60 transition-colors">
+                                                        {new Date(entry.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                </div>
+
+                                                <h4 className="text-sm font-bold text-white/80 group-hover:text-white transition-colors capitalize leading-snug">
+                                                    {entry.message || entry.msg}
+                                                </h4>
+
+                                                {descPreview && (
+                                                    <p className="text-[10px] text-terminal-muted/50 group-hover:text-terminal-muted/70 transition-colors leading-relaxed line-clamp-2">
+                                                        {descPreview}
+                                                    </p>
+                                                )}
+
+                                                <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
+                                                    <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-terminal-accent/60">Ver detalles</span>
+                                                    <ArrowRight size={10} className="text-terminal-accent/60" />
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-white/70 font-medium group-hover:text-white transition-colors capitalize">
-                                                {entry.message || entry.msg}
-                                            </p>
-                                            <span className="text-[9px] font-mono text-terminal-muted/40 mt-1">{new Date(entry.date).toLocaleDateString()}</span>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             ) : (
                                 <div className="text-center py-20 opacity-30 text-[10px] uppercase font-bold tracking-[0.3em]">
                                     No activity detected in the nexus

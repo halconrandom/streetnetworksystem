@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 import { TranscriptView } from './components/TranscriptView';
 
 export default function TranscriptDetailPage() {

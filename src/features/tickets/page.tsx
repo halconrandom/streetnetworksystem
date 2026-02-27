@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 import { TicketList } from './components/TicketList';
 
 export default function TicketsPage() {

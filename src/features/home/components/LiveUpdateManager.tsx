@@ -14,6 +14,7 @@ import {
     List,
     ListOrdered
 } from '@/components/Icons';
+import { toast } from 'sonner';
 
 interface LiveUpdate {
     id: number;
@@ -26,9 +27,6 @@ interface LiveUpdate {
 
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     if (!content) return null;
-    const lines = content.split('\n');
-    const result: React.ReactNode[] = [];
-    let currentList: { type: 'ul' | 'ol', items: string[] } | null = null;
 
     const renderText = (text: string) => {
         const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
@@ -43,39 +41,68 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         });
     };
 
-    const flushList = (key: number) => {
-        if (!currentList) return null;
-        const ListTag = currentList.type;
-        const list = (
-            <ListTag key={key} className={`my-3 ml-4 space-y-1 ${ListTag === 'ul' ? 'list-disc' : 'list-decimal'}`}>
-                {currentList.items.map((item, i) => (
-                    <li key={i} className="pl-2">{renderText(item)}</li>
-                ))}
-            </ListTag>
-        );
-        currentList = null;
-        return list;
-    };
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
 
-    lines.forEach((line, index) => {
-        const ulMatch = line.match(/^[\s]*[-*+]\s+(.*)/);
-        const olMatch = line.match(/^[\s]*\d+\.\s+(.*)/);
-        if (ulMatch) {
-            if (currentList && currentList.type !== 'ul') result.push(flushList(index));
-            if (!currentList) currentList = { type: 'ul', items: [] };
-            currentList.items.push(ulMatch[1]);
-        } else if (olMatch) {
-            if (currentList && currentList.type !== 'ol') result.push(flushList(index));
-            if (!currentList) currentList = { type: 'ol', items: [] };
-            currentList.items.push(olMatch[1]);
-        } else {
-            if (currentList) result.push(flushList(index));
-            if (line.trim() === '') result.push(<div key={index} className="h-2" />);
-            else result.push(<p key={index} className="mb-2">{renderText(line)}</p>);
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        const trimmedLine = line.trim();
+
+        if (trimmedLine === '') {
+            elements.push(<div key={`empty-${i}`} className="h-3" />);
+            i++;
+            continue;
         }
-    });
-    if (currentList) result.push(flushList(lines.length));
-    return <div className="markdown-content break-words whitespace-pre-wrap">{result}</div>;
+
+        // List detection
+        const ulMatch = line.match(/^(\s*)([-*+])\s+(.*)/);
+        const olMatch = line.match(/^(\s*)(\d+\.)\s+(.*)/);
+
+        if (ulMatch || olMatch) {
+            const listType = ulMatch ? 'ul' : 'ol';
+            const baseIndent = (ulMatch || olMatch)![1].length;
+            const listItems: React.ReactNode[] = [];
+
+            while (i < lines.length) {
+                const currentLine = lines[i];
+                const mU = currentLine.match(/^(\s*)([-*+])\s+(.*)/);
+                const mO = currentLine.match(/^(\s*)(\d+\.)\s+(.*)/);
+
+                if (!mU && !mO) break;
+
+                const indent = (mU || mO)![1].length;
+                if (indent < baseIndent) break; // Dedent ends list
+
+                const itemContent = (mU || mO)![3];
+                listItems.push(
+                    <li key={`li-${i}`} className={`pl-1 mb-1 ${indent > baseIndent ? 'ml-4' : ''}`}>
+                        {renderText(itemContent)}
+                    </li>
+                );
+                i++;
+            }
+
+            const ListTag = listType;
+            elements.push(
+                <ListTag
+                    key={`list-${i}`}
+                    className={`my-2 ml-5 space-y-0.5 ${listType === 'ul' ? 'list-disc' : 'list-decimal'} marker:text-terminal-accent/50`}
+                >
+                    {listItems}
+                </ListTag>
+            );
+        } else {
+            elements.push(
+                <p key={`p-${i}`} className="mb-2 text-[11px] leading-relaxed text-terminal-muted/90">
+                    {renderText(line)}
+                </p>
+            );
+            i++;
+        }
+    }
+
+    return <div className="markdown-content break-words whitespace-pre-wrap selection:bg-terminal-accent/20">{elements}</div>;
 };
 
 interface LiveUpdateManagerProps {
@@ -97,6 +124,59 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
         date: new Date().toISOString().split('T')[0],
         is_active: true
     });
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        const textarea = e.currentTarget;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = formData.description || '';
+
+        // Handle Tab (Indent)
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                // Dedent
+                const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+                if (value.substring(lineStart, lineStart + 4) === '    ') {
+                    const newValue = value.substring(0, lineStart) + value.substring(lineStart + 4);
+                    setFormData({ ...formData, description: newValue });
+                    setTimeout(() => textarea.setSelectionRange(start - 4, end - 4), 0);
+                }
+            } else {
+                // Indent
+                const newValue = value.substring(0, start) + '    ' + value.substring(end);
+                setFormData({ ...formData, description: newValue });
+                setTimeout(() => textarea.setSelectionRange(start + 4, end + 4), 0);
+            }
+        }
+
+        // Handle Enter (Auto-bullet)
+        if (e.key === 'Enter' && !e.shiftKey) {
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+            const currentLine = value.substring(lineStart, start);
+            const listMatch = currentLine.match(/^(\s*)([-*+]|\d+\.)\s+/);
+
+            if (listMatch) {
+                e.preventDefault();
+                const indent = listMatch[1];
+                const marker = listMatch[2];
+                let nextMarker = marker;
+
+                if (marker.endsWith('.')) {
+                    const num = parseInt(marker) + 1;
+                    nextMarker = `${num}.`;
+                }
+
+                const newline = `\n${indent}${nextMarker} `;
+                const newValue = value.substring(0, start) + newline + value.substring(end);
+                setFormData({ ...formData, description: newValue });
+                setTimeout(() => {
+                    const pos = start + newline.length;
+                    textarea.setSelectionRange(pos, pos);
+                }, 0);
+            }
+        }
+    };
 
     const insertFormatting = (syntax: string) => {
         const textarea = document.getElementById('description-editor') as HTMLTextAreaElement;
@@ -133,6 +213,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
             const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
             const response = await fetch(`${apiBase}/admin/live-updates`, {
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
             });
             if (response.ok) {
                 const data = await response.json();
@@ -151,7 +232,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 
     const handleSave = async () => {
         if (!formData.message || !formData.description) {
-            alert('Por favor complete el título y la descripción.');
+            toast.error('Por favor complete el título y la descripción.');
             return;
         }
 
@@ -167,44 +248,56 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
             const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                credentials: 'include'
             });
 
             if (response.ok) {
                 setEditingId(null);
                 fetchUpdates();
                 if (onUpdate) onUpdate();
-                alert('¡Actualización publicada con éxito!');
+                toast.success('¡Actualización publicada con éxito!');
             } else {
                 const errorData = await response.json().catch(() => ({}));
-                alert(`Error al guardar: ${errorData.error || response.statusText}`);
+                toast.error(`Error al guardar: ${errorData.error || response.statusText}`);
             }
         } catch (err) {
             console.error('Save failed:', err);
-            alert('Error crítico de conexión con el servidor.');
+            toast.error('Error crítico de conexión con el servidor.');
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm('¿Estás seguro de que deseas eliminar esta actualización?')) return;
-
-        try {
-            const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-            const response = await fetch(`${apiBase}/admin/live-updates/${id}`, {
-                method: 'DELETE'
-            });
-            if (response.ok) {
-                fetchUpdates();
-                if (onUpdate) onUpdate();
-            } else {
-                alert('Error al eliminar la entrada.');
+        toast.error('¿Estás seguro de que deseas eliminar esta actualización?', {
+            action: {
+                label: 'Eliminar',
+                onClick: async () => {
+                    try {
+                        const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
+                        const response = await fetch(`${apiBase}/admin/live-updates/${id}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+                        if (response.ok) {
+                            fetchUpdates();
+                            if (onUpdate) onUpdate();
+                            toast.success('Entrada eliminada correctamente.');
+                        } else {
+                            toast.error('Error al eliminar la entrada.');
+                        }
+                    } catch (err) {
+                        console.error('Delete failed:', err);
+                        toast.error('Error de conexión al intentar eliminar.');
+                    }
+                }
+            },
+            cancel: {
+                label: 'Cancelar',
+                onClick: () => { }
             }
-        } catch (err) {
-            console.error('Delete failed:', err);
-            alert('Error de conexión al intentar eliminar.');
-        }
+        });
     };
 
     const startEditing = (update: LiveUpdate) => {
@@ -310,6 +403,19 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                                     />
                                 </div>
 
+                                <div className="flex items-center gap-3 p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="is-active"
+                                        checked={formData.is_active}
+                                        onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                                        className="w-4 h-4 accent-terminal-accent rounded border-white/10"
+                                    />
+                                    <label htmlFor="is-active" className="text-[10px] font-black uppercase text-white/60 tracking-widest cursor-pointer select-none">
+                                        Publicar en la página de inicio (Visible para todos)
+                                    </label>
+                                </div>
+
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between pl-1">
                                         <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block">Detalles de la mejora</label>
@@ -352,6 +458,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                                                 placeholder="Detalla los cambios técnicos y el impacto..."
                                                 value={formData.description}
                                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                                onKeyDown={handleKeyDown}
                                                 className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-terminal-accent/50 transition-colors outline-none resize-none custom-scrollbar font-mono leading-relaxed"
                                             />
                                         </div>

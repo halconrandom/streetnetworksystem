@@ -1,4 +1,4 @@
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 import SettingsForm from './components/SettingsForm';
 
 export default function SettingsPage() {

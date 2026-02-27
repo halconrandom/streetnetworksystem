@@ -1,4 +1,4 @@
-import AppShell from '@/App';
+import AppShell from '@/core/AppShell';
 import { DashboardView } from './components/DashboardView';
 
 export default function DashboardPage() {

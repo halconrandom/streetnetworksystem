@@ -262,7 +262,8 @@ app.use((req, res, next) => {
     path.startsWith('/api/vault') ||
     path.startsWith('/api/tickets') ||
     path.startsWith('/api/screenshot-editor') ||
-    path.startsWith('/api/message-builder');
+    path.startsWith('/api/message-builder') ||
+    path === '/api/live-updates';
 
   if (isWhitelisted) {
     return next();
