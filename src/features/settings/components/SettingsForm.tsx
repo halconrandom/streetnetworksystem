@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, User, Mail, Lock, Globe, RefreshCw, AlertCircle, CheckCircle2, ChevronRight, HelpCircle, ShieldCheck } from 'lucide-react';
+import { Save, User, Mail, Lock, Globe, RefreshCw, AlertCircle, CheckCircle2, ChevronRight, HelpCircle, ShieldCheck, MessageSquare } from 'lucide-react';
 
 export default function SettingsForm() {
     const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
@@ -18,6 +18,12 @@ export default function SettingsForm() {
         language: 'es'
     });
 
+    // Discord integration state
+    const [reviewChannelId, setReviewChannelId] = useState('');
+    const [savingChannel, setSavingChannel] = useState(false);
+    const [channelError, setChannelError] = useState<string | null>(null);
+    const [channelSuccess, setChannelSuccess] = useState<string | null>(null);
+
     useEffect(() => {
         const fetchUser = async () => {
             try {
@@ -35,8 +41,44 @@ export default function SettingsForm() {
                 setLoading(false);
             }
         };
+
+        const fetchReviewChannel = async () => {
+            try {
+                const res = await fetch(`${apiBase}/users/me/review-channel`, { credentials: 'include' });
+                if (res.ok) {
+                    const data = await res.json();
+                    setReviewChannelId(data.discord_review_channel_id || '');
+                }
+            } catch {
+                // Non-fatal: silently ignore
+            }
+        };
+
         fetchUser();
+        fetchReviewChannel();
     }, [apiBase]);
+
+    const handleSaveReviewChannel = async () => {
+        setSavingChannel(true);
+        setChannelError(null);
+        setChannelSuccess(null);
+        try {
+            const res = await fetch(`${apiBase}/users/me/review-channel`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ discord_review_channel_id: reviewChannelId.trim() || null }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al guardar');
+            setChannelSuccess('Canal de revisión guardado correctamente.');
+            setTimeout(() => setChannelSuccess(null), 4000);
+        } catch (err: any) {
+            setChannelError(err.message || 'Error al guardar el canal');
+        } finally {
+            setSavingChannel(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -210,12 +252,62 @@ export default function SettingsForm() {
                         </div>
                     </section>
 
-                    {/* SECCIÓN OTROS */}
-                    <section className="bg-[#080809]/50 p-12 rounded-[3rem] border-2 border-dashed border-terminal-border/40 opacity-50 hover:opacity-100 transition-all duration-700 grayscale hover:grayscale-0 group/misc">
-                        <BlockHeader icon={HelpCircle} title="Otros" subtitle="Funciones Adicionales" />
-                        <div className="h-40 flex flex-col items-center justify-center space-y-4 rounded-3xl bg-black/40 group-hover/misc:bg-black/60 transition-all">
-                            <span className="text-[12px] font-black uppercase tracking-[0.8em] text-white/20 animate-pulse text-center">Próximamente</span>
-                            <div className="w-12 h-1 bg-white/5 rounded-full" />
+                    {/* SECCIÓN DISCORD */}
+                    <section className="bg-[#0c0c0d] p-12 rounded-[3rem] border-2 border-terminal-border shadow-2xl relative overflow-hidden group/card shadow-[0_20px_100px_rgba(0,0,0,0.8)]">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-[#5865F2]/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none group-hover/card:bg-[#5865F2]/10 transition-all duration-1000" />
+
+                        <BlockHeader icon={MessageSquare} title="Discord" subtitle="Integración de Revisión" />
+
+                        <div className="space-y-8">
+                            <p className="text-[11px] uppercase tracking-[0.15em] text-white/40 font-bold leading-relaxed">
+                                ID del canal de Discord donde se enviarán tus screenshots para revisión. El bot debe estar instalado en ese servidor.
+                            </p>
+
+                            {channelError && (
+                                <div className="flex items-center gap-4 p-6 bg-red-950/30 border border-red-500/50 text-red-400 rounded-2xl text-[11px] font-black uppercase tracking-widest">
+                                    <AlertCircle size={16} />
+                                    {channelError}
+                                </div>
+                            )}
+                            {channelSuccess && (
+                                <div className="flex items-center gap-4 p-6 bg-emerald-950/30 border border-emerald-500/50 text-emerald-400 rounded-2xl text-[11px] font-black uppercase tracking-widest">
+                                    <CheckCircle2 size={16} />
+                                    {channelSuccess}
+                                </div>
+                            )}
+
+                            <div className="group space-y-3">
+                                <label className="text-[11px] text-white/50 uppercase font-black tracking-[0.2em] px-1 group-focus-within:text-[#5865F2] transition-colors duration-300">
+                                    Canal de Revisión (ID)
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={reviewChannelId}
+                                        onChange={e => setReviewChannelId(e.target.value)}
+                                        placeholder="Ej: 1234567890123456789"
+                                        className="w-full bg-[#050505] border-2 border-terminal-border rounded-2xl h-16 px-6 text-base text-white focus:border-[#5865F2] focus:bg-[#080808] outline-none transition-all duration-300 placeholder:text-white/20 font-mono tracking-widest shadow-inner"
+                                    />
+                                    <div className="absolute inset-0 rounded-2xl ring-4 ring-[#5865F2]/0 group-focus-within:ring-[#5865F2]/5 transition-all duration-500 pointer-events-none" />
+                                </div>
+                                <p className="text-[10px] text-white/25 uppercase tracking-[0.15em] font-bold px-1">
+                                    Clic derecho en el canal en Discord → Copiar ID (activa Modo Desarrollador en Ajustes → Avanzado)
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleSaveReviewChannel}
+                                disabled={savingChannel}
+                                className="flex items-center gap-3 px-8 py-4 bg-[#5865F2]/10 border-2 border-[#5865F2]/30 text-[#5865F2] rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#5865F2]/20 hover:border-[#5865F2]/60 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-wait"
+                            >
+                                {savingChannel ? (
+                                    <RefreshCw size={14} className="animate-spin" />
+                                ) : (
+                                    <Save size={14} />
+                                )}
+                                {savingChannel ? 'Guardando...' : 'Guardar Canal'}
+                            </button>
                         </div>
                     </section>
                 </div>

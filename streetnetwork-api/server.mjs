@@ -16,6 +16,7 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || APP_BASE_URL;
 const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sn_session';
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS || 24 * 7);
 const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION === 'true';
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -1362,6 +1363,223 @@ app.delete('/api/vault/clients/:id', requireFlag('vault'), async (req, res) => {
   } catch (err) {
     console.error('delete client failed', err);
     res.status(500).json({ error: 'Failed to delete client' });
+  }
+});
+
+// ─── Screenshot Review: user channel config ──────────────────────────────────
+
+app.get('/api/users/me/review-channel', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select discord_review_channel_id from public.sn_users where id = $1`,
+      [req.adminUser.id]
+    );
+    return res.json({ discord_review_channel_id: result.rows[0]?.discord_review_channel_id ?? null });
+  } catch (err) {
+    console.error('[REVIEW_CHANNEL] Fetch failed:', err);
+    return res.status(500).json({ error: 'Failed to fetch review channel' });
+  }
+});
+
+app.put('/api/users/me/review-channel', requireAuth, async (req, res) => {
+  const { discord_review_channel_id } = req.body || {};
+  const channelId = String(discord_review_channel_id || '').trim();
+
+  if (channelId && !/^\d+$/.test(channelId)) {
+    return res.status(400).json({ error: 'El ID del canal debe ser un número (Snowflake de Discord).' });
+  }
+
+  try {
+    await pool.query(
+      `update public.sn_users set discord_review_channel_id = $1 where id = $2`,
+      [channelId || null, req.adminUser.id]
+    );
+    return res.json({ ok: true, discord_review_channel_id: channelId || null });
+  } catch (err) {
+    console.error('[REVIEW_CHANNEL] Update failed:', err);
+    return res.status(500).json({ error: 'Failed to update review channel' });
+  }
+});
+
+// ─── Screenshot Review: submit screenshot for Discord review ─────────────────
+
+app.post('/api/screenshot-editor/submit-review', requireAuth, async (req, res) => {
+  if (!DISCORD_BOT_TOKEN) {
+    return res.status(503).json({ error: 'DISCORD_BOT_TOKEN no configurado en el servidor.' });
+  }
+
+  const { imageDataUrl, fileName } = req.body || {};
+
+  if (!imageDataUrl || typeof imageDataUrl !== 'string') {
+    return res.status(400).json({ error: 'imageDataUrl es requerido.' });
+  }
+
+  // Fetch the user's configured review channel
+  let channelId;
+  try {
+    const userResult = await pool.query(
+      `select discord_review_channel_id from public.sn_users where id = $1`,
+      [req.adminUser.id]
+    );
+    channelId = userResult.rows[0]?.discord_review_channel_id;
+  } catch (err) {
+    console.error('[SUBMIT_REVIEW] DB error fetching channel:', err);
+    return res.status(500).json({ error: 'Error al obtener la configuración del canal.' });
+  }
+
+  if (!channelId) {
+    return res.status(400).json({
+      error: 'No tienes un canal de revisión configurado. Ve a Configuración y añade el ID del canal de Discord.',
+    });
+  }
+
+  // Fetch the review role for the guild that owns this channel
+  // We get the guild_id from Discord's channel info
+  let reviewRoleId = null;
+  try {
+    const channelInfoRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (channelInfoRes.ok) {
+      const channelInfo = await channelInfoRes.json();
+      const guildId = channelInfo.guild_id;
+      if (guildId) {
+        const roleResult = await pool.query(
+          `select review_role_id from public.sn_screenshot_review_config where guild_id = $1`,
+          [guildId]
+        );
+        reviewRoleId = roleResult.rows[0]?.review_role_id ?? null;
+      }
+    }
+  } catch (err) {
+    console.warn('[SUBMIT_REVIEW] Could not fetch review role:', err.message);
+    // Non-fatal: proceed without role mention
+  }
+
+  // Convert base64 data URL to Buffer
+  let imageBuffer;
+  try {
+    const base64Data = imageDataUrl.replace(/^data:image\/\w+;base64,/, '');
+    imageBuffer = Buffer.from(base64Data, 'base64');
+  } catch (err) {
+    return res.status(400).json({ error: 'imageDataUrl inválido.' });
+  }
+
+  const safeFileName = (fileName || `screenshot-${Date.now()}.png`).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const submittedAt = Math.floor(Date.now() / 1000);
+  const submittedBy = req.adminUser.id; // This is the admin panel user ID, not Discord ID
+  const submitterName = req.adminUser.name || req.adminUser.email || 'Usuario';
+
+  // Build the review ID (used for button custom IDs)
+  const reviewId = crypto.randomBytes(8).toString('hex');
+
+  // Build the Container v2 JSON payload
+  // The image is referenced via attachment:// URL inside a MediaGallery (type 12)
+  const containerComponents = [
+    {
+      type: 17, // Container
+      accent_color: 0xff3b3b,
+      components: [
+        {
+          type: 10, // TextDisplay
+          content: '# 📸 Screenshot para Revisión',
+        },
+        { type: 14 }, // Separator
+        {
+          type: 10,
+          content: [
+            `👤 Enviado por: **${submitterName}**`,
+            `📁 Archivo: \`${safeFileName}\``,
+            `📅 Enviado: <t:${submittedAt}:f>`,
+          ].join('\n'),
+        },
+        { type: 14 }, // Separator
+        {
+          type: 12, // MediaGallery
+          items: [
+            {
+              type: 13, // MediaGalleryItem
+              media: {
+                url: `attachment://${safeFileName}`,
+              },
+            },
+          ],
+        },
+        ...(reviewRoleId
+          ? [
+            { type: 14 },
+            {
+              type: 10,
+              content: `<@&${reviewRoleId}> — Revisa este screenshot`,
+            },
+          ]
+          : []),
+        { type: 14 },
+        {
+          type: 1, // ActionRow
+          components: [
+            {
+              type: 2, // Button
+              style: 3, // Success (green)
+              label: '✅ Aprobar',
+              custom_id: `screenshot_approve:${reviewId}`,
+            },
+            {
+              type: 2,
+              style: 4, // Danger (red)
+              label: '❌ Denegar',
+              custom_id: `screenshot_deny:${reviewId}`,
+            },
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Send to Discord using multipart/form-data (image attachment + JSON payload)
+  // Node 18+ has native FormData and Blob globals
+  try {
+    const form = new FormData();
+
+    const payload = {
+      flags: 1 << 15, // IS_COMPONENTS_V2
+      components: containerComponents,
+      attachments: [
+        {
+          id: 0,
+          filename: safeFileName,
+          description: "Screenshot for review",
+        },
+      ],
+    };
+
+    form.append('payload_json', JSON.stringify(payload));
+    form.append(
+      'files[0]',
+      new Blob([imageBuffer], { type: 'image/png' }),
+      safeFileName
+    );
+
+    const discordRes = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+      },
+      body: form,
+    });
+
+    if (!discordRes.ok) {
+      const errBody = await discordRes.text();
+      console.error('[SUBMIT_REVIEW] Discord API error:', discordRes.status, errBody);
+      return res.status(502).json({ error: `Error al enviar a Discord: ${discordRes.status}` });
+    }
+
+    const discordMsg = await discordRes.json();
+    console.log(`[SUBMIT_REVIEW] Sent review message ${discordMsg.id} to channel ${channelId} by user ${req.adminUser.id}`);
+    return res.json({ ok: true, messageId: discordMsg.id });
+  } catch (err) {
+    console.error('[SUBMIT_REVIEW] Failed to send to Discord:', err);
+    return res.status(500).json({ error: 'Error al enviar el screenshot a Discord.' });
   }
 });
 

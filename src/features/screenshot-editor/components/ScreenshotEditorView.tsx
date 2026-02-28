@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { CenterColumn } from '../editor/CenterColumn';
@@ -15,6 +15,12 @@ import { RightSidebar } from '../editor/RightSidebar';
 export const ScreenshotEditorView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+
+  // ── Screenshot Review submit state ──────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submitStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     state,
@@ -120,6 +126,50 @@ export const ScreenshotEditorView: React.FC = () => {
       console.error('Failed to copy image: ', err);
     }
   };
+
+  const handleConfirmReview = useCallback(async () => {
+    const canvas = canvasRef.current;
+    if (!canvas || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+    setSubmitError(null);
+
+    // Clear any pending auto-reset timer
+    if (submitStatusTimerRef.current) {
+      clearTimeout(submitStatusTimerRef.current);
+    }
+
+    try {
+      const imageDataUrl = canvas.toDataURL('image/png');
+      const fileName = `review-${(imageName || 'screenshot').replace(/\.[^/.]+$/, '')}-${Date.now()}.png`;
+
+      const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
+      const res = await fetch(`${apiBase}/screenshot-editor/submit-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ imageDataUrl, fileName }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `Error ${res.status}`);
+      }
+
+      setSubmitStatus('success');
+      // Auto-reset to idle after 4 seconds
+      submitStatusTimerRef.current = setTimeout(() => setSubmitStatus('idle'), 4000);
+    } catch (err: any) {
+      const msg = err?.message || 'Error al enviar el screenshot';
+      setSubmitError(msg);
+      setSubmitStatus('error');
+      // Auto-reset to idle after 6 seconds
+      submitStatusTimerRef.current = setTimeout(() => setSubmitStatus('idle'), 6000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [canvasRef, imageName, isSubmitting]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -401,6 +451,10 @@ export const ScreenshotEditorView: React.FC = () => {
             onClear={handleClearBlocks}
             onExportWorkspace={actions.exportWorkspace}
             onImportWorkspace={actions.importWorkspace}
+            onConfirm={handleConfirmReview}
+            isSubmitting={isSubmitting}
+            submitStatus={submitStatus}
+            submitError={submitError}
           />
         )}
 

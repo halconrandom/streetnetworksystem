@@ -1,5 +1,6 @@
 import React from 'react';
 import { Undo, Redo, Save, Trash2, Bell, User, Copy, Download } from '@/components/Icons';
+import { Send } from 'lucide-react';
 
 type TopBarProps = {
     canUndo: boolean;
@@ -12,10 +13,15 @@ type TopBarProps = {
     onClear: () => void;
     onExportWorkspace: () => void;
     onImportWorkspace: (data: any) => void;
+    onConfirm?: () => void;
+    isSubmitting?: boolean;
+    submitStatus?: 'idle' | 'success' | 'error';
+    submitError?: string | null;
 };
 
 export const TopBar: React.FC<TopBarProps> = ({
-    canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear, onExportWorkspace, onImportWorkspace
+    canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear, onExportWorkspace, onImportWorkspace,
+    onConfirm, isSubmitting = false, submitStatus = 'idle', submitError = null
 }) => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -122,6 +128,49 @@ export const TopBar: React.FC<TopBarProps> = ({
                     Copy
                 </button>
             </div>
+
+            {onConfirm && (
+                <>
+                    <div className="h-6 w-[1px] bg-white/5" />
+                    <div className="flex items-center gap-3">
+                        {/* Status toast */}
+                        {submitStatus === 'success' && (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 animate-fade-in">
+                                ✅ Enviado
+                            </span>
+                        )}
+                        {submitStatus === 'error' && (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-red-400 animate-fade-in" title={submitError ?? ''}>
+                                ❌ Error
+                            </span>
+                        )}
+                        <button
+                            onClick={onConfirm}
+                            disabled={isSubmitting}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95
+                                ${isSubmitting
+                                    ? 'bg-emerald-700/40 text-emerald-300/50 cursor-not-allowed'
+                                    : 'bg-emerald-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:brightness-110'
+                                }`}
+                            title="Enviar para revisión en Discord"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <svg className="animate-spin" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                    </svg>
+                                    Enviando...
+                                </>
+                            ) : (
+                                <>
+                                    <Send size={12} />
+                                    Confirmar
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </>
+            )}
 
         </div>
     );
