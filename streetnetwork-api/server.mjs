@@ -17,6 +17,9 @@ const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'sn_session';
 const SESSION_TTL_HOURS = Number(process.env.SESSION_TTL_HOURS || 24 * 7);
 const ALLOW_REGISTRATION = process.env.ALLOW_REGISTRATION === 'true';
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
+const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || '';
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -203,7 +206,9 @@ const loadSessionUser = async (req) => {
   if (!token) return null;
   const tokenHash = hashToken(token);
   const result = await pool.query(
-    `select s.id as session_id, s.user_id as id, s.expires_at, u.email, u.name, u.role, u.is_active, u.is_verified
+    `select s.id as session_id, s.user_id as id, s.expires_at, 
+            u.email, u.name, u.role, u.is_active, u.is_verified,
+            u.discord_id, u.discord_username, u.discord_avatar
      from public.sn_sessions s
      join public.sn_users u on u.id = s.user_id
      where s.token_hash = $1 and s.revoked_at is null and s.expires_at > now()
@@ -297,6 +302,9 @@ const buildUserPayload = async (userRow) => {
     role: userRow.role,
     isVerified: userRow.is_verified,
     flags,
+    discordId: userRow.discord_id || null,
+    discordUsername: userRow.discord_username || null,
+    discordAvatar: userRow.discord_avatar || null,
   };
 };
 
@@ -414,7 +422,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
   try {
     const result = await pool.query(
-      `select id, name, email, role, password_hash, is_active, is_verified
+      `select id, name, email, role, password_hash, is_active, is_verified,
+              discord_id, discord_username, discord_avatar
        from public.sn_users
        where email = $1
        limit 1`,
@@ -460,6 +469,148 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) {
     console.error('login failed', err);
     return res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+/**
+ * --- DISCORD OAUTH2 ---
+ */
+
+app.get('/api/auth/discord', (req, res) => {
+  if (!DISCORD_CLIENT_ID || !DISCORD_REDIRECT_URI) {
+    return res.status(500).json({ error: 'Discord OAuth mismatch in server configuration.' });
+  }
+
+  // State is used to correlate the callback with the request (csrf)
+  const state = crypto.randomBytes(16).toString('hex');
+  const sessionUserToken = req.cookies?.[SESSION_COOKIE_NAME];
+
+  // We can store state in a short-lived cookie if needed, but for simplicity
+  // just generate the URL. Scope: identify, email, guilds
+  const scope = encodeURIComponent('identify email guilds');
+  const redirectUri = encodeURIComponent(DISCORD_REDIRECT_URI);
+
+  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`;
+
+  // Optionally store state in cookie for callback validation
+  res.cookie('discord_auth_state', state, { httpOnly: true, secure: isSecureCookie(), maxAge: 10 * 60 * 1000 });
+
+  return res.json({ url: discordAuthUrl });
+});
+
+app.get('/api/auth/discord/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  const cookieState = req.cookies?.discord_auth_state;
+
+  if (error) {
+    console.error('[DISCORD_AUTH] Error from Discord:', error);
+    return res.redirect(`${APP_BASE_URL}/settings?error=discord_denied`);
+  }
+
+  if (!code || !state || state !== cookieState) {
+    console.warn('[DISCORD_AUTH] State mismatch or missing code');
+    return res.redirect(`${APP_BASE_URL}/settings?error=invalid_state`);
+  }
+
+  res.clearCookie('discord_auth_state');
+
+  try {
+    // 1. Exchange code for token
+    const tokenRes = await fetch('https://discord.com/api/v10/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        client_secret: DISCORD_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        code: code.toString(),
+        redirect_uri: DISCORD_REDIRECT_URI,
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      console.error('[DISCORD_AUTH] Token exchange failed:', tokenRes.status, errBody);
+      return res.redirect(`${APP_BASE_URL}/settings?error=token_exchange_failed`);
+    }
+
+    const tokens = await tokenRes.json();
+    const accessToken = tokens.access_token;
+
+    // 2. Fetch user profile
+    const userRes = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!userRes.ok) {
+      console.error('[DISCORD_AUTH] Failed to fetch profile');
+      return res.redirect(`${APP_BASE_URL}/settings?error=profile_fetch_failed`);
+    }
+
+    const discordUser = await userRes.json();
+    const avatarUrl = discordUser.avatar
+      ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+      : null;
+
+    // 3. Link or Login
+    const sessionUser = await loadSessionUser(req);
+    const ip = getRequestIp(req);
+    const userAgent = req.get('user-agent');
+
+    if (sessionUser) {
+      // ━━━ LINK ACCOUNT ━━━
+      await pool.query(
+        `UPDATE public.sn_users 
+         SET discord_id = $1, 
+             discord_username = $2, 
+             discord_avatar = $3,
+             discord_access_token = $4,
+             discord_refresh_token = $5,
+             discord_token_expires_at = NOW() + interval '7 days'
+         WHERE id = $6`,
+        [discordUser.id, discordUser.username, avatarUrl, tokens.access_token, tokens.refresh_token, sessionUser.id]
+      );
+
+      await auditLog({
+        actorUserId: sessionUser.id,
+        action: 'auth.discord_link',
+        ip,
+        userAgent,
+        metadata: { discordId: discordUser.id },
+      });
+
+      return res.redirect(`${APP_BASE_URL}/settings?success=discord_linked`);
+    } else {
+      // ━━━ LOGIN WITH DISCORD ━━━
+      const existingUserResult = await pool.query(
+        `SELECT id, email, role, is_active FROM public.sn_users WHERE discord_id = $1 LIMIT 1`,
+        [discordUser.id]
+      );
+
+      if (existingUserResult.rowCount === 0) {
+        // Option A: Auto-register? 
+        // For now, let's just fail if not linked.
+        return res.redirect(`${APP_BASE_URL}/login?error=discord_not_linked`);
+      }
+
+      const user = existingUserResult.rows[0];
+      if (!user.is_active) return res.redirect(`${APP_BASE_URL}/login?error=user_disabled`);
+
+      const token = await createSession({ userId: user.id, ip, userAgent });
+      setSessionCookie(res, token);
+
+      await auditLog({
+        actorUserId: user.id,
+        action: 'auth.login_discord',
+        ip,
+        userAgent,
+      });
+
+      return res.redirect(`${APP_BASE_URL}/dashboard`);
+    }
+  } catch (err) {
+    console.error('[DISCORD_AUTH] Unexpected error:', err);
+    return res.redirect(`${APP_BASE_URL}/settings?error=internal_error`);
   }
 });
 

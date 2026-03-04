@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import styles from '@/styles/Login.module.css';
-import { Shield, Lock, User, ArrowRight, AlertCircle, Terminal } from '@/components/Icons';
+import { Shield, Lock, User, ArrowRight, AlertCircle, Terminal, MessageSquare } from '@/components/Icons';
 
 type Mode = 'login' | 'register';
 
@@ -91,11 +91,13 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
+      // Nombre temporal derivado del email mientras no hay campo name
+      const tempName = email.split('@')[0] || 'Usuario';
       const res = await fetch(`${apiBase}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, name: tempName }),
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
@@ -154,6 +156,31 @@ export default function LoginPage() {
               Registro
             </button>
           </div>
+
+          <div className={styles.divider}>
+            <span>{mode === 'login' ? 'O usa tu cuenta de Discord' : 'Vincular Discord después'}</span>
+          </div>
+
+          {mode === 'login' && (
+            <button
+              type="button"
+              className={styles.submit}
+              style={{ background: '#5865F2', marginBottom: '1.5rem', border: 'none' }}
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${apiBase}/auth/discord`, { credentials: 'include' });
+                  if (!res.ok) throw new Error('Error al conectar con Discord');
+                  const { url } = await res.json();
+                  if (url) window.location.href = url;
+                } catch (err: any) {
+                  setError(err.message);
+                }
+              }}
+            >
+              <MessageSquare size={16} />
+              Ingresar con Discord
+            </button>
+          )}
 
           <div className={styles.divider}>
             <span>{mode === 'login' ? 'Inicia sesión con email' : 'Crea una cuenta con email'}</span>
