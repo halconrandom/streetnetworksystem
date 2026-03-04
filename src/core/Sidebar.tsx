@@ -11,6 +11,7 @@ import {
   PenTool,
   Image,
   Settings,
+  Code,
 } from '@shared/icons';
 
 interface SidebarProps {
@@ -35,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
     { id: 'home', label: 'Control Center', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
     { id: 'dashboard', label: 'System Dashboard', icon: Activity, path: '/dashboard', flag: 'dashboard' },
     { id: 'tickets', label: 'Transcripts', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
+    { id: 'message_builder', label: 'Message Builder', icon: Code, path: '/message-builder', flag: 'message_builder' },
     { id: 'screenshot_editor', label: 'Screenshot Editor', icon: Image, path: '/screenshot-editor', flag: 'screenshot_editor' },
     { id: 'nexus', label: 'The Nexus', icon: Activity, path: '/nexus', flag: 'nexus' },
     { id: 'audit', label: 'Audit Logs', icon: Activity, path: '/audit', flag: 'audit_logs' },
