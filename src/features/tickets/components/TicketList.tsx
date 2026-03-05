@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TicketStatus } from '@/types';
 import { Search, Filter, MoreVertical, MessageSquare, RotateCcw } from '@/components/Icons';
 import { StatusBadge } from '@/components/UI';
 import { formatRelativeTime } from '@/utils/time';
-import { getApiBase, getApiKey } from '@/utils/api';
 
 interface TicketListProps {
   onSelectTicket: (ticketId: string) => void;
@@ -59,17 +58,11 @@ type TicketListItem = {
 };
 
 export const TicketList: React.FC<TicketListProps> = ({ onSelectTicket }) => {
-  const apiBase = useMemo(() => getApiBase(), []);
-  const apiKey = useMemo(() => getApiKey(), []);
   const [tickets, setTickets] = useState<TicketListItem[]>(TICKETS);
 
   const loadTickets = useCallback(async () => {
-    console.log('[Tickets] API base:', apiBase || '(empty)');
-    console.log('[Tickets] API key set:', Boolean(apiKey));
-    if (!apiBase) return;
     try {
-      const res = await fetch(`${apiBase}/tickets`, {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      const res = await fetch('/api/tickets', {
         credentials: 'include',
       });
 
@@ -96,7 +89,7 @@ export const TicketList: React.FC<TicketListProps> = ({ onSelectTicket }) => {
     } catch (err) {
       console.error('Failed to load tickets', err);
     }
-  }, [apiBase, apiKey]);
+  }, []);
 
   useEffect(() => {
     loadTickets();

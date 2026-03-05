@@ -23,18 +23,16 @@ const StatCard: React.FC<{ title: string; value: string | number; trend?: string
 
 export const DashboardView: React.FC = () => {
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
   const [stats, setStats] = useState<any>(null);
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    if (!apiBase) return;
     setLoading(true);
     try {
       const [statsRes, auditRes] = await Promise.all([
-        fetch(`${apiBase}/admin/stats`, { credentials: 'include' }),
-        fetch(`${apiBase}/admin/audit?pageSize=5`, { credentials: 'include' }),
+        fetch('/api/admin/stats', { credentials: 'include' }),
+        fetch('/api/admin/audit?pageSize=5', { credentials: 'include' }),
       ]);
 
       if (statsRes.ok) {
@@ -49,7 +47,7 @@ export const DashboardView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [apiBase]);
+  }, []);
 
   useEffect(() => {
     loadData();

@@ -1,1 +1,8 @@
-export { default } from '@features/audit/page';
+import type { GetServerSideProps } from 'next';
+import AuditPage from '@features/audit/page';
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  return { props: {} };
+};
+
+export default AuditPage;

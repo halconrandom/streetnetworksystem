@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { Sidebar } from '@app/Sidebar';
-import { Menu, Bell, User } from '@shared/icons';
+import { Menu } from '@shared/icons';
 import { Toaster } from 'sonner';
 
 type AppShellProps = {
@@ -12,49 +13,22 @@ type AppShellProps = {
 
 function AppShell({ currentView, title, children }: AppShellProps) {
   const router = useRouter();
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { user } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [checkingAccess, setCheckingAccess] = useState(true);
-  const [userFlags, setUserFlags] = useState<string[]>([]);
-  const [userRole, setUserRole] = useState<string>('user');
-  const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
 
+  // Obtener flags y role desde publicMetadata del usuario
+  const userFlags = (user?.publicMetadata?.flags as string[]) || [];
+  const userRole = (user?.publicMetadata?.role as string) || 'user';
+
+  // Verificar acceso basado en flags
   useEffect(() => {
-    if (!apiBase) {
-      setCheckingAccess(false);
-      return;
-    }
-    let isMounted = true;
-    const checkAccess = async () => {
-      try {
-        const res = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
-        if (!res.ok) {
-          router.replace('/login');
-          return;
-        }
-        const payload = await res.json().catch(() => ({}));
-        if (!payload?.isVerified) {
-          router.replace('/verify');
-          return;
-        }
+    if (!isLoaded) return;
 
-        if (isMounted) {
-          setUserFlags(payload.flags || []);
-          setUserRole(payload.role || 'user');
-          setCheckingAccess(false);
-        }
-      } catch {
-        router.replace('/login');
-      }
-    };
-    checkAccess();
-    return () => {
-      isMounted = false;
-    };
-  }, [apiBase, router]);
+    // Si no está autenticado, Clerk middleware ya redirige a /sign-in
+    if (!isSignedIn) return;
 
-  useEffect(() => {
-    if (checkingAccess || !userFlags.length) return;
-
+    // Mapa de rutas a flags requeridos
     const routeFlagMap: Record<string, string> = {
       '/dashboard': 'dashboard',
       '/tickets': 'transcripts',
@@ -69,23 +43,33 @@ function AppShell({ currentView, title, children }: AppShellProps) {
     const currentPath = router.pathname;
     const requiredFlag = routeFlagMap[currentPath];
 
+    // Si la ruta requiere un flag y el usuario no lo tiene
     if (requiredFlag && !userFlags.includes(requiredFlag)) {
       console.warn(`[AUTH] Unauthorized route access: ${currentPath}. Required flag: ${requiredFlag}`);
+      
+      // Buscar la primera ruta disponible para el usuario
       const firstAvailable = Object.entries(routeFlagMap).find(([_, flag]) => userFlags.includes(flag));
       if (firstAvailable) {
         router.replace(firstAvailable[0]);
       } else {
-        router.replace('/verify');
+        // Si no tiene flags, redirigir a home
+        router.replace('/');
       }
     }
-  }, [router.pathname, userFlags, checkingAccess]);
+  }, [isLoaded, isSignedIn, router, userFlags]);
 
-  if (checkingAccess) {
+  // Mostrar loading mientras Clerk carga
+  if (!isLoaded) {
     return (
       <div className="flex h-screen items-center justify-center bg-terminal-dark text-terminal-muted">
         Verificando acceso...
       </div>
     );
+  }
+
+  // Si no está autenticado, no renderizar nada (middleware redirige)
+  if (!isSignedIn) {
+    return null;
   }
 
   return (
@@ -107,7 +91,21 @@ function AppShell({ currentView, title, children }: AppShellProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Action items removed as per request */}
+            {/* User info */}
+            {user && (
+              <div className="flex items-center gap-2">
+                {user.imageUrl && (
+                  <img 
+                    src={user.imageUrl} 
+                    alt={user.username || 'User'} 
+                    className="w-8 h-8 rounded-full border border-terminal-border"
+                  />
+                )}
+                <span className="text-xs text-terminal-muted hidden sm:block">
+                  {user.username || user.firstName || 'User'}
+                </span>
+              </div>
+            )}
           </div>
         </header>
 

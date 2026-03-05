@@ -1,3 +1,9 @@
+import type { GetServerSideProps } from 'next';
+
+export const getServerSideProps: GetServerSideProps = async () => {
+  return { props: {} };
+};
+
 export default function NotFoundPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-terminal-dark text-terminal-text">

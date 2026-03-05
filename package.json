@@ -10,6 +10,7 @@
     "proxy": "node proxy/corsProxy.mjs"
   },
   "dependencies": {
+    "@clerk/nextjs": "^5.7.5",
     "@reduxjs/toolkit": "^1.8.5",
     "ejs": "^3.1.10",
     "emoji-mart": "^3.0.1",

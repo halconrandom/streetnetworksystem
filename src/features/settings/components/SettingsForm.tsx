@@ -28,7 +28,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 type Category = 'profile' | 'security' | 'integrations' | 'privacy';
 
 export default function SettingsForm() {
-    const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
+    // API routes are now local - no external backend needed
 
     // Navigation State
     const [activeCategory, setActiveCategory] = useState<Category>('profile');
@@ -59,7 +59,7 @@ export default function SettingsForm() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const res = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+                const res = await fetch('/api/auth/me', { credentials: 'include' });
                 if (!res.ok) throw new Error('Error al cargar datos de usuario');
                 const data = await res.json();
                 setFormData(prev => ({
@@ -81,7 +81,7 @@ export default function SettingsForm() {
 
         const fetchReviewChannel = async () => {
             try {
-                const res = await fetch(`${apiBase}/users/me/review-channel`, { credentials: 'include' });
+                const res = await fetch('/api/users/me/review-channel', { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
                     setReviewChannelId(data.discord_review_channel_id || '');
@@ -93,11 +93,11 @@ export default function SettingsForm() {
 
         fetchUser();
         fetchReviewChannel();
-    }, [apiBase]);
+    }, []);
 
     const handleLinkDiscord = async () => {
         try {
-            const res = await fetch(`${apiBase}/auth/discord`, { credentials: 'include' });
+            const res = await fetch('/api/auth/discord', { credentials: 'include' });
             if (!res.ok) throw new Error('Error al iniciar vinculación');
             const { url } = await res.json();
             if (url) window.location.href = url;
@@ -111,7 +111,7 @@ export default function SettingsForm() {
         setChannelError(null);
         setChannelSuccess(null);
         try {
-            const res = await fetch(`${apiBase}/users/me/review-channel`, {
+            const res = await fetch('/api/users/me/review-channel', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -155,7 +155,7 @@ export default function SettingsForm() {
                 payload.oldPassword = formData.oldPassword;
             }
 
-            const res = await fetch(`${apiBase}/users/me`, {
+            const res = await fetch('/api/users/me', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

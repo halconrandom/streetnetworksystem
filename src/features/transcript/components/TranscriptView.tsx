@@ -1,10 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActionToolbar } from '@/components/ActionToolbar';
 import { TicketMetadata } from '@/components/TicketMetadata';
 import { Conversation } from '@/components/Conversation';
 import { ArrowLeft } from '@/components/Icons';
 import { Message, Note, Ticket, TicketStatus, User, UserRole } from '@/types';
-import { getApiBase, getApiKey } from '@/utils/api';
 import { formatFullDateTime, formatRelativeTime } from '@/utils/time';
 
 interface TranscriptViewProps {
@@ -79,19 +78,16 @@ const formatTicketDisplayId = (ticketNumber: string | number | null, fallbackId:
 };
 
 export const TranscriptView: React.FC<TranscriptViewProps> = ({ onBack, ticketId }) => {
-  const apiBase = useMemo(() => getApiBase(), []);
-  const apiKey = useMemo(() => getApiKey(), []);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
-    if (!ticketId || !apiBase) return;
+    if (!ticketId) return;
     const load = async () => {
       try {
-        const headers = apiKey ? { 'x-api-key': apiKey } : {};
         const [ticketRes, messagesRes, notesRes] = await Promise.all([
-          fetch(`${apiBase}/tickets/${ticketId}`, { headers }),
-          fetch(`${apiBase}/tickets/${ticketId}/messages`, { headers }),
-          fetch(`${apiBase}/tickets/${ticketId}/notes`, { headers }),
+          fetch(`/api/tickets/${ticketId}`, { credentials: 'include' }),
+          fetch(`/api/tickets/${ticketId}/messages`, { credentials: 'include' }),
+          fetch(`/api/tickets/${ticketId}/notes`, { credentials: 'include' }),
         ]);
         if (!ticketRes.ok) throw new Error('Failed to load ticket');
         if (!messagesRes.ok) throw new Error('Failed to load messages');
@@ -217,7 +213,7 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({ onBack, ticketId
       }
     };
     load();
-  }, [apiBase, apiKey, ticketId]);
+  }, [ticketId]);
 
   return (
     <div className="flex flex-col h-full bg-terminal-dark animate-fade-in-up">

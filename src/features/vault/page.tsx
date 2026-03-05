@@ -1,3 +1,5 @@
+'use client';
+
 import AppShell from '@/core/AppShell';
 import VaultView from './components/VaultView';
 

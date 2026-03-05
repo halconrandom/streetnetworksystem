@@ -1,3 +1,5 @@
+'use client';
+
 import AppShell from '@/core/AppShell';
 import AdminPanelView from '@features/admin/components/AdminPanelView';
 

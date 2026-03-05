@@ -210,8 +210,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 
     const fetchUpdates = async () => {
         try {
-            const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-            const response = await fetch(`${apiBase}/admin/live-updates`, {
+            const response = await fetch('/api/admin/live-updates', {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include'
             });
@@ -238,10 +237,9 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 
         setIsSaving(true);
         try {
-            const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
             const url = editingId === 'new'
-                ? `${apiBase}/admin/live-updates`
-                : `${apiBase}/admin/live-updates/${editingId}`;
+                ? '/api/admin/live-updates'
+                : `/api/admin/live-updates/${editingId}`;
 
             const method = editingId === 'new' ? 'POST' : 'PUT';
 
@@ -275,8 +273,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                 label: 'Eliminar',
                 onClick: async () => {
                     try {
-                        const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-                        const response = await fetch(`${apiBase}/admin/live-updates/${id}`, {
+                        const response = await fetch(`/api/admin/live-updates/${id}`, {
                             method: 'DELETE',
                             credentials: 'include'
                         });

@@ -6,6 +6,7 @@ const __dirname = path.dirname(__filename);
 
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   outputFileTracingRoot: path.resolve(__dirname, '..'),
   webpack: (config) => {
     config.module.rules.push({

@@ -293,8 +293,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ flags, role }) => {
     React.useEffect(() => {
         const fetchUpdates = async () => {
             try {
-                const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-                const response = await fetch(`${apiBase}/live-updates`);
+                const response = await fetch('/api/live-updates');
                 if (response.ok) {
                     const data = await response.json();
                     setUpdates(data);
@@ -453,8 +452,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ flags, role }) => {
                         // Refresh updates list
                         const fetchUpdatedList = async () => {
                             try {
-                                const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-                                const response = await fetch(`${apiBase}/live-updates`);
+                                const response = await fetch('/api/live-updates');
                                 if (response.ok) {
                                     const data = await response.json();
                                     setUpdates(data);

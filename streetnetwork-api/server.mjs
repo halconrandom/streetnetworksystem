@@ -5,6 +5,8 @@ import cors from 'cors';
 import express from 'express';
 import pg from 'pg';
 import crypto from 'crypto';
+import { verifyWebhookSignature, handleClerkWebhook } from './clerk-webhook.mjs';
+import { requireClerkAuth, requireClerkFlag, requireClerkAdmin } from './clerk-auth.mjs';
 
 const { Pool } = pg;
 
@@ -20,6 +22,8 @@ const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN || '';
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || '';
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || '';
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || '';
+const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -255,6 +259,14 @@ const auditLog = async ({ actorUserId, action, targetUserId, metadata, ip, userA
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/message-builder/health', (_req, res) => res.json({ ok: true }));
 app.get('/api/tickets/health', (_req, res) => res.json({ ok: true }));
+
+// === CLERK WEBHOOK ===
+// Este endpoint recibe webhooks de Clerk para sincronizar usuarios
+app.post('/api/webhooks/clerk', 
+  express.raw({ type: 'application/json' }), 
+  verifyWebhookSignature, 
+  (req, res) => handleClerkWebhook(req, res, pool)
+);
 
 app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useClerk } from '@clerk/nextjs';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -21,6 +22,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
   const router = useRouter();
+  const { signOut } = useClerk();
   const currentPath = router.asPath;
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -32,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
   const menuItems = [
     { id: 'home', label: 'Control Center', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
     { id: 'dashboard', label: 'System Dashboard', icon: Activity, path: '/dashboard', flag: 'dashboard' },
@@ -55,15 +58,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
   };
 
   const handleLogout = async () => {
-    const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
     try {
-      if (apiBase) {
-        await fetch(`${apiBase}/auth/logout`, { method: 'POST', credentials: 'include' });
-      }
+      await signOut({ redirectUrl: '/sign-in' });
     } catch (err) {
       console.error('Logout failed', err);
-    } finally {
-      router.push('/login');
     }
   };
 

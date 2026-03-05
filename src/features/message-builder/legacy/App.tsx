@@ -77,6 +77,7 @@ function App() {
             webhookImplementation.init();
         }
     }, []);
+    // Use local API routes by default, or external API if configured
     const apiBase = useMemo(() => {
         const envBase = process.env.NEXT_PUBLIC_MESSAGE_BUILDER_API;
         if (typeof envBase === 'string' && envBase.trim()) return envBase.replace(/\/$/, '');
@@ -84,8 +85,11 @@ function App() {
             const windowBase = (window as any)?.__VITE_MESSAGE_BUILDER_API__;
             if (typeof windowBase === 'string' && windowBase.trim()) return windowBase.replace(/\/$/, '');
         }
-        return '';
+        // Default to local API routes (uses Clerk auth via cookies)
+        return '/api/message-builder';
     }, []);
+
+    // API key only needed for external API, local routes use Clerk cookies
     const apiKey = useMemo(() => {
         const envKey = process.env.NEXT_PUBLIC_MESSAGE_BUILDER_API_KEY;
         if (typeof envKey === 'string' && envKey.trim().length > 0) return envKey;
@@ -95,6 +99,9 @@ function App() {
         }
         return '';
     }, []);
+
+    // Check if using local API routes (no API key needed, uses Clerk)
+    const isLocalApi = apiBase === '/api/message-builder';
     useEffect(() => {
         console.log('[MessageBuilder] API base:', apiBase || '(empty)');
         console.log('[MessageBuilder] API key set:', Boolean(apiKey));
@@ -221,7 +228,8 @@ function App() {
         if (!apiBase) return;
         const load = async () => {
             try {
-                const headers = apiKey ? { 'x-api-key': apiKey } : {};
+                // Local API uses Clerk cookies, external API uses x-api-key
+                const headers = isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {});
                 const [webhooksRes, templatesRes, mentionsRes] = await Promise.all([
                     fetch(`${apiBase}/webhooks`, { headers }),
                     fetch(`${apiBase}/templates`, { headers }),
@@ -383,7 +391,7 @@ function App() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({
                         name,
@@ -452,7 +460,7 @@ function App() {
             try {
                 const res = await fetch(`${apiBase}/webhooks/${id}`, {
                     method: 'DELETE',
-                    headers: apiKey ? { 'x-api-key': apiKey } : {},
+                    headers: isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {}),
                 });
                 if (!res.ok) throw new Error('Failed to delete webhook');
             } catch (err) {
@@ -480,7 +488,7 @@ function App() {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({ name: nextName, value: nextValue }),
                 });
@@ -504,7 +512,7 @@ function App() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({ name, data: state }),
                 });
@@ -540,7 +548,7 @@ function App() {
             try {
                 const res = await fetch(`${apiBase}/templates/${id}`, {
                     method: 'DELETE',
-                    headers: apiKey ? { 'x-api-key': apiKey } : {},
+                    headers: isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {}),
                 });
                 if (!res.ok) throw new Error('Failed to delete template');
             } catch (err) {
@@ -567,7 +575,7 @@ function App() {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({ name: nextName }),
                 });
@@ -592,7 +600,7 @@ function App() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({
                         keyword,
@@ -638,7 +646,7 @@ function App() {
             try {
                 const res = await fetch(`${apiBase}/mentions/${id}`, {
                     method: 'DELETE',
-                    headers: apiKey ? { 'x-api-key': apiKey } : {},
+                    headers: isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {}),
                 });
                 if (!res.ok) throw new Error('Failed to delete mention');
             } catch (err) {
@@ -666,7 +674,7 @@ function App() {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
-                        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+                        ...(isLocalApi ? {} : (apiKey ? { 'x-api-key': apiKey } : {})),
                     },
                     body: JSON.stringify({
                         keyword,

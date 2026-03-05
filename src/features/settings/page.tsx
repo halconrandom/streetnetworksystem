@@ -1,3 +1,5 @@
+'use client';
+
 import AppShell from '@/core/AppShell';
 import SettingsForm from './components/SettingsForm';
 

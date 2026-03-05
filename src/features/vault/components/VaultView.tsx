@@ -44,12 +44,10 @@ export default function VaultView() {
         internal_notes: ''
     });
 
-    const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${apiBase}/vault/clients`, { credentials: 'include' });
+            const res = await fetch('/api/vault/clients', { credentials: 'include' });
             if (!res.ok) {
                 const errorData = await res.json().catch(() => ({}));
                 throw new Error(`Query failed (${res.status}): ${errorData.error || res.statusText}`);
@@ -61,7 +59,7 @@ export default function VaultView() {
         } finally {
             setLoading(false);
         }
-    }, [apiBase]);
+    }, []);
 
     useEffect(() => {
         loadData();
@@ -71,7 +69,7 @@ export default function VaultView() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch(`${apiBase}/vault/clients`, {
+            const res = await fetch('/api/vault/clients', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
@@ -94,7 +92,7 @@ export default function VaultView() {
     const handleDelete = async (id: string, name: string) => {
         if (!confirm(`Are you sure you want to delete profile: ${name}?`)) return;
         try {
-            const res = await fetch(`${apiBase}/vault/clients/${id}`, { method: 'DELETE', credentials: 'include' });
+            const res = await fetch(`/api/vault/clients?id=${id}`, { method: 'DELETE', credentials: 'include' });
             if (!res.ok) throw new Error('Delete failed');
             loadData();
         } catch (err) {

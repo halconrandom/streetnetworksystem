@@ -25,7 +25,6 @@ interface Camera {
 }
 
 export default function NexusView() {
-    const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
     const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, zoom: 1 });
     const [nodes, setNodes] = useState<NexusNode[]>([]);
     const [connections, setConnections] = useState<NexusConnection[]>([]);
@@ -54,10 +53,9 @@ export default function NexusView() {
     // Load from Backend
     useEffect(() => {
         const loadCanvas = async () => {
-            if (!apiBase) return;
             setIsLoading(true);
             try {
-                const res = await fetch(`${apiBase}/nexus`, { credentials: 'include' });
+                const res = await fetch('/api/nexus', { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
                     if (data.nodes) setNodes(data.nodes);
@@ -71,14 +69,13 @@ export default function NexusView() {
             }
         };
         loadCanvas();
-    }, [apiBase]);
+    }, []);
 
     // Save to Backend
     const handleSave = useCallback(async () => {
-        if (!apiBase) return;
         setIsSaving(true);
         try {
-            const res = await fetch(`${apiBase}/nexus`, {
+            const res = await fetch('/api/nexus', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -94,7 +91,7 @@ export default function NexusView() {
         } finally {
             setTimeout(() => setIsSaving(false), 800);
         }
-    }, [apiBase, nodes, connections, camera]);
+    }, [nodes, connections, camera]);
 
     const screenToWorld = useCallback((clientX: number, clientY: number) => {
         if (!containerRef.current) return { x: 0, y: 0 };
@@ -247,14 +244,12 @@ export default function NexusView() {
             setNodes([]);
             setConnections([]);
             // Sync with backend immediately
-            if (apiBase) {
-                fetch(`${apiBase}/nexus`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ nodes: [], connections: [], camera: { x: 0, y: 0, zoom: 1 } })
-                });
-            }
+            fetch('/api/nexus', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ nodes: [], connections: [], camera: { x: 0, y: 0, zoom: 1 } })
+            });
         }
     };
 

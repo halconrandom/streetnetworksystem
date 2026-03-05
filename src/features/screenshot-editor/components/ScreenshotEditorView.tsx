@@ -144,8 +144,7 @@ export const ScreenshotEditorView: React.FC = () => {
       const imageDataUrl = canvas.toDataURL('image/png');
       const fileName = `review-${(imageName || 'screenshot').replace(/\.[^/.]+$/, '')}-${Date.now()}.png`;
 
-      const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
-      const res = await fetch(`${apiBase}/screenshot-editor/submit-review`, {
+      const res = await fetch('/api/screenshot-editor/submit-review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

@@ -56,7 +56,6 @@ interface AdminPanelViewProps {
 
 export default function AdminPanelView({ activeTab: initialTab = 'users' }: AdminPanelViewProps) {
   const router = useRouter();
-  const apiBase = process.env.NEXT_PUBLIC_PLATFORM_API || '';
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [currentTab, setCurrentTab] = useState<'users' | 'audit'>(initialTab);
@@ -85,7 +84,6 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
   });
 
   const loadUsers = useCallback(async () => {
-    if (!apiBase) return;
     setLoadingUsers(true);
     setUsersError(null);
     try {
@@ -94,7 +92,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
         pageSize: String(pageSize),
       });
       if (query.trim()) params.set('q', query.trim());
-      const res = await fetch(`${apiBase}/admin/users?${params.toString()}`, {
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
         credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to load users');
@@ -111,10 +109,9 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
     } finally {
       setLoadingUsers(false);
     }
-  }, [apiBase, page, pageSize, query]);
+  }, [page, pageSize, query]);
 
   const loadAudit = useCallback(async () => {
-    if (!apiBase) return;
     setLoadingAudit(true);
     try {
       const qs = new URLSearchParams({
@@ -122,7 +119,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
         pageSize: String(auditPageSize),
         ...Object.fromEntries(Object.entries(auditFilters).filter(([_, v]) => v)),
       });
-      const res = await fetch(`${apiBase}/admin/audit?${qs}`, { credentials: 'include' });
+      const res = await fetch(`/api/admin/audit?${qs}`, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load audit logs');
       const data = await res.json();
       setAuditRows(data.rows || []);
@@ -132,13 +129,12 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
     } finally {
       setLoadingAudit(false);
     }
-  }, [apiBase, auditPage, auditPageSize, auditFilters]);
+  }, [auditPage, auditPageSize, auditFilters]);
 
   useEffect(() => {
-    if (!apiBase) return;
     const checkAccess = async () => {
       try {
-        const res = await fetch(`${apiBase}/auth/me`, { credentials: 'include' });
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (!res.ok) {
           router.replace('/login');
           return;
@@ -156,7 +152,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
       }
     };
     checkAccess();
-  }, [apiBase, router]);
+  }, [router]);
 
   useEffect(() => {
     if (!checkingAccess && !accessDenied) {
@@ -185,7 +181,6 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
   };
 
   const saveUser = async (id: string) => {
-    if (!apiBase) return;
     const original = users.find((user) => user.id === id);
     const current = editMap[id];
     if (!original || !current) return;
@@ -196,7 +191,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
     const flagsChanged = JSON.stringify(original.flags || []) !== JSON.stringify(current.flags || []);
     try {
       if (Object.keys(patch).length > 0) {
-        const res = await fetch(`${apiBase}/admin/users/${id}`, {
+        const res = await fetch(`/api/users/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -205,7 +200,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
         if (!res.ok) throw new Error('Failed to update user');
       }
       if (flagsChanged) {
-        const res = await fetch(`${apiBase}/admin/users/${id}/flags`, {
+        const res = await fetch(`/api/users/${id}/flags`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
