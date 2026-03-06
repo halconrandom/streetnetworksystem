@@ -70,7 +70,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         // Headers: ###, ##, #
         if (trimmedLine.startsWith('### ')) {
             elements.push(
-                <h4 key={`h3-${i}`} className="text-sm font-bold text-white/90 mb-1 mt-3">
+                <h4 key={`h3-${i}`} className="text-base font-bold text-white/90 mb-1 mt-3">
                     {renderText(trimmedLine.slice(4))}
                 </h4>
             );
@@ -79,7 +79,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         }
         if (trimmedLine.startsWith('## ')) {
             elements.push(
-                <h3 key={`h2-${i}`} className="text-base font-bold text-white mb-1 mt-4">
+                <h3 key={`h2-${i}`} className="text-lg font-bold text-white mb-1 mt-4">
                     {renderText(trimmedLine.slice(3))}
                 </h3>
             );
@@ -88,7 +88,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         }
         if (trimmedLine.startsWith('# ')) {
             elements.push(
-                <h2 key={`h1-${i}`} className="text-lg font-black text-white mb-2 mt-4">
+                <h2 key={`h1-${i}`} className="text-xl font-black text-white mb-2 mt-4">
                     {renderText(trimmedLine.slice(2))}
                 </h2>
             );
@@ -142,7 +142,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
             );
         } else {
             elements.push(
-                <p key={`p-${i}`} className="mb-1.5 text-[11px] leading-relaxed text-terminal-muted/90">
+                <p key={`p-${i}`} className="mb-1.5 text-sm leading-relaxed text-terminal-muted/90">
                     {renderText(line)}
                 </p>
             );
