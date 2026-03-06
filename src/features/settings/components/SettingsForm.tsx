@@ -54,7 +54,7 @@ interface Notification {
 
 export default function SettingsForm() {
     const { user, isLoaded } = useUser();
-    const { signOut } = useClerk();
+    const { signOut, openUserProfile } = useClerk();
 
     const [activeTab, setActiveTab] = useState<Tab>('profile');
     const [saving, setSaving] = useState(false);
@@ -626,12 +626,15 @@ export default function SettingsForm() {
                                         <div className="w-9 h-9 rounded-lg bg-terminal-accent/10 border border-terminal-accent/20 flex items-center justify-center flex-shrink-0">
                                             <Lock size={16} className="text-terminal-accent" />
                                         </div>
-                                        <div>
+                                        <div className="flex-1">
                                             <p className="text-sm font-semibold text-white">Seguridad gestionada por Clerk</p>
                                             <p className="text-xs text-terminal-muted mt-1 leading-relaxed">
-                                                El cambio de contraseña, correo electrónico y métodos de autenticación se gestionan directamente desde el portal de Clerk.
+                                                Cambia tu contraseña, gestiona correos electrónicos, autenticación de dos factores y sesiones activas desde el portal de seguridad.
                                             </p>
-                                            <button className="mt-3 flex items-center gap-1.5 text-xs text-terminal-accent hover:underline font-medium">
+                                            <button 
+                                                onClick={() => openUserProfile()}
+                                                className="mt-3 flex items-center gap-1.5 text-xs text-terminal-accent hover:underline font-medium transition-colors"
+                                            >
                                                 Abrir portal de seguridad
                                                 <ChevronRight size={12} />
                                             </button>
@@ -646,15 +649,18 @@ export default function SettingsForm() {
                                                 <Key size={18} className="text-terminal-muted" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-semibold text-white">Hardware Key (MFA)</p>
+                                                <p className="text-sm font-semibold text-white">Autenticación de Dos Factores</p>
                                                 <p className="text-xs text-terminal-muted mt-0.5 uppercase tracking-widest font-mono">
-                                                    Módulo no inicializado
+                                                    Gestiona 2FA desde el portal de Clerk
                                                 </p>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 uppercase tracking-widest">
-                                            Pendiente
-                                        </span>
+                                        <button 
+                                            onClick={() => openUserProfile()}
+                                            className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-terminal-accent/10 border border-terminal-accent/20 text-terminal-accent uppercase tracking-widest hover:bg-terminal-accent/20 transition-colors"
+                                        >
+                                            Configurar
+                                        </button>
                                     </div>
                                 </SettingsSection>
 
