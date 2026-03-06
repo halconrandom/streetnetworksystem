@@ -10,6 +10,7 @@ import {
 } from '@/components/Icons';
 import { Sparkles, Bug, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 import {
     buildDiscordMessage,
     DiscordMessage
@@ -330,19 +331,20 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                                     <div>
                                         <div className="flex items-center justify-between mb-1.5">
                                             <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider">Descripción</label>
-                                            <span className="text-[9px] text-white/30">**bold** *italic* - lista</span>
+                                            <span className="text-[9px] text-white/30"># ## ### **bold** *italic* - lista</span>
                                         </div>
                                         <textarea
                                             value={formData.description}
                                             onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                            placeholder={`**Cambios realizados**
+                                            placeholder={`## Cambios realizados
+
 - Nueva funcionalidad: Selector de idiomas
 - Mejora: Traducciones completas
 - Fix: Error en selector
 
-**Notas**
+### Notas
 Los usuarios pueden cambiar entre EN/ES.`}
-                                            className="w-full h-40 bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-xs focus:border-terminal-accent/50 focus:outline-none transition-colors resize-y custom-scrollbar font-mono leading-relaxed placeholder:text-white/15"
+                                            className="w-full h-40 bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-terminal-accent/50 focus:outline-none transition-colors resize-y custom-scrollbar font-mono leading-relaxed placeholder:text-white/15"
                                         />
                                     </div>
 
@@ -398,86 +400,23 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                         📅 {formData.date}
                                                     </div>
                                                     <div className="border-t border-white/10" />
-                                                    <div className="text-[#dbdee1] text-xs whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto custom-scrollbar">
-                                                        {(() => {
-                                                            const lines = formData.description.split('\n');
-                                                            const elements: React.ReactNode[] = [];
-                                                            
-                                                            for (let i = 0; i < lines.length; i++) {
-                                                                const line = lines[i];
-                                                                
-                                                                if (line.trim() === '') {
-                                                                    elements.push(<div key={i} className="h-1" />);
-                                                                    continue;
-                                                                }
-                                                                
-                                                                // H3 header (###)
-                                                                const h3Match = line.match(/^###\s+(.+)$/);
-                                                                if (h3Match) {
-                                                                    elements.push(
-                                                                        <h3 key={i} className="font-semibold text-white/90 text-[11px] mt-2 mb-1">
-                                                                            {h3Match[1]}
-                                                                        </h3>
-                                                                    );
-                                                                    continue;
-                                                                }
-                                                                
-                                                                // H2 header (##)
-                                                                const h2Match = line.match(/^##\s+(.+)$/);
-                                                                if (h2Match) {
-                                                                    elements.push(
-                                                                        <h2 key={i} className="font-bold text-white text-xs mt-2 mb-1">
-                                                                            {h2Match[1]}
-                                                                        </h2>
-                                                                    );
-                                                                    continue;
-                                                                }
-                                                                
-                                                                // H1 header (#)
-                                                                const h1Match = line.match(/^#\s+(.+)$/);
-                                                                if (h1Match) {
-                                                                    elements.push(
-                                                                        <h1 key={i} className="font-bold text-white text-sm mt-3 mb-1">
-                                                                            {h1Match[1]}
-                                                                        </h1>
-                                                                    );
-                                                                    continue;
-                                                                }
-                                                                
-                                                                if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) {
-                                                                    const text = line.slice(2, -2);
-                                                                    elements.push(
-                                                                        <div key={i} className="font-bold text-white mt-1.5 mb-0.5 text-xs">
-                                                                            {text}
-                                                                        </div>
-                                                                    );
-                                                                    continue;
-                                                                }
-                                                                
-                                                                if (line.startsWith('- ') || line.startsWith('* ')) {
-                                                                    const text = line.slice(2);
-                                                                    const parsed = text
-                                                                        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                                                                        .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
-                                                                    elements.push(
-                                                                        <div key={i} className="flex gap-1.5 items-start text-[11px]">
-                                                                            <span className="text-[#00ff88] mt-0.5">•</span>
-                                                                            <span dangerouslySetInnerHTML={{ __html: parsed }} />
-                                                                        </div>
-                                                                    );
-                                                                    continue;
-                                                                }
-                                                                
-                                                                const parsed = line
-                                                                    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
-                                                                    .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
-                                                                elements.push(
-                                                                    <div key={i} className="text-[11px]" dangerouslySetInnerHTML={{ __html: parsed }} />
-                                                                );
-                                                            }
-                                                            
-                                                            return elements;
-                                                        })()}
+                                                    <div className="text-[#dbdee1] text-sm leading-relaxed max-h-64 overflow-y-auto custom-scrollbar prose prose-invert prose-sm">
+                                                        <ReactMarkdown
+                                                            components={{
+                                                                h1: ({ children }) => <h1 className="text-base font-bold text-white mt-3 mb-1">{children}</h1>,
+                                                                h2: ({ children }) => <h2 className="text-sm font-bold text-white mt-2 mb-1">{children}</h2>,
+                                                                h3: ({ children }) => <h3 className="text-xs font-semibold text-white/90 mt-2 mb-1">{children}</h3>,
+                                                                p: ({ children }) => <p className="text-sm text-[#dbdee1] mb-1">{children}</p>,
+                                                                ul: ({ children }) => <ul className="list-none space-y-0.5 mb-2">{children}</ul>,
+                                                                li: ({ children }) => <li className="flex items-start gap-1.5 text-sm"><span className="text-[#00ff88] mt-1">•</span><span>{children}</span></li>,
+                                                                strong: ({ children }) => <strong className="text-white font-semibold">{children}</strong>,
+                                                                em: ({ children }) => <em className="text-[#00ff88]">{children}</em>,
+                                                                code: ({ children }) => <code className="bg-white/10 px-1 py-0.5 rounded text-xs">{children}</code>,
+                                                                blockquote: ({ children }) => <blockquote className="border-l-2 border-white/30 pl-2 text-white/70 text-sm">{children}</blockquote>,
+                                                            }}
+                                                        >
+                                                            {formData.description}
+                                                        </ReactMarkdown>
                                                     </div>
                                                 </div>
                                             </div>
