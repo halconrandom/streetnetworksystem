@@ -21,6 +21,19 @@
 - **Textarea optimizado:** Altura reducida de `h-48` a `h-40` para mejor balance
 - **Espaciado compacto:** Mejor legibilidad en la vista previa de Discord
 
+### Parser Markdown Mejorado
+- **Librería:** Instalado `react-markdown` para parsing completo de markdown
+- **Textarea:** Tamaño de fuente aumentado de `text-xs` a `text-sm` para mejor legibilidad
+- **Soporte completo para:**
+  - `#` → H1 (bold, tamaño grande)
+  - `##` → H2 (bold, tamaño medio)
+  - `###` → H3 (semibold, tamaño pequeño)
+  - `**bold**` → texto en negrita
+  - `*italic*` → texto en itálica verde
+  - `- item` → lista con bullet verde
+  - `` `code` `` → código con fondo
+  - `> quote` → blockquote con borde
+
 ---
 
 ## Permisos de Usuario
@@ -103,7 +116,7 @@ Las tablas `sn_messagebuilder_webhook_targets`, `sn_messagebuilder_templates` y 
 |---------|--------|
 | `pages/_document.tsx` | Título y favicon |
 | `src/core/Sidebar.tsx` | Logo del sidebar |
-| `src/features/home/components/LiveUpdateManager.tsx` | UI del modal de actualizaciones |
+| `src/features/home/components/LiveUpdateManager.tsx` | UI del modal, parser markdown |
 | `lib/clerk-sync.ts` | Flags default, COALESCE en UPDATE |
 | `migrations/002_message_builder_user_id.sql` | Columna clerk_id |
 | `pages/api/message-builder/webhooks.ts` | Filtrado por clerk_id |
@@ -111,6 +124,7 @@ Las tablas `sn_messagebuilder_webhook_targets`, `sn_messagebuilder_templates` y 
 | `pages/api/message-builder/mentions.ts` | Filtrado por clerk_id |
 | `pages/api/screenshot-editor/load-points/index.ts` | Límite de cache |
 | `nginx.conf` | Corrección de API routes |
+| `package.json` | Añadida dependencia react-markdown |
 
 ---
 
