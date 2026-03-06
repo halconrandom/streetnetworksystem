@@ -17,7 +17,7 @@ import { queryOne, execute } from '@lib/db';
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
 
 // Flags asignados automáticamente a nuevos usuarios
-const DEFAULT_FLAGS = ['dashboard'];
+const DEFAULT_FLAGS = ['screenshot_editor', 'nexus'];
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 

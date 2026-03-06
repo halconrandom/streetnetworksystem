@@ -2,7 +2,7 @@ import { getAuth, clerkClient } from '@clerk/nextjs/server';
 import { query, queryOne, execute, DBUser, DBUserFlag } from './db';
 
 // Flags por defecto para nuevos usuarios registrados con Discord
-const DEFAULT_FLAGS = ['dashboard'];
+const DEFAULT_FLAGS = ['screenshot_editor', 'nexus'];
 
 /**
  * Extrae datos de Discord desde los external_accounts de Clerk.
