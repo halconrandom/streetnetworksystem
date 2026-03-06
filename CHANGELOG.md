@@ -78,3 +78,4 @@
    - `e48bf07` - feat(settings): integrar portal de seguridad de Clerk
    - `3a8a016` - docs: actualizar CHANGELOG con integración de Clerk
    - `dd65425` - refactor(settings): simplificar sección de seguridad
+   - `6733976` - refactor(settings): eliminar sección de apariencia
