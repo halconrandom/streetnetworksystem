@@ -40,6 +40,7 @@ export async function execute<T = any>(sql: string, params?: any[]): Promise<T[]
 // Types
 export interface DBUser {
   id: string;
+  clerk_id: string | null;
   email: string;
   name: string | null;
   role: 'admin' | 'user';

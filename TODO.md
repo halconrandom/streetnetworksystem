@@ -1,34 +1,45 @@
-# Clerk Migration - Pending Fixes
+# Clerk + Discord OAuth Refactor
 
 ## Tasks
 
-- [x] 1. Add Clerk auth to `pages/api/tickets/[id]/index.ts`
-- [x] 2. Add Clerk auth to `pages/api/tickets/[id]/messages.ts`
-- [x] 3. Add Clerk auth to `pages/api/tickets/[id]/notes.ts`
-- [x] 4. Extend `pages/api/users/me.ts` GET to return full DB user profile (discord data, name, email, role)
-- [x] 5. Fix `src/features/settings/components/SettingsForm.tsx`:
-  - [x] 5a. Use `useUser()` + `useClerk()` hooks instead of `/api/auth/me`
-  - [x] 5b. Fix review channel URL: `/api/users/me/review-channel` -> `/api/users/me`
-  - [x] 5c. Remove Discord OAuth linking button (`/api/auth/discord` never existed)
-  - [x] 5d. Fix `handleSubmit()` -> use Clerk's `user.update()` for name; remove email/password fields
-  - [x] 5e. Fix logout button -> wire `useClerk().signOut()`
-  - [x] 5f. Fix avatar -> use `user.imageUrl` from Clerk
-- [x] 6. Fix `src/features/admin/components/AdminPanelView.tsx`:
-  - [x] 6a. Replace both `router.replace('/login')` with `router.replace('/sign-in')` (old route `/login` does not exist)
-- [x] 7. Fix `pages/_app.tsx`:
-  - [x] 7a. Add `signInUrl="/sign-in"` and `signUpUrl="/sign-up"` to `<ClerkProvider>` to prevent infinite redirect loop
-- [x] 8. Replace broken `sessionClaims.__clerk_user` pattern with `getOrCreateUserByClerkId(req)` in all remaining API routes:
-  - [x] 8a. `pages/api/nexus/index.ts`
-  - [x] 8b. `pages/api/vault/assets.ts`
-  - [x] 8c. `pages/api/vault/clients.ts`
-  - [x] 8d. `pages/api/screenshot-editor/submit-review.ts`
-  - [x] 8e. `pages/api/screenshot-editor/load-points/index.ts`
-  - [x] 8f. `pages/api/screenshot-editor/load-points/[id].ts`
-  - [x] 8g. `pages/api/message-builder/webhooks.ts`
-  - [x] 8h. `pages/api/message-builder/templates.ts`
-  - [x] 8i. `pages/api/message-builder/mentions.ts`
-  - [x] 8j. `pages/api/audit/index.ts`
+- [x] 1. `lib/db.ts` — Add `clerk_id` to `DBUser` interface
+- [x] 2. `src/core/AppShell.tsx` — Fetch flags/role from `/api/auth/me` (DB source of truth)
+- [x] 3. `pages/sign-in/[[...index]].tsx` — Discord-only OAuth redirect page
+- [x] 4. `pages/sign-up/[[...index]].tsx` — Redirect to sign-in
+- [x] 5. `lib/clerk-sync.ts` — Add Discord account validation + improved extraction
+- [x] 6. `pages/api/audit/index.ts` — Add `audit_logs` flag check
+- [x] 7. `pages/api/webhooks/clerk.ts` — Full rewrite with Clerk v6 Discord data extraction
+- [x] 8. `middleware.ts` — API routes now return 401 JSON instead of redirecting to /sign-in; `pg` installed
 
-## ✅ Migration Complete
-All API routes now use `getOrCreateUserByClerkId(req)` from `lib/clerk-sync.ts`.
-Zero remaining `sessionClaims.__clerk_user` or stale `getAuth(req)` patterns in `pages/api/`.
+## ✅ Refactor Complete
+
+### Architecture Summary
+
+**Auth flow (Discord-only):**
+1. User visits any protected route → Clerk middleware redirects to `/sign-in`
+2. `/sign-in` auto-triggers `authenticateWithRedirect({ strategy: 'oauth_discord' })`
+3. User authenticates with Discord on Discord's OAuth page
+4. Clerk redirects back to `/sign-in/sso-callback` → Clerk completes the handshake
+5. Clerk fires `user.created` webhook → `pages/api/webhooks/clerk.ts` creates the user in `sn_users` with Discord data + default flags
+6. User is redirected to `/` (home)
+
+**Flags/role flow:**
+- Flags live in `sn_user_flags` DB table (source of truth)
+- Role lives in `sn_users.role` DB column
+- `AppShell` fetches `/api/auth/me` on every authenticated page load → gets DB flags/role
+- Sidebar items are filtered by DB flags
+- Route protection uses DB flags (not Clerk publicMetadata)
+
+**Clerk Dashboard requirements:**
+- Enable Discord OAuth provider
+- Disable all other auth methods (email/password, Google, etc.)
+- Set webhook endpoint: `https://your-domain/api/webhooks/clerk`
+- Subscribe to: `user.created`, `user.updated`, `user.deleted`
+- Set `CLERK_WEBHOOK_SECRET` env var
+
+**Environment variables required:**
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+CLERK_WEBHOOK_SECRET=whsec_...
+DATABASE_URL=postgresql://...

@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { query } from '@lib/db';
-import { getOrCreateUserByClerkId } from '@lib/clerk-sync';
+import { getOrCreateUserByClerkId, hasFlag } from '@lib/clerk-sync';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -11,6 +11,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const currentUser = await getOrCreateUserByClerkId(req);
     if (!currentUser) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Require audit_logs flag
+    const canViewAudit = await hasFlag(currentUser.id, 'audit_logs');
+    if (!canViewAudit) {
+      return res.status(403).json({ error: 'Missing required permission: audit_logs' });
     }
 
     // Pagination
