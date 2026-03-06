@@ -18,6 +18,11 @@
 - **Indicador visual**: Punto rojo en el avatar cuando hay un avatar personalizado
 - **Actualización en tiempo real**: El avatar del header se actualiza automáticamente tras cambiarlo en settings
 
+#### Portal de Seguridad de Clerk
+- **Integración con Clerk**: Botón "Abrir portal de seguridad" abre el modal de Clerk
+- **Gestión de 2FA**: Sección de autenticación de dos factores con botón "Configurar"
+- **Funcionalidades incluidas**: Cambio de contraseña, gestión de emails, 2FA, sesiones activas, dispositivos conectados
+
 ### Mejoras de UI/UX
 
 #### Localización Bloqueada
@@ -41,7 +46,7 @@
 
 #### Archivos Modificados
 - `src/features/settings/components/AvatarUpload.tsx` - Reescrito para soportar Imgur
-- `src/features/settings/components/SettingsForm.tsx` - Integración con nuevo sistema de avatar
+- `src/features/settings/components/SettingsForm.tsx` - Integración con nuevo sistema de avatar y Clerk
 - `src/core/AppShell.tsx` - Avatar en header con prioridad y evento de actualización
 - `src/core/Sidebar.tsx` - Eliminado enlace a settings
 - `pages/api/users/me.ts` - Soporte para `avatar_url` en PUT
@@ -51,6 +56,7 @@
 #### Nuevas Funcionalidades
 - Evento `user-avatar-updated` para comunicación entre componentes
 - Sistema de refresh automático de datos de usuario en AppShell
+- Integración con `openUserProfile()` de Clerk para gestión de seguridad
 
 ---
 
@@ -68,3 +74,5 @@
    - `589dd0b` - fix(api): corregir parámetros PostgreSQL en PUT /users/me
    - `30936ab` - feat(ui): mover settings al avatar del header
    - `44f2fd6` - fix: actualizar avatar en header tras cambio en settings
+   - `e23f47b` - docs: añadir CHANGELOG.md con historial de actualizaciones
+   - `e48bf07` - feat(settings): integrar portal de seguridad de Clerk
