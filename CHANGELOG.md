@@ -19,9 +19,9 @@
 - **Actualización en tiempo real**: El avatar del header se actualiza automáticamente tras cambiarlo en settings
 
 #### Portal de Seguridad de Clerk
-- **Integración con Clerk**: Botón "Abrir portal de seguridad" abre el modal de Clerk
-- **Gestión de 2FA**: Sección de autenticación de dos factores con botón "Configurar"
-- **Funcionalidades incluidas**: Cambio de contraseña, gestión de emails, 2FA, sesiones activas, dispositivos conectados
+- **Sección simplificada**: Una sola sección "Portal de Seguridad" con botón prominente
+- **Gestión centralizada**: Contraseña, 2FA, sesiones y dispositivos se gestionan desde Clerk
+- **Botón "Abrir Portal de Seguridad"**: Abre el modal de Clerk directamente
 
 ### Mejoras de UI/UX
 
@@ -76,3 +76,5 @@
    - `44f2fd6` - fix: actualizar avatar en header tras cambio en settings
    - `e23f47b` - docs: añadir CHANGELOG.md con historial de actualizaciones
    - `e48bf07` - feat(settings): integrar portal de seguridad de Clerk
+   - `3a8a016` - docs: actualizar CHANGELOG con integración de Clerk
+   - `dd65425` - refactor(settings): simplificar sección de seguridad
