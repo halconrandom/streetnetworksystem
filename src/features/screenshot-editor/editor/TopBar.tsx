@@ -155,12 +155,12 @@ export const TopBar: React.FC<TopBarProps> = ({
                         <button
                             onClick={onConfirm}
                             disabled={isSubmitting || !selectedChannelId}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95 border
                                 ${isSubmitting
-                                    ? 'bg-emerald-700/40 text-emerald-300/50 cursor-not-allowed'
+                                    ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
                                     : !selectedChannelId
-                                        ? 'bg-emerald-900/40 text-emerald-300/30 cursor-not-allowed'
-                                        : 'bg-emerald-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:brightness-110'
+                                        ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
+                                        : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
                                 }`}
                             title={!selectedChannelId ? 'Selecciona un canal primero' : 'Enviar para revisión en Discord'}
                         >
@@ -174,7 +174,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             ) : (
                                 <>
                                     <Send size={12} />
-                                    Confirmar
+                                    Revisión
                                 </>
                             )}
                         </button>
