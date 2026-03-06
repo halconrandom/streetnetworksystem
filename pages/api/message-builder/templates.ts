@@ -21,6 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    if (!user.clerk_id) {
+      console.error('[/api/message-builder/templates] User has no clerk_id:', user.id);
+      return res.status(500).json({ error: 'User clerk_id is missing' });
+    }
+
     const hasMessageBuilder = await hasFlag(user.id, 'message_builder');
     if (!hasMessageBuilder) {
       return res.status(403).json({ error: 'Missing required permission: message_builder' });
@@ -44,6 +49,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!name || data == null) {
         return res.status(400).json({ error: 'Invalid template payload' });
       }
+
+      console.log('[/api/message-builder/templates] Creating template for clerk_id:', user.clerk_id);
 
       const result = await execute(
         `INSERT INTO sn_messagebuilder_templates (name, data, clerk_id)

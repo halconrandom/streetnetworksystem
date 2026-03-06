@@ -166,9 +166,13 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
 
     if (user) {
       // Vincular usuario existente al clerk_id y actualizar datos de Discord
+      // IMPORTANTE: Siempre actualizar clerk_id si es null
+      if (!user.clerk_id) {
+        console.log(`[getOrCreateUserByClerkId] Linking existing user ${user.id} to clerk_id ${userId}`);
+      }
       await execute(
         `UPDATE sn_users SET
-          clerk_id = $1,
+          clerk_id = COALESCE($1, clerk_id),
           discord_id = COALESCE($2, discord_id),
           discord_username = COALESCE($3, discord_username),
           discord_avatar = COALESCE($4, discord_avatar),
@@ -179,7 +183,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       );
 
       user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE id = $1', [user.id]);
-      console.log(`[getOrCreateUserByClerkId] Linked existing user to Clerk: ${userId} (${email})`);
+      console.log(`[getOrCreateUserByClerkId] Linked existing user to Clerk: ${userId} (${email}), clerk_id is now: ${user?.clerk_id}`);
     } else {
       // Crear nuevo usuario
       const id = crypto.randomUUID();

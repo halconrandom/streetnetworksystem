@@ -23,6 +23,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
+    if (!user.clerk_id) {
+      console.error('[/api/message-builder/mentions] User has no clerk_id:', user.id);
+      return res.status(500).json({ error: 'User clerk_id is missing' });
+    }
+
     const hasMessageBuilder = await hasFlag(user.id, 'message_builder');
     if (!hasMessageBuilder) {
       return res.status(403).json({ error: 'Missing required permission: message_builder' });
@@ -49,6 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!isNumericId(target_id)) {
         return res.status(400).json({ error: 'Invalid target_id' });
       }
+
+      console.log('[/api/message-builder/mentions] Creating mention for clerk_id:', user.clerk_id);
 
       const result = await execute(
         `INSERT INTO sn_messagebuilder_mentions (keyword, kind, target_id, display_name, clerk_id)
