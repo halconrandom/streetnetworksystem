@@ -161,6 +161,8 @@ export default function SettingsForm() {
             if (!res.ok) throw new Error(data.error || 'Error al guardar');
             setAvatarUrl(url);
             showNotification('success', url ? 'Avatar actualizado correctamente' : 'Avatar restaurado a Discord');
+            // Notify AppShell to refresh user data
+            window.dispatchEvent(new CustomEvent('user-avatar-updated'));
         } catch (err) {
             showNotification('error', (err as Error).message || 'Error al guardar el avatar');
             throw err;

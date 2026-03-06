@@ -76,6 +76,16 @@ function AppShell({ currentView, title, children }: AppShellProps) {
     }
   }, [isLoaded, isSignedIn, fetchDbUser]);
 
+  // Listen for avatar updates from settings
+  useEffect(() => {
+    const handleAvatarUpdate = () => {
+      fetchDbUser();
+    };
+
+    window.addEventListener('user-avatar-updated', handleAvatarUpdate);
+    return () => window.removeEventListener('user-avatar-updated', handleAvatarUpdate);
+  }, [fetchDbUser]);
+
   // Flags and role come exclusively from the DB — never from Clerk publicMetadata
   const userFlags: string[] = dbUser?.flags ?? [];
   const userRole: string = dbUser?.role ?? 'user';

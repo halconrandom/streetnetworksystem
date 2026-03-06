@@ -25,6 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       role: user.role,
       is_active: user.is_active,
       is_verified: user.is_verified,
+      avatarUrl: user.avatar_url,
       discordId: user.discord_id,
       discordUsername: user.discord_username,
       discordAvatar: user.discord_avatar,
