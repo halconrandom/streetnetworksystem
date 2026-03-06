@@ -331,7 +331,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                                     <div>
                                         <div className="flex items-center justify-between mb-1.5">
                                             <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider">Descripción</label>
-                                            <span className="text-[9px] text-white/30"># ## ### **bold** *italic* - lista</span>
+                                            <span className="text-[9px] text-white/30"># ## ### **bold** *italic* --- separador</span>
                                         </div>
                                         <textarea
                                             value={formData.description}
@@ -341,6 +341,8 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 - Nueva funcionalidad: Selector de idiomas
 - Mejora: Traducciones completas
 - Fix: Error en selector
+
+---
 
 ### Notas
 Los usuarios pueden cambiar entre EN/ES.`}
@@ -413,6 +415,7 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                                 em: ({ children }) => <em className="text-[#00ff88]">{children}</em>,
                                                                 code: ({ children }) => <code className="bg-white/10 px-1 py-0.5 rounded text-xs">{children}</code>,
                                                                 blockquote: ({ children }) => <blockquote className="border-l-2 border-white/30 pl-2 text-white/70 text-sm">{children}</blockquote>,
+                                                                hr: () => <hr className="border-t border-white/10 my-3" />,
                                                             }}
                                                         >
                                                             {formData.description}
