@@ -257,6 +257,18 @@ export const useEditorState = () => {
             } else {
                 // Revert if failed
                 setCacheItems(prev => prev.filter(p => p.id !== tempId));
+                
+                // Show error message to user
+                try {
+                    const errorData = await res.json();
+                    if (res.status === 403 && errorData.message) {
+                        alert(errorData.message);
+                    } else {
+                        console.error("Failed to save load point:", errorData.error || 'Unknown error');
+                    }
+                } catch {
+                    console.error("Failed to save load point");
+                }
             }
         } catch (err) {
             console.error("Failed to save load point", err);

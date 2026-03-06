@@ -40,6 +40,7 @@ const FLAGS = [
   { id: 'review_channels', label: 'Review Channels', premium: true },
   { id: 'comic_maker', label: 'Comic Maker', premium: true },
   { id: 'cache_drafts', label: 'Cache Drafts', premium: true },
+  { id: 'premium_access', label: 'Premium Access', premium: true },
 ];
 
 const formatDate = (value: string | null) => {
