@@ -1,5 +1,35 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - i18n System for Screenshot Editor
+
+### Nuevas Funcionalidades
+
+#### Sistema de Internacionalización (i18n)
+- **Selector de idioma**: Botones EN/ES con banderas en el TopBar
+- **Persistencia**: El idioma seleccionado se guarda en localStorage
+- **Traducciones completas**: Inglés y Español para todo el Screenshot Editor
+- **Contexto React**: `I18nProvider` y `useI18n` hook para acceso a traducciones
+
+#### Traducciones Incluidas
+- TopBar: botones, estados, mensajes
+- Review Channel Selector: gestión de canales
+- Unified Sidebar: tabs, secciones, labels
+- Herramientas: Move, Censor, Comic Maker
+- Mensajes de estado: errores, confirmaciones
+
+### Cambios Técnicos
+
+#### Archivos Nuevos
+- `src/features/screenshot-editor/i18n/translations.ts` - Diccionario de traducciones
+- `src/features/screenshot-editor/i18n/context.tsx` - Contexto React para i18n
+- `src/features/screenshot-editor/components/LanguageSelector.tsx` - Componente selector
+
+#### Archivos Modificados
+- `src/features/screenshot-editor/page.tsx` - Wrapper con I18nProvider
+- `src/features/screenshot-editor/editor/TopBar.tsx` - Integración del selector
+
+---
+
 ## [2026-03-06] - Premium Features System
 
 ### Nuevas Funcionalidades

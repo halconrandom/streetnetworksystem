@@ -2,6 +2,7 @@ import React from 'react';
 import { Undo, Redo, Save, Trash2, Bell, User, Copy, Download } from '@/components/Icons';
 import { Send, Lock } from 'lucide-react';
 import { ReviewChannelSelector, ReviewChannel } from '../components/ReviewChannelSelector';
+import { LanguageSelector } from '../components/LanguageSelector';
 
 type TopBarProps = {
     canUndo: boolean;
@@ -72,6 +73,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 >
                     <Redo size={18} />
                 </button>
+                <LanguageSelector />
             </div>
 
             <button

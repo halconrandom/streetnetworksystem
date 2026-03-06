@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import AppShell from '@/core/AppShell';
+import { I18nProvider } from './i18n/context';
 
 const ScreenshotEditorView = dynamic(
   () => import('./components/ScreenshotEditorView').then((mod) => mod.ScreenshotEditorView),
@@ -11,7 +12,11 @@ const ScreenshotEditorView = dynamic(
 export default function ScreenshotEditorPage() {
   return (
     <AppShell currentView="screenshot_editor" title="Screenshot Editor">
-      {({ flags }) => <ScreenshotEditorView userFlags={flags} />}
+      {({ flags }) => (
+        <I18nProvider>
+          <ScreenshotEditorView userFlags={flags} />
+        </I18nProvider>
+      )}
     </AppShell>
   );
 }
