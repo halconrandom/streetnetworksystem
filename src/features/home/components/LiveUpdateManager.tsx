@@ -411,6 +411,39 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                                     continue;
                                                                 }
                                                                 
+                                                                // H3 header (###)
+                                                                const h3Match = line.match(/^###\s+(.+)$/);
+                                                                if (h3Match) {
+                                                                    elements.push(
+                                                                        <h3 key={i} className="font-semibold text-white/90 text-[11px] mt-2 mb-1">
+                                                                            {h3Match[1]}
+                                                                        </h3>
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                                
+                                                                // H2 header (##)
+                                                                const h2Match = line.match(/^##\s+(.+)$/);
+                                                                if (h2Match) {
+                                                                    elements.push(
+                                                                        <h2 key={i} className="font-bold text-white text-xs mt-2 mb-1">
+                                                                            {h2Match[1]}
+                                                                        </h2>
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                                
+                                                                // H1 header (#)
+                                                                const h1Match = line.match(/^#\s+(.+)$/);
+                                                                if (h1Match) {
+                                                                    elements.push(
+                                                                        <h1 key={i} className="font-bold text-white text-sm mt-3 mb-1">
+                                                                            {h1Match[1]}
+                                                                        </h1>
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                                
                                                                 if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) {
                                                                     const text = line.slice(2, -2);
                                                                     elements.push(
