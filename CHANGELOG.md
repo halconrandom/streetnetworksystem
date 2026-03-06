@@ -1,5 +1,34 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - Markdown Renderer Mejorado
+
+### Mejoras
+
+#### MarkdownRenderer Actualizado
+- **Headers**: Soporte para `#`, `##`, `###` con estilos diferenciados
+- **Código inline**: Soporte para `` `code` `` con fondo y color
+- **Horizontal rules**: Soporte para `---` y `***`
+- **Mejor espaciado**: Ajustes en márgenes y padding
+
+#### Formato Soportado
+```markdown
+# Título grande
+## Título medio
+### Título pequeño
+
+**bold** *italic* `code`
+
+- Lista item 1
+- Lista item 2
+
+1. Numerado 1
+2. Numerado 2
+
+---
+```
+
+---
+
 ## [2026-03-06] - Live Update Manager con Discord Components V2
 
 ### Nuevas Funcionalidades

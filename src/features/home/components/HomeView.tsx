@@ -37,13 +37,17 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
     if (!content) return null;
 
     const renderText = (text: string) => {
-        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+        // Parse inline formatting: **bold**, *italic*, `code`
+        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|`[^`]+`)/g);
         return parts.map((part, i) => {
             if (part.startsWith('**') && part.endsWith('**')) {
                 return <strong key={i} className="text-white font-black">{part.slice(2, -2)}</strong>;
             }
             if (part.startsWith('*') && part.endsWith('*')) {
                 return <em key={i} className="text-terminal-accent italic">{part.slice(1, -1)}</em>;
+            }
+            if (part.startsWith('`') && part.endsWith('`')) {
+                return <code key={i} className="bg-white/10 px-1.5 py-0.5 rounded text-terminal-accent font-mono text-[11px]">{part.slice(1, -1)}</code>;
             }
             return part;
         });
@@ -58,7 +62,43 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         const trimmedLine = line.trim();
 
         if (trimmedLine === '') {
-            elements.push(<div key={`empty-${i}`} className="h-3" />);
+            elements.push(<div key={`empty-${i}`} className="h-2" />);
+            i++;
+            continue;
+        }
+
+        // Headers: ###, ##, #
+        if (trimmedLine.startsWith('### ')) {
+            elements.push(
+                <h4 key={`h3-${i}`} className="text-sm font-bold text-white/90 mb-1 mt-3">
+                    {renderText(trimmedLine.slice(4))}
+                </h4>
+            );
+            i++;
+            continue;
+        }
+        if (trimmedLine.startsWith('## ')) {
+            elements.push(
+                <h3 key={`h2-${i}`} className="text-base font-bold text-white mb-1 mt-4">
+                    {renderText(trimmedLine.slice(3))}
+                </h3>
+            );
+            i++;
+            continue;
+        }
+        if (trimmedLine.startsWith('# ')) {
+            elements.push(
+                <h2 key={`h1-${i}`} className="text-lg font-black text-white mb-2 mt-4">
+                    {renderText(trimmedLine.slice(2))}
+                </h2>
+            );
+            i++;
+            continue;
+        }
+
+        // Horizontal rule
+        if (trimmedLine === '---' || trimmedLine === '***') {
+            elements.push(<hr key={`hr-${i}`} className="border-t border-white/10 my-3" />);
             i++;
             continue;
         }
@@ -80,7 +120,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
                 if (!mU && !mO) break;
 
                 const indent = (mU || mO)![1].length;
-                if (indent < baseIndent) break; // Dedent ends list
+                if (indent < baseIndent) break;
 
                 const itemContent = (mU || mO)![3];
                 listItems.push(
@@ -102,7 +142,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
             );
         } else {
             elements.push(
-                <p key={`p-${i}`} className="mb-2 text-[11px] leading-relaxed text-terminal-muted/90">
+                <p key={`p-${i}`} className="mb-1.5 text-[11px] leading-relaxed text-terminal-muted/90">
                     {renderText(line)}
                 </p>
             );
