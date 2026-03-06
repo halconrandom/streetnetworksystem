@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Plus, Trash2, Edit2, Check, X, Hash } from 'lucide-react';
+import { useI18n } from '../i18n/context';
 
 export interface ReviewChannel {
   id: string;
@@ -16,6 +17,7 @@ type Props = {
 };
 
 export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Props) {
+  const { t } = useI18n();
   const [channels, setChannels] = useState<ReviewChannel[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [showManage, setShowManage] = useState(false);
@@ -66,7 +68,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
 
   const handleAddChannel = async () => {
     if (!formName.trim() || !formChannelId.trim()) {
-      setError('Nombre y Channel ID son requeridos');
+      setError('Name and Channel ID are required');
       return;
     }
 
@@ -82,7 +84,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al crear');
+      if (!res.ok) throw new Error(data.error || 'Error creating');
 
       setChannels(prev => [data.channel, ...prev]);
       setFormName('');
@@ -97,7 +99,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
 
   const handleUpdateChannel = async (id: string) => {
     if (!formName.trim() || !formChannelId.trim()) {
-      setError('Nombre y Channel ID son requeridos');
+      setError('Name and Channel ID are required');
       return;
     }
 
@@ -113,7 +115,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al actualizar');
+      if (!res.ok) throw new Error(data.error || 'Error updating');
 
       setChannels(prev => prev.map(c => c.id === id ? data.channel : c));
       setEditingId(null);
@@ -127,7 +129,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
   };
 
   const handleDeleteChannel = async (id: string) => {
-    if (!confirm('¿Eliminar este canal?')) return;
+    if (!confirm(t('confirmDelete'))) return;
 
     try {
       const res = await fetch(`/api/review-channels/${id}`, {
@@ -135,7 +137,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
         credentials: 'include',
       });
 
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
 
       setChannels(prev => prev.filter(c => c.id !== id));
       if (selectedChannelId === id) {
@@ -163,7 +165,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
   if (loading) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl text-white/40 text-[10px]">
-        Cargando canales...
+        {t('loadingChannels')}
       </div>
     );
   }
@@ -177,7 +179,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
       >
         <Hash size={12} className="text-terminal-accent" />
         <span className="text-white/60">
-          {selectedChannel ? selectedChannel.name : 'Seleccionar canal'}
+          {selectedChannel ? selectedChannel.name : t('selectChannel')}
         </span>
         <ChevronDown size={12} className={`text-white/40 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -191,7 +193,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
               <div className="max-h-48 overflow-y-auto">
                 {channels.length === 0 ? (
                   <div className="px-4 py-6 text-center text-white/40 text-xs">
-                    No hay canales configurados
+                    {t('noChannels')}
                   </div>
                 ) : (
                   channels.map(channel => (
@@ -233,7 +235,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
                   className="w-full flex items-center gap-2 px-4 py-3 text-white/40 hover:text-white hover:bg-white/5 transition-all text-xs"
                 >
                   <Plus size={14} />
-                  Gestionar canales
+                  {t('manageChannels')}
                 </button>
               </div>
             </>
@@ -241,7 +243,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
             <>
               {/* Manage view */}
               <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                <span className="text-xs font-bold text-white">Gestionar Canales</span>
+                <span className="text-xs font-bold text-white">{t('channels')}</span>
                 <button
                   onClick={() => {
                     setShowManage(false);
@@ -258,14 +260,14 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
                 <div className="p-4 border-b border-white/5 space-y-3">
                   <input
                     type="text"
-                    placeholder="Nombre (ej: Reviews ES)"
+                    placeholder={t('namePlaceholder')}
                     value={formName}
                     onChange={e => setFormName(e.target.value)}
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-terminal-accent/50"
                   />
                   <input
                     type="text"
-                    placeholder="Channel ID (17-20 dígitos)"
+                    placeholder={t('channelIdPlaceholder')}
                     value={formChannelId}
                     onChange={e => setFormChannelId(e.target.value.replace(/\D/g, '').slice(0, 20))}
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-terminal-accent/50 font-mono"
@@ -276,14 +278,14 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
                       onClick={cancelEdit}
                       className="flex-1 px-3 py-2 bg-white/5 rounded-lg text-xs text-white/60 hover:text-white transition-all"
                     >
-                      Cancelar
+                      {t('cancel')}
                     </button>
                     <button
                       onClick={handleAddChannel}
                       disabled={saving}
                       className="flex-1 px-3 py-2 bg-terminal-accent rounded-lg text-xs text-white font-bold hover:brightness-110 transition-all disabled:opacity-50"
                     >
-                      {saving ? 'Guardando...' : 'Añadir'}
+                      {saving ? '...' : t('save')}
                     </button>
                   </div>
                 </div>
@@ -313,14 +315,14 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
                             onClick={cancelEdit}
                             className="flex-1 px-2 py-1.5 bg-white/5 rounded text-[10px] text-white/60"
                           >
-                            Cancelar
+                            {t('cancel')}
                           </button>
                           <button
                             onClick={() => handleUpdateChannel(channel.id)}
                             disabled={saving}
                             className="flex-1 px-2 py-1.5 bg-emerald-600 rounded text-[10px] text-white font-bold disabled:opacity-50"
                           >
-                            {saving ? '...' : 'Guardar'}
+                            {saving ? '...' : t('save')}
                           </button>
                         </div>
                       </div>
@@ -362,7 +364,7 @@ export function ReviewChannelSelector({ selectedChannelId, onSelectChannel }: Pr
                     className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white/5 rounded-lg text-xs text-white/60 hover:text-white hover:bg-white/10 transition-all"
                   >
                     <Plus size={14} />
-                    Añadir canal
+                    {t('addChannel')}
                   </button>
                 </div>
               )}

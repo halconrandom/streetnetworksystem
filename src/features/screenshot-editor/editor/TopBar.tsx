@@ -3,6 +3,7 @@ import { Undo, Redo, Save, Trash2, Bell, User, Copy, Download } from '@/componen
 import { Send, Lock } from 'lucide-react';
 import { ReviewChannelSelector, ReviewChannel } from '../components/ReviewChannelSelector';
 import { LanguageSelector } from '../components/LanguageSelector';
+import { useI18n } from '../i18n/context';
 
 type TopBarProps = {
     canUndo: boolean;
@@ -32,6 +33,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     selectedChannelId = null, onSelectChannel,
     canUseReviewChannels = false, canUseCacheDrafts = false
 }) => {
+    const { t } = useI18n();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleImportClick = () => {
@@ -81,7 +83,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 className="flex items-center gap-2 text-white/40 hover:text-white text-[11px] font-black uppercase tracking-widest transition-all"
             >
                 <Trash2 size={14} />
-                Clear All
+                {t('clearAll')}
             </button>
 
             <div className="h-6 w-[1px] bg-white/5" />
@@ -99,14 +101,14 @@ export const TopBar: React.FC<TopBarProps> = ({
                     className="flex items-center gap-2 px-3 py-2 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
                     title="Import Workspace JSON"
                 >
-                    Import
+                    {t('import')}
                 </button>
                 <button
                     onClick={onExportWorkspace}
                     className="flex items-center gap-2 px-3 py-2 bg-white/5 text-white/40 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all"
                     title="Export Workspace JSON"
                 >
-                    Export
+                    {t('export')}
                 </button>
             </div>
 
@@ -120,16 +122,16 @@ export const TopBar: React.FC<TopBarProps> = ({
                         title="Save to Cache (Miniaturas)"
                     >
                         <Save size={14} />
-                        Cache
+                        {t('cache')}
                     </button>
                 ) : (
                     <button
                         disabled
                         className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                        title="Premium Feature"
+                        title={t('premiumFeature')}
                     >
                         <Lock size={12} />
-                        Cache
+                        {t('cache')}
                     </button>
                 )}
                 <button
@@ -138,7 +140,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     title="Save as PNG"
                 >
                     <Download size={14} />
-                    Files
+                    {t('files')}
                 </button>
                 <button
                     onClick={onCopyScreenshot}
@@ -146,7 +148,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     title="Copy to Clipboard"
                 >
                     <Copy size={12} />
-                    Copy
+                    {t('copy')}
                 </button>
             </div>
 
@@ -163,12 +165,12 @@ export const TopBar: React.FC<TopBarProps> = ({
                                 {/* Status toast */}
                                 {submitStatus === 'success' && (
                                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 animate-fade-in">
-                                        ✅ Enviado
+                                        ✅ {t('sent')}
                                     </span>
                                 )}
                                 {submitStatus === 'error' && (
                                     <span className="text-[10px] font-black uppercase tracking-widest text-red-400 animate-fade-in" title={submitError ?? ''}>
-                                        ❌ Error
+                                        ❌ {t('error')}
                                     </span>
                                 )}
                                 <button
@@ -181,19 +183,19 @@ export const TopBar: React.FC<TopBarProps> = ({
                                                 ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
                                                 : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
                                         }`}
-                                    title={!selectedChannelId ? 'Selecciona un canal primero' : 'Enviar para revisión en Discord'}
+                                    title={!selectedChannelId ? t('selectChannel') : 'Enviar para revisión en Discord'}
                                 >
                                     {isSubmitting ? (
                                         <>
                                             <svg className="animate-spin" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                                                 <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                                             </svg>
-                                            Enviando...
+                                            {t('sending')}
                                         </>
                                     ) : (
                                         <>
                                             <Send size={12} />
-                                            Revisión
+                                            {t('review')}
                                         </>
                                     )}
                                 </button>
@@ -204,18 +206,18 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 disabled
                                 className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                                title="Premium Feature"
+                                title={t('premiumFeature')}
                             >
                                 <Lock size={12} />
-                                Review Channels
+                                {t('reviewChannels')}
                             </button>
                             <button
                                 disabled
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/5 cursor-not-allowed"
-                                title="Premium Feature"
+                                title={t('premiumFeature')}
                             >
                                 <Lock size={12} />
-                                Revisión
+                                {t('review')}
                             </button>
                         </div>
                     )}
