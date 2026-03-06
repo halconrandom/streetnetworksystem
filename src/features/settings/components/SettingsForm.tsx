@@ -20,7 +20,6 @@ import {
     Activity,
     Terminal,
     ChevronRight,
-    Hash,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUser, useClerk } from '@clerk/nextjs';
@@ -33,12 +32,12 @@ import PremiumSelect from '@/shared/ui/PremiumSelect';
 
 type Tab = 'profile' | 'notifications' | 'security' | 'integrations' | 'privacy';
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+const TABS: { id: Tab; label: string; icon: React.ElementType; disabled?: boolean }[] = [
     { id: 'profile', label: 'Perfil', icon: User },
-    { id: 'notifications', label: 'Notificaciones', icon: Bell },
+    { id: 'notifications', label: 'Notificaciones', icon: Bell, disabled: true },
     { id: 'security', label: 'Seguridad', icon: Shield },
     { id: 'integrations', label: 'Integraciones', icon: MessageSquare },
-    { id: 'privacy', label: 'Privacidad', icon: Eye },
+    { id: 'privacy', label: 'Privacidad', icon: Eye, disabled: true },
 ];
 
 interface Notification {
@@ -82,8 +81,6 @@ export default function SettingsForm() {
     });
 
     // Discord integration state
-    const [reviewChannelId, setReviewChannelId] = useState('');
-    const [savingChannel, setSavingChannel] = useState(false);
     const [discordData, setDiscordData] = useState<{
         id: string | null;
         username: string | null;
@@ -119,7 +116,6 @@ export default function SettingsForm() {
                         username: data.discordUsername || null,
                         avatar: data.discordAvatar || null,
                     });
-                    setReviewChannelId(data.discord_review_channel_id || '');
                     setAvatarUrl(data.avatarUrl || null);
                 }
             } catch { /* non-fatal */ }
@@ -163,25 +159,6 @@ export default function SettingsForm() {
             showNotification('error', (err as Error).message || 'Error al guardar');
         } finally {
             setSaving(false);
-        }
-    };
-
-    const handleSaveReviewChannel = async () => {
-        setSavingChannel(true);
-        try {
-            const res = await fetch('/api/users/me', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ discord_review_channel_id: reviewChannelId.trim() || null }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Error al guardar');
-            showNotification('success', 'Canal de revisión actualizado');
-        } catch (err) {
-            showNotification('error', (err as Error).message || 'Error al guardar');
-        } finally {
-            setSavingChannel(false);
         }
     };
 
@@ -253,22 +230,31 @@ export default function SettingsForm() {
                     {TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
+                        const isDisabled = tab.disabled;
                         return (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => !isDisabled && setActiveTab(tab.id)}
+                                disabled={isDisabled}
                                 className={`
                                     relative flex items-center gap-2 px-4 py-3 text-xs font-medium uppercase tracking-wider
-                                    transition-all duration-200 cursor-pointer
-                                    ${isActive
-                                        ? 'text-terminal-accent'
-                                        : 'text-terminal-muted hover:text-white'
+                                    transition-all duration-200
+                                    ${isDisabled
+                                        ? 'text-terminal-muted/30 cursor-not-allowed'
+                                        : isActive
+                                            ? 'text-terminal-accent cursor-pointer'
+                                            : 'text-terminal-muted hover:text-white cursor-pointer'
                                     }
                                 `}
                             >
                                 <Icon size={14} />
                                 <span className="hidden sm:inline">{tab.label}</span>
-                                {isActive && (
+                                {isDisabled && (
+                                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 uppercase tracking-wider">
+                                        Pronto
+                                    </span>
+                                )}
+                                {isActive && !isDisabled && (
                                     <motion.div
                                         layoutId="tab-indicator"
                                         className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-accent shadow-[0_0_8px_rgba(255,0,60,0.5)]"
@@ -546,21 +532,6 @@ export default function SettingsForm() {
                                             }`}>
                                             {discordData.id ? 'Conectado' : 'Desconectado'}
                                         </span>
-                                    </div>
-
-                                    <SettingsDivider />
-
-                                    {/* Review Channel */}
-                                    <div className="mt-4">
-                                        <PremiumInput
-                                            label="Review Channel ID"
-                                            icon={Hash}
-                                            placeholder="ID del canal de Discord..."
-                                            value={reviewChannelId}
-                                            onChange={(e) => setReviewChannelId(e.target.value)}
-                                            className="font-mono"
-                                            error="Canal de destino para notificaciones de revisión automática"
-                                        />
                                     </div>
                                 </SettingsSection>
 
