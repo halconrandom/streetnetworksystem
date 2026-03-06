@@ -375,7 +375,7 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                 </div>
 
                                 {/* Preview Panel */}
-                                <div className="w-96 border-l border-white/5 bg-[#2b2d31] flex flex-col">
+                                <div className="w-[525px] border-l border-white/5 bg-[#2b2d31] flex flex-col">
                                     <div className="p-3 border-b border-white/5 flex items-center gap-2">
                                         <Eye size={12} className="text-white/40" />
                                         <span className="text-[10px] font-bold uppercase text-white/50 tracking-wider">Vista Previa</span>
