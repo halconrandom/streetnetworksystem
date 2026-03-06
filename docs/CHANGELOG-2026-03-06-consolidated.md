@@ -13,6 +13,16 @@
 
 ---
 
+## UI - Live Update Manager
+
+### Mejoras en el Modal
+- **Modal más amplio:** De `max-w-6xl` a `max-w-[1340px]` para mejor visualización
+- **Panel de preview más ancho:** De `w-80` a `w-[420px]` para mostrar contenido completo
+- **Textarea optimizado:** Altura reducida de `h-48` a `h-40` para mejor balance
+- **Espaciado compacto:** Mejor legibilidad en la vista previa de Discord
+
+---
+
 ## Permisos de Usuario
 
 ### Flags por Defecto
@@ -93,6 +103,7 @@ Las tablas `sn_messagebuilder_webhook_targets`, `sn_messagebuilder_templates` y 
 |---------|--------|
 | `pages/_document.tsx` | Título y favicon |
 | `src/core/Sidebar.tsx` | Logo del sidebar |
+| `src/features/home/components/LiveUpdateManager.tsx` | UI del modal de actualizaciones |
 | `lib/clerk-sync.ts` | Flags default, COALESCE en UPDATE |
 | `migrations/002_message_builder_user_id.sql` | Columna clerk_id |
 | `pages/api/message-builder/webhooks.ts` | Filtrado por clerk_id |
