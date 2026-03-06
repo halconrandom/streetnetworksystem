@@ -62,15 +62,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(201).json(normalizeTemplate(result[0]));
     }
 
-    // DELETE - Delete template (only user's own)
+    // DELETE - Delete template (only user's own or legacy)
     if (req.method === 'DELETE') {
       const { id } = req.query;
       if (!id) {
         return res.status(400).json({ error: 'Template ID required' });
       }
 
+      // Allow delete if: clerk_id matches OR clerk_id is NULL (legacy records)
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_templates WHERE id = $1 AND clerk_id = $2 RETURNING id`,
+        `DELETE FROM sn_messagebuilder_templates 
+         WHERE id = $1 AND (clerk_id = $2 OR clerk_id IS NULL) 
+         RETURNING id`,
         [id, user.clerk_id]
       );
 
