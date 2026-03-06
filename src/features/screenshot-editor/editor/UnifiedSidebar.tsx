@@ -100,6 +100,8 @@ type UnifiedSidebarProps = {
     // Redact Tool
     redactIntensity: number;
     onRedactIntensityChange: (value: number) => void;
+    // Premium features
+    canUseComicMaker?: boolean;
 };
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -163,7 +165,8 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     activeCropOverlayId,
     onSetActiveCropOverlayId,
     redactIntensity,
-    onRedactIntensityChange
+    onRedactIntensityChange,
+    canUseComicMaker = false
 }) => {
     const [imageFileName, setImageFileName] = useState('');
     const [chatFileName, setChatFileName] = useState('');
@@ -218,7 +221,10 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
         { id: 'textEditor', icon: Type, label: 'Chat Boxes' },
         { id: 'move', icon: Move, label: 'Move Tool', isTool: true },
         { id: 'redact', icon: Shield, label: 'Censor Tool', isTool: true },
-        { id: 'stripBuilder', icon: Layers, label: 'Comic Maker', isAction: true, onClick: () => onTogglePanel('stripBuilder') },
+        ...(canUseComicMaker 
+            ? [{ id: 'stripBuilder', icon: Layers, label: 'Comic Maker', isAction: true as const, disabled: false as const, onClick: () => onTogglePanel('stripBuilder') }]
+            : [{ id: 'stripBuilder', icon: Layers, label: 'Comic Maker (Premium)', isAction: true as const, disabled: true as const, onClick: () => {} }]
+        ),
     ];
 
     const [activeTab, setActiveTab] = useState<'source' | 'textEditor'>('source');
@@ -243,6 +249,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                         <button
                             key={item.id}
                             onClick={() => {
+                                if (item.disabled) return;
                                 if (item.isAction) {
                                     item.onClick?.();
                                 } else if (item.isTool) {
@@ -251,14 +258,24 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                     setActiveTab(item.id as any);
                                 }
                             }}
-                            className={`group relative p-3 rounded-xl transition-all duration-300 ${isActive || (item.id === 'stripBuilder' && visiblePanels.stripBuilder)
-                                ? 'bg-[#FF3B3B] text-white shadow-[0_0_20px_rgba(255,59,59,0.3)]'
-                                : 'text-white/20 hover:text-white hover:bg-white/5'
+                            className={`group relative p-3 rounded-xl transition-all duration-300 ${item.disabled
+                                ? 'text-white/10 cursor-not-allowed'
+                                : isActive || (item.id === 'stripBuilder' && visiblePanels.stripBuilder)
+                                    ? 'bg-[#FF3B3B] text-white shadow-[0_0_20px_rgba(255,59,59,0.3)]'
+                                    : 'text-white/20 hover:text-white hover:bg-white/5'
                                 }`}
                             title={item.label}
                         >
                             <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                            {isActive && !item.isAction && (
+                            {item.disabled && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-black/50 rounded-xl" />
+                                    <svg className="relative w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-10V4a2 2 0 00-2-2H8a2 2 0 00-2 2v1m8 0V4a2 2 0 012 2h2a2 2 0 012 2v1m-6 0a4 4 0 00-4 4v4a2 2 0 002 2h4a2 2 0 002-2v-4a4 4 0 00-4-4z" />
+                                    </svg>
+                                </div>
+                            )}
+                            {isActive && !item.isAction && !item.disabled && (
                                 <div className="absolute left-[-1px] top-1/4 bottom-1/4 w-1 bg-white rounded-r-full shadow-[0_0_10px_white]" />
                             )}
                         </button>

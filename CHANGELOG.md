@@ -1,5 +1,31 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - Premium Features System
+
+### Nuevas Funcionalidades
+
+#### Sistema de Flags Premium
+- **Flags premium**: Nuevas flags para funcionalidades especiales que requieren activación manual por admin
+- **Review Channels (`review_channels`)**: Gestión de canales de revisión de Discord
+- **Comic Maker (`comic_maker`)**: Herramienta de creación de cómics
+- **Cache Drafts (`cache_drafts`)**: Guardar borradores en cache
+- **Indicador visual**: Candado sobre botones deshabilitados con tooltip "Premium feature - Donate to unlock"
+
+#### Panel de Admin
+- **Flags premium diferenciadas**: Las flags premium muestran badge "Premium" en el panel de usuarios
+- **Activación individual**: El admin puede activar cada flag por usuario
+
+### Cambios Técnicos
+
+#### Archivos Modificados
+- `src/features/admin/components/AdminPanelView.tsx` - Añadidas flags premium con indicador
+- `src/features/screenshot-editor/page.tsx` - Pasa flags al componente
+- `src/features/screenshot-editor/components/ScreenshotEditorView.tsx` - Condicionaliza funcionalidades
+- `src/features/screenshot-editor/editor/TopBar.tsx` - Botones con candado para features premium
+- `src/features/screenshot-editor/editor/UnifiedSidebar.tsx` - Comic Maker condicional
+
+---
+
 ## [2026-03-06] - Review Channels System
 
 ### Nuevas Funcionalidades

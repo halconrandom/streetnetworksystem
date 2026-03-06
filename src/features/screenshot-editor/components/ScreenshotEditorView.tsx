@@ -12,10 +12,20 @@ import { useCanvasPainter } from '../editor/hooks/useCanvasPainter';
 import { useEditorState } from '../editor/hooks/useEditorState';
 import { RightSidebar } from '../editor/RightSidebar';
 import { ReviewChannel } from './ReviewChannelSelector';
+import { Lock } from 'lucide-react';
 
-export const ScreenshotEditorView: React.FC = () => {
+type ScreenshotEditorViewProps = {
+  userFlags: string[];
+};
+
+export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ userFlags }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+
+  // ── Premium feature flags ──────────────────────────────────────────
+  const canUseReviewChannels = userFlags.includes('review_channels');
+  const canUseComicMaker = userFlags.includes('comic_maker');
+  const canUseCacheDrafts = userFlags.includes('cache_drafts');
 
   // ── Screenshot Review submit state ──────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -460,6 +470,8 @@ export const ScreenshotEditorView: React.FC = () => {
             submitError={submitError}
             selectedChannelId={selectedChannel?.id ?? null}
             onSelectChannel={setSelectedChannel}
+            canUseReviewChannels={canUseReviewChannels}
+            canUseCacheDrafts={canUseCacheDrafts}
           />
         )}
 
@@ -535,6 +547,7 @@ export const ScreenshotEditorView: React.FC = () => {
                 redactIntensity={redactIntensity}
                 onRedactIntensityChange={setRedactIntensity}
                 onRenameCache={actions.renameCacheItem}
+                canUseComicMaker={canUseComicMaker}
               />
             </div>
           )}

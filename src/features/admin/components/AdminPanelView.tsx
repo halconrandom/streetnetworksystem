@@ -36,6 +36,10 @@ const FLAGS = [
   { id: 'audit_logs', label: 'Audit Logs' },
   { id: 'nexus', label: 'The Nexus' },
   { id: 'vault', label: 'The Vault' },
+  // Premium features (require manual activation by admin)
+  { id: 'review_channels', label: 'Review Channels', premium: true },
+  { id: 'comic_maker', label: 'Comic Maker', premium: true },
+  { id: 'cache_drafts', label: 'Cache Drafts', premium: true },
 ];
 
 const formatDate = (value: string | null) => {

@@ -11,7 +11,7 @@ const ScreenshotEditorView = dynamic(
 export default function ScreenshotEditorPage() {
   return (
     <AppShell currentView="screenshot_editor" title="Screenshot Editor">
-      <ScreenshotEditorView />
+      {({ flags }) => <ScreenshotEditorView userFlags={flags} />}
     </AppShell>
   );
 }

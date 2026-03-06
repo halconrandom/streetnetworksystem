@@ -1,6 +1,6 @@
 import React from 'react';
 import { Undo, Redo, Save, Trash2, Bell, User, Copy, Download } from '@/components/Icons';
-import { Send } from 'lucide-react';
+import { Send, Lock } from 'lucide-react';
 import { ReviewChannelSelector, ReviewChannel } from '../components/ReviewChannelSelector';
 
 type TopBarProps = {
@@ -20,12 +20,16 @@ type TopBarProps = {
     submitError?: string | null;
     selectedChannelId?: string | null;
     onSelectChannel?: (channel: ReviewChannel | null) => void;
+    // Premium feature flags
+    canUseReviewChannels?: boolean;
+    canUseCacheDrafts?: boolean;
 };
 
 export const TopBar: React.FC<TopBarProps> = ({
     canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear, onExportWorkspace, onImportWorkspace,
     onConfirm, isSubmitting = false, submitStatus = 'idle', submitError = null,
-    selectedChannelId = null, onSelectChannel
+    selectedChannelId = null, onSelectChannel,
+    canUseReviewChannels = false, canUseCacheDrafts = false
 }) => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -107,14 +111,25 @@ export const TopBar: React.FC<TopBarProps> = ({
             <div className="h-6 w-[1px] bg-white/5" />
 
             <div className="flex items-center gap-2">
-                <button
-                    onClick={onSaveToCache}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/60 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95"
-                    title="Save to Cache (Miniaturas)"
-                >
-                    <Save size={14} />
-                    Cache
-                </button>
+                {canUseCacheDrafts ? (
+                    <button
+                        onClick={onSaveToCache}
+                        className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/60 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95"
+                        title="Save to Cache (Miniaturas)"
+                    >
+                        <Save size={14} />
+                        Cache
+                    </button>
+                ) : (
+                    <button
+                        disabled
+                        className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                        title="Premium feature - Donate to unlock"
+                    >
+                        <Lock size={12} />
+                        Cache
+                    </button>
+                )}
                 <button
                     onClick={onSaveToFile}
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/60 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all active:scale-95"
@@ -136,49 +151,72 @@ export const TopBar: React.FC<TopBarProps> = ({
             {onConfirm && onSelectChannel && (
                 <>
                     <div className="h-6 w-[1px] bg-white/5" />
-                    <ReviewChannelSelector
-                        selectedChannelId={selectedChannelId}
-                        onSelectChannel={onSelectChannel}
-                    />
-                    <div className="flex items-center gap-3">
-                        {/* Status toast */}
-                        {submitStatus === 'success' && (
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 animate-fade-in">
-                                ✅ Enviado
-                            </span>
-                        )}
-                        {submitStatus === 'error' && (
-                            <span className="text-[10px] font-black uppercase tracking-widest text-red-400 animate-fade-in" title={submitError ?? ''}>
-                                ❌ Error
-                            </span>
-                        )}
-                        <button
-                            onClick={onConfirm}
-                            disabled={isSubmitting || !selectedChannelId}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95 border
-                                ${isSubmitting
-                                    ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
-                                    : !selectedChannelId
-                                        ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
-                                        : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
-                                }`}
-                            title={!selectedChannelId ? 'Selecciona un canal primero' : 'Enviar para revisión en Discord'}
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <svg className="animate-spin" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-                                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                                    </svg>
-                                    Enviando...
-                                </>
-                            ) : (
-                                <>
-                                    <Send size={12} />
-                                    Revisión
-                                </>
-                            )}
-                        </button>
-                    </div>
+                    {canUseReviewChannels ? (
+                        <>
+                            <ReviewChannelSelector
+                                selectedChannelId={selectedChannelId}
+                                onSelectChannel={onSelectChannel}
+                            />
+                            <div className="flex items-center gap-3">
+                                {/* Status toast */}
+                                {submitStatus === 'success' && (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 animate-fade-in">
+                                        ✅ Enviado
+                                    </span>
+                                )}
+                                {submitStatus === 'error' && (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-red-400 animate-fade-in" title={submitError ?? ''}>
+                                        ❌ Error
+                                    </span>
+                                )}
+                                <button
+                                    onClick={onConfirm}
+                                    disabled={isSubmitting || !selectedChannelId}
+                                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95 border
+                                        ${isSubmitting
+                                            ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
+                                            : !selectedChannelId
+                                                ? 'bg-white/5 text-white/30 border-white/5 cursor-not-allowed'
+                                                : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    title={!selectedChannelId ? 'Selecciona un canal primero' : 'Enviar para revisión en Discord'}
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <svg className="animate-spin" width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                            </svg>
+                                            Enviando...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={12} />
+                                            Revisión
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <button
+                                disabled
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                                title="Premium feature - Donate to unlock"
+                            >
+                                <Lock size={12} />
+                                Review Channels
+                            </button>
+                            <button
+                                disabled
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/5 cursor-not-allowed"
+                                title="Premium feature - Donate to unlock"
+                            >
+                                <Lock size={12} />
+                                Revisión
+                            </button>
+                        </div>
+                    )}
                 </>
             )}
 
