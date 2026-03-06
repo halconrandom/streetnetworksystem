@@ -28,12 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Missing required permission: message_builder' });
     }
 
-    // GET - List mentions
+    // GET - List mentions (only user's own)
     if (req.method === 'GET') {
       const result = await query<any>(
         `SELECT id, keyword, kind, target_id, display_name, created_at, updated_at
          FROM sn_messagebuilder_mentions
-         ORDER BY created_at DESC`
+         WHERE user_id = $1 OR user_id IS NULL
+         ORDER BY created_at DESC`,
+        [user.id]
       );
       return res.json(result.map(normalizeMention));
     }
@@ -49,16 +51,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `INSERT INTO sn_messagebuilder_mentions (keyword, kind, target_id, display_name)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO sn_messagebuilder_mentions (keyword, kind, target_id, display_name, user_id)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id, keyword, kind, target_id, display_name, created_at, updated_at`,
-        [keyword, kind, String(target_id).trim(), display_name || null]
+        [keyword, kind, String(target_id).trim(), display_name || null, user.id]
       );
 
       return res.status(201).json(normalizeMention(result[0]));
     }
 
-    // DELETE - Delete mention
+    // DELETE - Delete mention (only user's own)
     if (req.method === 'DELETE') {
       const { id } = req.query;
       if (!id) {
@@ -66,12 +68,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_mentions WHERE id = $1 RETURNING id`,
-        [id]
+        `DELETE FROM sn_messagebuilder_mentions WHERE id = $1 AND user_id = $2 RETURNING id`,
+        [id, user.id]
       );
 
       if (!result || result.length === 0) {
-        return res.status(404).json({ error: 'Not found' });
+        return res.status(404).json({ error: 'Not found or not authorized' });
       }
 
       return res.json({ ok: true });

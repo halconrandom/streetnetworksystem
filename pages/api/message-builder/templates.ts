@@ -26,12 +26,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'Missing required permission: message_builder' });
     }
 
-    // GET - List templates
+    // GET - List templates (only user's own)
     if (req.method === 'GET') {
       const result = await query<any>(
         `SELECT id, name, data, created_at, updated_at
          FROM sn_messagebuilder_templates
-         ORDER BY created_at DESC`
+         WHERE user_id = $1 OR user_id IS NULL
+         ORDER BY created_at DESC`,
+        [user.id]
       );
       return res.json(result.map(normalizeTemplate));
     }
@@ -44,16 +46,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `INSERT INTO sn_messagebuilder_templates (name, data)
-         VALUES ($1, $2::jsonb)
+        `INSERT INTO sn_messagebuilder_templates (name, data, user_id)
+         VALUES ($1, $2::jsonb, $3)
          RETURNING id, name, data, created_at, updated_at`,
-        [name, JSON.stringify(data)]
+        [name, JSON.stringify(data), user.id]
       );
 
       return res.status(201).json(normalizeTemplate(result[0]));
     }
 
-    // DELETE - Delete template
+    // DELETE - Delete template (only user's own)
     if (req.method === 'DELETE') {
       const { id } = req.query;
       if (!id) {
@@ -61,12 +63,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_templates WHERE id = $1 RETURNING id`,
-        [id]
+        `DELETE FROM sn_messagebuilder_templates WHERE id = $1 AND user_id = $2 RETURNING id`,
+        [id, user.id]
       );
 
       if (!result || result.length === 0) {
-        return res.status(404).json({ error: 'Not found' });
+        return res.status(404).json({ error: 'Not found or not authorized' });
       }
 
       return res.json({ ok: true });
