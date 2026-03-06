@@ -34,4 +34,7 @@ out/
 # Build info
 tsconfig.tsbuildinfo
 
+# Documentation (internal)
+documentacion/
+
 .blackboxcli/
