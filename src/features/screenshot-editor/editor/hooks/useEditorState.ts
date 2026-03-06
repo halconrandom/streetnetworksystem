@@ -4,8 +4,6 @@ import type { CacheItem, ChatLine, EditorSettings, OverlayImage, RedactionArea, 
 import { buildLinesFromBlocks, getCombinedText } from '../utils';
 import { useHistory } from './useHistory';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_PLATFORM_API || 'http://localhost:8788';
-
 export type EditorSnapshot = {
     textBlocks: TextBlock[];
     overlays: OverlayImage[];
@@ -170,12 +168,12 @@ export const useEditorState = () => {
     useEffect(() => {
         const fetchCache = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, { credentials: 'omit' }); // Actually needs credentials include to work with cookies
+                const res = await fetch('/api/screenshot-editor/load-points', { credentials: 'omit' }); // Actually needs credentials include to work with cookies
             } catch (err) { }
         };
         const fetchCacheActual = async () => {
             try {
-                const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, { credentials: 'include' });
+                const res = await fetch('/api/screenshot-editor/load-points', { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
 
@@ -243,7 +241,7 @@ export const useEditorState = () => {
         setCacheItems(prev => [item, ...prev]);
 
         try {
-            const res = await fetch(`${API_BASE_URL}/screenshot-editor/load-points`, {
+            const res = await fetch('/api/screenshot-editor/load-points', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -322,7 +320,7 @@ export const useEditorState = () => {
         setCacheItems(prev => prev.filter((item) => item.id !== id));
         if (id.startsWith('temp-')) return; // Not yet persisted
         try {
-            await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
+            await fetch(`/api/screenshot-editor/load-points/${id}`, {
                 method: 'DELETE',
                 credentials: 'include'
             });
@@ -335,7 +333,7 @@ export const useEditorState = () => {
         setCacheItems(prev => prev.map(item => item.id === id ? { ...item, name } : item));
         if (id.startsWith('temp-')) return; // Not yet persisted
         try {
-            await fetch(`${API_BASE_URL}/screenshot-editor/load-points/${id}`, {
+            await fetch(`/api/screenshot-editor/load-points/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

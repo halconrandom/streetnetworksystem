@@ -1,5 +1,44 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - Review Channels System
+
+### Nuevas Funcionalidades
+
+#### Sistema de Múltiples Canales de Revisión
+- **Gestión de canales**: Los usuarios pueden crear, editar y eliminar múltiples canales de revisión de Discord
+- **Selector en Screenshot Editor**: Dropdown en el TopBar para seleccionar el canal antes de enviar
+- **Etiquetas personalizadas**: Cada canal tiene un nombre/etiqueta para identificarlo fácilmente
+- **Validación de Channel ID**: Solo se aceptan IDs válidos de Discord (17-20 dígitos)
+- **Persistencia en DB**: Los canales se guardan en la nueva tabla `sn_review_channels`
+
+#### API de Review Channels
+- **GET /api/review-channels**: Lista todos los canales del usuario
+- **POST /api/review-channels**: Crea un nuevo canal
+- **PUT /api/review-channels/[id]**: Actualiza un canal existente
+- **DELETE /api/review-channels/[id]**: Elimina un canal
+
+### Correcciones de Bugs
+
+#### Screenshot Editor
+- **Error de fetch corregido**: Las llamadas a API ahora usan rutas locales `/api/...` en lugar de `API_BASE_URL` externo
+- **Eliminada variable no usada**: Removido `API_BASE_URL` que causaba errores de conexión
+
+### Cambios Técnicos
+
+#### Archivos Nuevos
+- `pages/api/review-channels/index.ts` - API para listar y crear canales
+- `pages/api/review-channels/[id].ts` - API para actualizar y eliminar canales
+- `src/features/screenshot-editor/components/ReviewChannelSelector.tsx` - Componente de selector de canales
+- `migrations/add_review_channels_table.sql` - Migración para crear la tabla
+
+#### Archivos Modificados
+- `src/features/screenshot-editor/editor/hooks/useEditorState.ts` - Corregidas URLs de API
+- `src/features/screenshot-editor/editor/TopBar.tsx` - Integrado selector de canales
+- `src/features/screenshot-editor/components/ScreenshotEditorView.tsx` - Estado del canal seleccionado
+- `pages/api/screenshot-editor/submit-review.ts` - Usa channelId del body en lugar de DB
+
+---
+
 ## [2026-03-05] - Settings & Avatar System
 
 ### Nuevas Funcionalidades

@@ -19,29 +19,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { imageDataUrl, fileName } = req.body || {};
+    const { imageDataUrl, fileName, channelId } = req.body || {};
 
     if (!imageDataUrl || typeof imageDataUrl !== 'string') {
       return res.status(400).json({ error: 'imageDataUrl es requerido.' });
     }
 
-    // Fetch the user's configured review channel
-    let channelId;
-    try {
-      const userResult = await queryOne<any>(
-        `SELECT discord_review_channel_id FROM sn_users WHERE id = $1`,
-        [currentUser.id]
-      );
-      channelId = userResult?.discord_review_channel_id;
-    } catch (err) {
-      console.error('[SUBMIT_REVIEW] DB error fetching channel:', err);
-      return res.status(500).json({ error: 'Error al obtener la configuración del canal.' });
+    if (!channelId || typeof channelId !== 'string') {
+      return res.status(400).json({ error: 'channelId es requerido.' });
     }
 
-    if (!channelId) {
-      return res.status(400).json({
-        error: 'No tienes un canal de revisión configurado. Ve a Configuración y añade el ID del canal de Discord.',
-      });
+    // Verify the channel belongs to the user
+    try {
+      const channelResult = await queryOne<any>(
+        `SELECT id FROM sn_review_channels WHERE channel_id = $1 AND user_id = $2`,
+        [channelId, currentUser.id]
+      );
+      if (!channelResult) {
+        return res.status(403).json({ error: 'No tienes permiso para usar este canal.' });
+      }
+    } catch (err) {
+      console.error('[SUBMIT_REVIEW] DB error verifying channel:', err);
+      return res.status(500).json({ error: 'Error al verificar el canal.' });
     }
 
     // Fetch the review role for the guild that owns this channel

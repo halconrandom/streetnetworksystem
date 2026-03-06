@@ -11,6 +11,7 @@ import { buildLinesFromBlocks, sanitizeChatInput } from '../editor/utils';
 import { useCanvasPainter } from '../editor/hooks/useCanvasPainter';
 import { useEditorState } from '../editor/hooks/useEditorState';
 import { RightSidebar } from '../editor/RightSidebar';
+import { ReviewChannel } from './ReviewChannelSelector';
 
 export const ScreenshotEditorView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -21,6 +22,9 @@ export const ScreenshotEditorView: React.FC = () => {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // ── Review Channel state ──────────────────────────────────────────
+  const [selectedChannel, setSelectedChannel] = useState<ReviewChannel | null>(null);
 
   const {
     state,
@@ -129,7 +133,7 @@ export const ScreenshotEditorView: React.FC = () => {
 
   const handleConfirmReview = useCallback(async () => {
     const canvas = canvasRef.current;
-    if (!canvas || isSubmitting) return;
+    if (!canvas || isSubmitting || !selectedChannel) return;
 
     setIsSubmitting(true);
     setSubmitStatus('idle');
@@ -148,7 +152,7 @@ export const ScreenshotEditorView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ imageDataUrl, fileName }),
+        body: JSON.stringify({ imageDataUrl, fileName, channelId: selectedChannel.channel_id }),
       });
 
       const data = await res.json();
@@ -168,7 +172,7 @@ export const ScreenshotEditorView: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [canvasRef, imageName, isSubmitting]);
+  }, [canvasRef, imageName, isSubmitting, selectedChannel]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -454,6 +458,8 @@ export const ScreenshotEditorView: React.FC = () => {
             isSubmitting={isSubmitting}
             submitStatus={submitStatus}
             submitError={submitError}
+            selectedChannelId={selectedChannel?.id ?? null}
+            onSelectChannel={setSelectedChannel}
           />
         )}
 

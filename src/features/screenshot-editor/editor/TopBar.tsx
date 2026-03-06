@@ -1,6 +1,7 @@
 import React from 'react';
 import { Undo, Redo, Save, Trash2, Bell, User, Copy, Download } from '@/components/Icons';
 import { Send } from 'lucide-react';
+import { ReviewChannelSelector, ReviewChannel } from '../components/ReviewChannelSelector';
 
 type TopBarProps = {
     canUndo: boolean;
@@ -17,11 +18,14 @@ type TopBarProps = {
     isSubmitting?: boolean;
     submitStatus?: 'idle' | 'success' | 'error';
     submitError?: string | null;
+    selectedChannelId?: string | null;
+    onSelectChannel?: (channel: ReviewChannel | null) => void;
 };
 
 export const TopBar: React.FC<TopBarProps> = ({
     canUndo, canRedo, onUndo, onRedo, onSaveToCache, onSaveToFile, onCopyScreenshot, onClear, onExportWorkspace, onImportWorkspace,
-    onConfirm, isSubmitting = false, submitStatus = 'idle', submitError = null
+    onConfirm, isSubmitting = false, submitStatus = 'idle', submitError = null,
+    selectedChannelId = null, onSelectChannel
 }) => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -129,9 +133,13 @@ export const TopBar: React.FC<TopBarProps> = ({
                 </button>
             </div>
 
-            {onConfirm && (
+            {onConfirm && onSelectChannel && (
                 <>
                     <div className="h-6 w-[1px] bg-white/5" />
+                    <ReviewChannelSelector
+                        selectedChannelId={selectedChannelId}
+                        onSelectChannel={onSelectChannel}
+                    />
                     <div className="flex items-center gap-3">
                         {/* Status toast */}
                         {submitStatus === 'success' && (
@@ -146,13 +154,15 @@ export const TopBar: React.FC<TopBarProps> = ({
                         )}
                         <button
                             onClick={onConfirm}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || !selectedChannelId}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all text-nowrap active:scale-95
                                 ${isSubmitting
                                     ? 'bg-emerald-700/40 text-emerald-300/50 cursor-not-allowed'
-                                    : 'bg-emerald-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:brightness-110'
+                                    : !selectedChannelId
+                                        ? 'bg-emerald-900/40 text-emerald-300/30 cursor-not-allowed'
+                                        : 'bg-emerald-600 text-white shadow-[0_0_20px_rgba(34,197,94,0.25)] hover:brightness-110'
                                 }`}
-                            title="Enviar para revisión en Discord"
+                            title={!selectedChannelId ? 'Selecciona un canal primero' : 'Enviar para revisión en Discord'}
                         >
                             {isSubmitting ? (
                                 <>
