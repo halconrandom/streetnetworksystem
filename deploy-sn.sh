@@ -8,7 +8,6 @@ set -euo pipefail
 REPO_DIR="/home/deployer/streetnetworksystem"
 PM2_NAME="streetnetwork-admin"
 PORT="3005"
-BACKEND_PORT="8788"
 
 # Colores para output
 RED='\033[0;31m'
