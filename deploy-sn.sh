@@ -130,6 +130,7 @@ fi
 # ───────────────────────────────────────────────────────────
 echo -e "\n${YELLOW}[6/7]${NC} Starting application with PM2..."
 
+# Start Next.js app
 if ! pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
     echo -e "  ${BLUE}Creating new PM2 process...${NC}"
     pm2 start npm --name "$PM2_NAME" -- start -- -p "$PORT"
@@ -139,6 +140,21 @@ else
     echo -e "  ${BLUE}Restarting existing PM2 process...${NC}"
     pm2 restart "$PM2_NAME" --update-env
     echo -e "  ${GREEN}✓ PM2 process restarted${NC}"
+fi
+
+# Start CORS Proxy for Discord
+PROXY_NAME="streetnetwork-proxy"
+PROXY_PORT="8787"
+
+if ! pm2 describe "$PROXY_NAME" > /dev/null 2>&1; then
+    echo -e "  ${BLUE}Creating CORS Proxy process...${NC}"
+    pm2 start proxy/corsProxy.mjs --name "$PROXY_NAME"
+    pm2 save
+    echo -e "  ${GREEN}✓ CORS Proxy created on port $PROXY_PORT${NC}"
+else
+    echo -e "  ${BLUE}Restarting CORS Proxy...${NC}"
+    pm2 restart "$PROXY_NAME"
+    echo -e "  ${GREEN}✓ CORS Proxy restarted${NC}"
 fi
 
 # ───────────────────────────────────────────────────────────
