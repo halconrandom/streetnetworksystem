@@ -290,8 +290,28 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block pl-1">Descripción (Discord Markdown)</label>
+                                            <div className="flex items-center justify-between pl-1">
+                                                <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block">Descripción (Discord Markdown)</label>
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => {
+                                                            const textarea = document.getElementById('description-editor') as HTMLTextAreaElement;
+                                                            if (textarea) {
+                                                                const currentHeight = textarea.offsetHeight;
+                                                                textarea.style.height = currentHeight < 400 ? '32rem' : '16rem';
+                                                            }
+                                                        }}
+                                                        className="p-1.5 text-terminal-muted hover:text-terminal-accent hover:bg-white/5 rounded transition-all"
+                                                        title="Expandir/Contraer"
+                                                    >
+                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M12 5v14M5 12h14" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
                                             <textarea
+                                                id="description-editor"
                                                 placeholder={`### Cambios realizados
 - **Nueva funcionalidad**: Selector de idiomas
 - **Mejora**: Traducciones completas
@@ -301,10 +321,10 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 Los usuarios pueden cambiar entre EN/ES desde el TopBar.`}
                                                 value={formData.description}
                                                 onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                                className="w-full h-64 bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-terminal-accent/50 transition-colors outline-none resize-none custom-scrollbar font-mono leading-relaxed"
+                                                className="w-full h-64 min-h-[16rem] max-h-[32rem] bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-terminal-accent/50 transition-colors outline-none resize-y custom-scrollbar font-mono leading-relaxed"
                                             />
                                             <p className="text-[9px] text-white/30">
-                                                Usa **bold**, *italic*, # headers, - bullets, 1. numeración
+                                                Usa **bold**, *italic*, `code`, # headers, - bullets, 1. numeración
                                             </p>
                                         </div>
 

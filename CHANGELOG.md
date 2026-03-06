@@ -1,5 +1,21 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - Fix API y Textarea Expandible
+
+### Fixes
+
+#### API Live Updates
+- **Nuevo endpoint**: `PUT /api/admin/live-updates/[id]` para actualizar entradas existentes
+- **Nuevo endpoint**: `DELETE /api/admin/live-updates/[id]` para eliminar entradas
+- Corregido error "Not Found" al guardar cambios en actualizaciones existentes
+
+#### UI Mejoras
+- **Textarea expandible**: Botón para expandir/contraer el área de descripción
+- **Resize vertical**: El textarea ahora permite redimensionar verticalmente
+- **Altura dinámica**: Alterna entre 16rem y 32rem con el botón
+
+---
+
 ## [2026-03-06] - Markdown Renderer Mejorado
 
 ### Mejoras
