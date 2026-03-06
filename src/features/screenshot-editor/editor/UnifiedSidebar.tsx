@@ -223,7 +223,7 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
         { id: 'redact', icon: Shield, label: 'Censor Tool', isTool: true },
         ...(canUseComicMaker 
             ? [{ id: 'stripBuilder', icon: Layers, label: 'Comic Maker', isAction: true as const, disabled: false as const, onClick: () => onTogglePanel('stripBuilder') }]
-            : [{ id: 'stripBuilder', icon: Layers, label: 'Comic Maker (Premium)', isAction: true as const, disabled: true as const, onClick: () => {} }]
+            : [{ id: 'stripBuilder', icon: Layers, label: 'Premium Feature', isAction: true as const, disabled: true as const, onClick: () => {} }]
         ),
     ];
 

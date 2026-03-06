@@ -124,7 +124,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <button
                         disabled
                         className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                        title="Premium feature - Donate to unlock"
+                        title="Premium Feature"
                     >
                         <Lock size={12} />
                         Cache
@@ -202,7 +202,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 disabled
                                 className="flex items-center gap-2 px-4 py-2 bg-white/5 text-white/30 border border-white/5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                                title="Premium feature - Donate to unlock"
+                                title="Premium Feature"
                             >
                                 <Lock size={12} />
                                 Review Channels
@@ -210,7 +210,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                             <button
                                 disabled
                                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest bg-white/5 text-white/30 border border-white/5 cursor-not-allowed"
-                                title="Premium feature - Donate to unlock"
+                                title="Premium Feature"
                             >
                                 <Lock size={12} />
                                 Revisión
