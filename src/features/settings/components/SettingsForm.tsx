@@ -9,7 +9,6 @@ import {
     Bell,
     Palette,
     Lock,
-    Smartphone,
     RefreshCw,
     AlertCircle,
     CheckCircle2,
@@ -22,7 +21,6 @@ import {
     Moon,
     Zap,
     Activity,
-    Key,
     Terminal,
     ChevronRight,
     Hash,
@@ -108,12 +106,6 @@ export default function SettingsForm() {
     // Avatar state
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [savingAvatar, setSavingAvatar] = useState(false);
-
-    // Sessions mock data
-    const sessions = [
-        { id: '1', device: 'Chrome · Windows 11', location: 'Madrid, ES', lastSeen: 'Ahora mismo', current: true },
-        { id: '2', device: 'Firefox · macOS', location: 'Barcelona, ES', lastSeen: 'Hace 2 días', current: false },
-    ];
 
     const showNotification = (type: 'error' | 'success', message: string) => {
         setNotification({ type, message });
@@ -621,82 +613,24 @@ export default function SettingsForm() {
                         ══════════════════════════════════════════════════ */}
                         {activeTab === 'security' && (
                             <>
-                                <SettingsSection title="Credenciales de Acceso" description="Gestión de contraseña y autenticación" icon={Lock}>
-                                    <div className="flex items-start gap-4 p-4 bg-terminal-dark/50 rounded-lg border border-terminal-border/50">
-                                        <div className="w-9 h-9 rounded-lg bg-terminal-accent/10 border border-terminal-accent/20 flex items-center justify-center flex-shrink-0">
-                                            <Lock size={16} className="text-terminal-accent" />
+                                <SettingsSection title="Portal de Seguridad" description="Gestión de cuenta y autenticación" icon={Shield}>
+                                    <div className="flex items-start gap-4 p-5 bg-terminal-dark/50 rounded-xl border border-terminal-border/50">
+                                        <div className="w-12 h-12 rounded-xl bg-terminal-accent/10 border border-terminal-accent/20 flex items-center justify-center flex-shrink-0">
+                                            <Shield size={22} className="text-terminal-accent" />
                                         </div>
                                         <div className="flex-1">
-                                            <p className="text-sm font-semibold text-white">Seguridad gestionada por Clerk</p>
-                                            <p className="text-xs text-terminal-muted mt-1 leading-relaxed">
-                                                Cambia tu contraseña, gestiona correos electrónicos, autenticación de dos factores y sesiones activas desde el portal de seguridad.
+                                            <p className="text-sm font-semibold text-white mb-2">Seguridad gestionada por Clerk</p>
+                                            <p className="text-xs text-terminal-muted leading-relaxed mb-4">
+                                                Accede al portal de seguridad para gestionar tu contraseña, autenticación de dos factores, sesiones activas y métodos de inicio de sesión.
                                             </p>
                                             <button 
                                                 onClick={() => openUserProfile()}
-                                                className="mt-3 flex items-center gap-1.5 text-xs text-terminal-accent hover:underline font-medium transition-colors"
+                                                className="flex items-center gap-2 px-4 py-2.5 bg-terminal-accent hover:bg-terminal-accent/90 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-[0.98] shadow-[0_4px_20px_rgba(255,0,60,0.2)]"
                                             >
-                                                Abrir portal de seguridad
-                                                <ChevronRight size={12} />
+                                                <Lock size={14} />
+                                                Abrir Portal de Seguridad
                                             </button>
                                         </div>
-                                    </div>
-                                </SettingsSection>
-
-                                <SettingsSection title="Autenticación de Dos Factores" description="Capa adicional de seguridad" icon={Smartphone}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-terminal-dark border border-terminal-border flex items-center justify-center">
-                                                <Key size={18} className="text-terminal-muted" />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-white">Autenticación de Dos Factores</p>
-                                                <p className="text-xs text-terminal-muted mt-0.5 uppercase tracking-widest font-mono">
-                                                    Gestiona 2FA desde el portal de Clerk
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <button 
-                                            onClick={() => openUserProfile()}
-                                            className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-terminal-accent/10 border border-terminal-accent/20 text-terminal-accent uppercase tracking-widest hover:bg-terminal-accent/20 transition-colors"
-                                        >
-                                            Configurar
-                                        </button>
-                                    </div>
-                                </SettingsSection>
-
-                                <SettingsSection title="Sesiones Activas" description="Dispositivos con acceso a tu cuenta" icon={Activity}>
-                                    <div className="space-y-3">
-                                        {sessions.map((session) => (
-                                            <div
-                                                key={session.id}
-                                                className="flex items-center justify-between p-4 bg-terminal-dark/50 rounded-lg border border-terminal-border/50 hover:border-terminal-border transition-colors"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-2 h-2 rounded-full ${session.current ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]' : 'bg-terminal-muted'}`} />
-                                                    <div>
-                                                        <p className="text-xs font-semibold text-white">{session.device}</p>
-                                                        <p className="text-[10px] text-terminal-muted mt-0.5 font-mono">
-                                                            {session.location} · {session.lastSeen}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {session.current ? (
-                                                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
-                                                        Actual
-                                                    </span>
-                                                ) : (
-                                                    <button className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest transition-colors">
-                                                        Revocar
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-terminal-border/50">
-                                        <button className="text-xs text-red-400 hover:text-red-300 font-medium transition-colors flex items-center gap-1.5">
-                                            <X size={14} />
-                                            Cerrar todas las demás sesiones
-                                        </button>
                                     </div>
                                 </SettingsSection>
                             </>
