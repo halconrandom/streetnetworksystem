@@ -2,17 +2,19 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, X, Loader2, Link, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Camera, X, Loader2, Link, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
 interface AvatarUploadProps {
-    currentAvatarUrl?: string | null;
+    customAvatarUrl?: string | null;
+    discordAvatarUrl?: string | null;
     userName?: string;
-    onAvatarChange?: (url: string) => Promise<void>;
+    onAvatarChange?: (url: string | null) => Promise<void>;
     disabled?: boolean;
 }
 
 export default function AvatarUpload({ 
-    currentAvatarUrl, 
+    customAvatarUrl,
+    discordAvatarUrl,
     userName = 'User',
     onAvatarChange,
     disabled = false 
@@ -24,7 +26,9 @@ export default function AvatarUpload({
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    const displayUrl = currentAvatarUrl;
+    // Priority: custom avatar > discord avatar
+    const displayUrl = customAvatarUrl || discordAvatarUrl;
+    const hasCustomAvatar = !!customAvatarUrl;
     const initials = userName?.charAt(0)?.toUpperCase() || 'U';
 
     const validateImgurUrl = (url: string): boolean => {
@@ -38,20 +42,16 @@ export default function AvatarUpload({
     };
 
     const convertToDirectLink = (url: string): string => {
-        // Convert imgur page links to direct image links
         try {
             const urlObj = new URL(url);
             
-            // If it's already a direct link (i.imgur.com), return as-is
             if (urlObj.hostname === 'i.imgur.com') {
                 return url;
             }
             
-            // If it's an imgur.com page link, convert to direct link
             if (urlObj.hostname === 'imgur.com' || urlObj.hostname === 'www.imgur.com') {
                 const imageId = urlObj.pathname.split('/').filter(Boolean)[0];
                 if (imageId) {
-                    // Remove any file extension if present
                     const cleanId = imageId.split('.')[0];
                     return `https://i.imgur.com/${cleanId}.png`;
                 }
@@ -92,6 +92,26 @@ export default function AvatarUpload({
             }, 1500);
         } catch (err) {
             setError('Error al guardar el avatar');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRestoreDiscord = async () => {
+        setIsSaving(true);
+        setError(null);
+        
+        try {
+            if (onAvatarChange) {
+                await onAvatarChange(null);
+            }
+            setSuccess(true);
+            setTimeout(() => {
+                setIsModalOpen(false);
+                setSuccess(false);
+            }, 1500);
+        } catch (err) {
+            setError('Error al restaurar el avatar');
         } finally {
             setIsSaving(false);
         }
@@ -140,6 +160,13 @@ export default function AvatarUpload({
                         )}
                     </motion.div>
 
+                    {/* Custom avatar indicator */}
+                    {hasCustomAvatar && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-terminal-accent rounded-full flex items-center justify-center border-2 border-terminal-dark">
+                            <Link size={10} className="text-white" />
+                        </div>
+                    )}
+
                     {/* Overlay on hover */}
                     <AnimatePresence>
                         {isHovered && !disabled && (
@@ -173,9 +200,9 @@ export default function AvatarUpload({
                     <span>Cambiar Avatar</span>
                 </button>
 
-                {/* Helper text */}
+                {/* Source indicator */}
                 <p className="text-[10px] text-terminal-muted uppercase tracking-widest text-center">
-                    Enlace de Imgur requerido
+                    {hasCustomAvatar ? 'Avatar personalizado' : 'Avatar de Discord'}
                 </p>
             </div>
 
@@ -216,8 +243,27 @@ export default function AvatarUpload({
                                     Cambiar Avatar
                                 </h3>
                                 <p className="text-xs text-terminal-muted mt-1">
-                                    Ingresa un enlace de Imgur para tu avatar
+                                    Usa un enlace de Imgur o restaura el de Discord
                                 </p>
+                            </div>
+
+                            {/* Current avatar preview */}
+                            <div className="flex items-center gap-4 p-4 bg-terminal-dark/50 rounded-xl border border-terminal-border/50 mb-4">
+                                <div className="w-16 h-16 rounded-xl overflow-hidden border border-terminal-border">
+                                    {displayUrl ? (
+                                        <img src={displayUrl} alt="Current" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-terminal-dark flex items-center justify-center">
+                                            <span className="text-2xl font-bold text-terminal-muted">{initials}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-white">Avatar actual</p>
+                                    <p className="text-xs text-terminal-muted">
+                                        {hasCustomAvatar ? 'Personalizado (Imgur)' : 'Sincronizado de Discord'}
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Input */}
@@ -322,6 +368,23 @@ export default function AvatarUpload({
                                         )}
                                     </button>
                                 </div>
+
+                                {/* Restore Discord avatar */}
+                                {hasCustomAvatar && discordAvatarUrl && (
+                                    <div className="pt-3 border-t border-terminal-border/50">
+                                        <button
+                                            onClick={handleRestoreDiscord}
+                                            disabled={isSaving}
+                                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-terminal-dark border border-terminal-border rounded-lg text-xs font-medium text-terminal-muted hover:text-white hover:border-terminal-accent/30 transition-all disabled:opacity-50"
+                                        >
+                                            <RefreshCw size={14} />
+                                            <span>Restaurar avatar de Discord</span>
+                                        </button>
+                                        <p className="text-[10px] text-terminal-muted/60 text-center mt-2">
+                                            Eliminará tu avatar personalizado
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Help text */}

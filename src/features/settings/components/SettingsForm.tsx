@@ -148,7 +148,7 @@ export default function SettingsForm() {
         if (isLoaded && user) fetchUserData();
     }, [isLoaded, user]);
 
-    const handleAvatarChange = async (url: string) => {
+    const handleAvatarChange = async (url: string | null) => {
         setSavingAvatar(true);
         try {
             const res = await fetch('/api/users/me', {
@@ -160,7 +160,7 @@ export default function SettingsForm() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Error al guardar');
             setAvatarUrl(url);
-            showNotification('success', 'Avatar actualizado correctamente');
+            showNotification('success', url ? 'Avatar actualizado correctamente' : 'Avatar restaurado a Discord');
         } catch (err) {
             showNotification('error', (err as Error).message || 'Error al guardar el avatar');
             throw err;
@@ -347,7 +347,8 @@ export default function SettingsForm() {
                                 <SettingsSection title="Identidad" description="Tu información pública en el sistema" icon={User}>
                                     <div className="flex flex-col sm:flex-row gap-8 items-start">
                                         <AvatarUpload
-                                            currentAvatarUrl={avatarUrl || user?.imageUrl}
+                                            customAvatarUrl={avatarUrl}
+                                            discordAvatarUrl={discordData.avatar || user?.imageUrl}
                                             userName={formData.name || user?.username || 'U'}
                                             onAvatarChange={handleAvatarChange}
                                         />
