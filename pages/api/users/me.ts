@@ -35,13 +35,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let paramIndex = 1;
 
       if (discord_review_channel_id !== undefined) {
-        updates.push(`discord_review_channel_id = ${paramIndex++}`);
+        updates.push(`discord_review_channel_id = $${paramIndex}`);
         values.push(discord_review_channel_id || null);
+        paramIndex++;
       }
 
       if (avatar_url !== undefined) {
-        updates.push(`avatar_url = ${paramIndex++}`);
+        updates.push(`avatar_url = $${paramIndex}`);
         values.push(avatar_url || null);
+        paramIndex++;
       }
 
       if (updates.length === 0) {
@@ -52,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       values.push(user.id);
 
       await execute(
-        `UPDATE sn_users SET ${updates.join(', ')} WHERE id = ${paramIndex}`,
+        `UPDATE sn_users SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
         values
       );
 
@@ -65,7 +67,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
-    console.error('[/api/users/me/review-channel] Error:', error);
+    console.error('[/api/users/me] Error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
