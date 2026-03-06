@@ -17,6 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         name: user.name || null,
         role: user.role,
         is_active: user.is_active,
+        avatarUrl: user.avatar_url || null,
         discordId: user.discord_id || null,
         discordUsername: user.discord_username || null,
         discordAvatar: user.discord_avatar || null,
@@ -25,17 +26,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'PUT') {
-      // Update review channel
-      const { discord_review_channel_id } = req.body;
+      // Update user fields
+      const { discord_review_channel_id, avatar_url } = req.body;
       
+      // Build dynamic update query
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (discord_review_channel_id !== undefined) {
+        updates.push(`discord_review_channel_id = ${paramIndex++}`);
+        values.push(discord_review_channel_id || null);
+      }
+
+      if (avatar_url !== undefined) {
+        updates.push(`avatar_url = ${paramIndex++}`);
+        values.push(avatar_url || null);
+      }
+
+      if (updates.length === 0) {
+        return res.status(400).json({ error: 'No fields to update' });
+      }
+
+      updates.push(`updated_at = NOW()`);
+      values.push(user.id);
+
       await execute(
-        'UPDATE sn_users SET discord_review_channel_id = $1, updated_at = NOW() WHERE id = $2',
-        [discord_review_channel_id || null, user.id]
+        `UPDATE sn_users SET ${updates.join(', ')} WHERE id = ${paramIndex}`,
+        values
       );
 
       return res.status(200).json({ 
         success: true,
-        discord_review_channel_id: discord_review_channel_id || null,
+        discord_review_channel_id: discord_review_channel_id ?? null,
+        avatar_url: avatar_url ?? null,
       });
     }
 

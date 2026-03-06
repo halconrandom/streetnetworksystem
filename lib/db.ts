@@ -46,6 +46,7 @@ export interface DBUser {
   role: 'admin' | 'user';
   is_active: boolean;
   is_verified: boolean;
+  avatar_url: string | null;
   discord_id: string | null;
   discord_username: string | null;
   discord_avatar: string | null;

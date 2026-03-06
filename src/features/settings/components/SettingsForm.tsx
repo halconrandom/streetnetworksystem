@@ -105,6 +105,10 @@ export default function SettingsForm() {
         avatar: string | null;
     }>({ id: null, username: null, avatar: null });
 
+    // Avatar state
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [savingAvatar, setSavingAvatar] = useState(false);
+
     // Sessions mock data
     const sessions = [
         { id: '1', device: 'Chrome · Windows 11', location: 'Madrid, ES', lastSeen: 'Ahora mismo', current: true },
@@ -137,11 +141,33 @@ export default function SettingsForm() {
                         avatar: data.discordAvatar || null,
                     });
                     setReviewChannelId(data.discord_review_channel_id || '');
+                    setAvatarUrl(data.avatarUrl || null);
                 }
             } catch { /* non-fatal */ }
         };
         if (isLoaded && user) fetchUserData();
     }, [isLoaded, user]);
+
+    const handleAvatarChange = async (url: string) => {
+        setSavingAvatar(true);
+        try {
+            const res = await fetch('/api/users/me', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ avatar_url: url }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error al guardar');
+            setAvatarUrl(url);
+            showNotification('success', 'Avatar actualizado correctamente');
+        } catch (err) {
+            showNotification('error', (err as Error).message || 'Error al guardar el avatar');
+            throw err;
+        } finally {
+            setSavingAvatar(false);
+        }
+    };
 
     const handleSaveProfile = async () => {
         if (!user) return;
@@ -321,8 +347,9 @@ export default function SettingsForm() {
                                 <SettingsSection title="Identidad" description="Tu información pública en el sistema" icon={User}>
                                     <div className="flex flex-col sm:flex-row gap-8 items-start">
                                         <AvatarUpload
-                                            currentAvatarUrl={user?.imageUrl}
+                                            currentAvatarUrl={avatarUrl || user?.imageUrl}
                                             userName={formData.name || user?.username || 'U'}
+                                            onAvatarChange={handleAvatarChange}
                                         />
                                         <div className="flex-1 space-y-5 w-full">
                                             <PremiumInput
