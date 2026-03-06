@@ -1,5 +1,42 @@
 # Street Network Admin - Historial de Actualizaciones
 
+## [2026-03-06] - Live Update Manager con Discord Components V2
+
+### Nuevas Funcionalidades
+
+#### Refactor Live Update Manager
+- **Discord Components V2**: Formato nativo de Discord para mensajes
+- **Vista previa en tiempo real**: Panel lateral muestra cómo se verá en Discord
+- **Botón "Copiar JSON"**: Exporta el mensaje listo para enviar a Discord
+- **Colores por categoría**: feat (verde), fix (rojo), security (naranja), refactor (azul)
+
+#### Archivos Nuevos
+- `src/features/home/components/discord-components.ts` - Tipos y helpers para Discord V2
+
+#### Formato Discord V2
+- Container con accent_color (color del borde)
+- Text Display components para contenido
+- Separator components para divisores
+- Flags: IS_COMPONENTS_V2 (32768)
+
+### Ejemplo de JSON generado
+```json
+{
+  "flags": 32768,
+  "components": [{
+    "type": 17,
+    "accent_color": 16744192,
+    "components": [
+      { "type": 10, "content": "## ✨ Título\n📅 2026-03-06" },
+      { "type": 12, "divider": true, "spacing": 1 },
+      { "type": 10, "content": "Contenido..." }
+    ]
+  }]
+}
+```
+
+---
+
 ## [2026-03-06] - i18n System for Screenshot Editor
 
 ### Nuevas Funcionalidades
