@@ -184,7 +184,7 @@ const DetailModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                     <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
                         <h4 className="text-[9px] uppercase font-bold text-terminal-accent mb-3 tracking-widest">Novedades y Detalles</h4>
-                        <div className="text-[13px] text-terminal-muted leading-relaxed opacity-80">
+                        <div className="text-terminal-muted leading-relaxed opacity-80">
                             {entry.description ? (
                                 <MarkdownRenderer content={entry.description} />
                             ) : (
