@@ -2,8 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth, useUser, RedirectToSignIn } from '@clerk/nextjs';
 import { Sidebar } from '@app/Sidebar';
-import { Menu } from '@shared/icons';
+import { Menu, Settings } from '@shared/icons';
 import { Toaster } from 'sonner';
+import { motion } from 'framer-motion';
 
 type AppShellProps = {
   currentView: string;
@@ -29,6 +30,7 @@ interface DBUserProfile {
   name: string | null;
   role: string;
   is_active: boolean;
+  avatarUrl: string | null;
   discordId: string | null;
   discordUsername: string | null;
   discordAvatar: string | null;
@@ -154,19 +156,41 @@ function AppShell({ currentView, title, children }: AppShellProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* User info — prefer Discord avatar/username from DB */}
-            <div className="flex items-center gap-2">
-              {(dbUser.discordAvatar || user?.imageUrl) && (
-                <img
-                  src={dbUser.discordAvatar || user?.imageUrl || ''}
-                  alt={dbUser.discordUsername || user?.username || 'User'}
-                  className="w-8 h-8 rounded-full border border-terminal-border"
-                />
-              )}
-              <span className="text-xs text-terminal-muted hidden sm:block">
+            {/* User avatar — link to settings */}
+            <motion.button
+              onClick={() => router.push('/settings')}
+              className="flex items-center gap-3 group relative"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {/* Avatar */}
+              <div className="relative">
+                {(dbUser.avatarUrl || dbUser.discordAvatar || user?.imageUrl) && (
+                  <img
+                    src={dbUser.avatarUrl || dbUser.discordAvatar || user?.imageUrl || ''}
+                    alt={dbUser.discordUsername || dbUser.name || user?.username || 'User'}
+                    className="w-8 h-8 rounded-full border border-terminal-border group-hover:border-terminal-accent/50 transition-colors object-cover"
+                  />
+                )}
+                {/* Custom avatar indicator */}
+                {dbUser.avatarUrl && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-terminal-accent rounded-full border border-terminal-dark" />
+                )}
+              </div>
+              
+              {/* Username */}
+              <span className="text-xs text-terminal-muted group-hover:text-white transition-colors hidden sm:block">
                 {dbUser.discordUsername || dbUser.name || user?.username || 'User'}
               </span>
-            </div>
+
+              {/* Settings tooltip on hover */}
+              <div className="absolute right-0 top-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-terminal-panel border border-terminal-border rounded-md shadow-lg">
+                  <Settings size={12} className="text-terminal-accent" />
+                  <span className="text-[10px] font-medium text-white uppercase tracking-wider">Settings</span>
+                </div>
+              </div>
+            </motion.button>
           </div>
         </header>
 

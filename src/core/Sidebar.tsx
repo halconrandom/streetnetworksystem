@@ -11,7 +11,6 @@ import {
   Shield,
   PenTool,
   Image,
-  Settings,
   Code,
 } from '@shared/icons';
 
@@ -99,17 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
         })}
       </nav>
 
-      <div className="p-4 border-t border-terminal-border space-y-2">
-        <Link
-          href="/settings"
-          className={`flex items-center gap-3 px-3 py-2 w-full text-sm rounded-lg transition-all active:scale-95 ${currentView === 'settings' || currentPath === '/settings'
-            ? 'bg-terminal-accent/10 text-terminal-accent shadow-sm border border-terminal-accent/20'
-            : 'text-terminal-muted hover:text-white hover:bg-white/5 border border-transparent'
-            }`}
-        >
-          <Settings size={18} className={currentView === 'settings' || currentPath === '/settings' ? 'text-terminal-accent' : ''} />
-          <span>User Settings</span>
-        </Link>
+      <div className="p-4 border-t border-terminal-border">
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2 w-full text-sm text-terminal-muted hover:text-red-400 transition-colors transition-all active:scale-95"
