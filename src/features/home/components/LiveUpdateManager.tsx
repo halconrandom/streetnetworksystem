@@ -375,13 +375,13 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                 </div>
 
                                 {/* Preview Panel */}
-                                <div className="w-80 border-l border-white/5 bg-[#2b2d31] flex flex-col">
+                                <div className="w-96 border-l border-white/5 bg-[#2b2d31] flex flex-col">
                                     <div className="p-3 border-b border-white/5 flex items-center gap-2">
                                         <Eye size={12} className="text-white/40" />
                                         <span className="text-[10px] font-bold uppercase text-white/50 tracking-wider">Vista Previa</span>
                                     </div>
                                     
-                                    <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+                                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
                                         {discordPreview ? (
                                             <div 
                                                 className="rounded-lg overflow-hidden"
@@ -390,25 +390,65 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                     borderLeft: `3px solid #${(discordPreview.components[0].accent_color || 0).toString(16).padStart(6, '0')}`
                                                 }}
                                             >
-                                                <div className="p-3 space-y-2">
-                                                    <div className="text-white font-bold text-sm">
+                                                <div className="p-4 space-y-3">
+                                                    <div className="text-white font-bold text-base">
                                                         {formData.type === 'feat' ? '✨' : formData.type === 'fix' ? '🔧' : formData.type === 'security' ? '🔒' : '⚡'} {formData.message}
                                                     </div>
-                                                    <div className="text-[#949ba4] text-[10px]">
+                                                    <div className="text-[#949ba4] text-xs">
                                                         📅 {formData.date}
                                                     </div>
-                                                    <div className="border-t border-white/10 my-2" />
-                                                    <div className="text-[#dbdee1] text-[11px] whitespace-pre-wrap leading-relaxed">
-                                                        {formData.description.split('\n').map((line, i) => {
-                                                            let parsed = line
-                                                                .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
-                                                                .replace(/\*(.+?)\*/g, '<em class="text-terminal-accent">$1</em>');
-                                                            return (
-                                                                <div key={i}>
-                                                                    <span dangerouslySetInnerHTML={{ __html: parsed || '&nbsp;' }} />
-                                                                </div>
-                                                            );
-                                                        })}
+                                                    <div className="border-t border-white/10" />
+                                                    <div className="text-[#dbdee1] text-sm whitespace-pre-wrap leading-relaxed">
+                                                        {(() => {
+                                                            const lines = formData.description.split('\n');
+                                                            const elements: React.ReactNode[] = [];
+                                                            
+                                                            for (let i = 0; i < lines.length; i++) {
+                                                                const line = lines[i];
+                                                                
+                                                                // Empty line
+                                                                if (line.trim() === '') {
+                                                                    elements.push(<div key={i} className="h-2" />);
+                                                                    continue;
+                                                                }
+                                                                
+                                                                // Bold header (like **Title**)
+                                                                if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) {
+                                                                    const text = line.slice(2, -2);
+                                                                    elements.push(
+                                                                        <div key={i} className="font-bold text-white mt-2 mb-1">
+                                                                            {text}
+                                                                        </div>
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                                
+                                                                // List items
+                                                                if (line.startsWith('- ') || line.startsWith('* ')) {
+                                                                    const text = line.slice(2);
+                                                                    const parsed = text
+                                                                        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                                                                        .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
+                                                                    elements.push(
+                                                                        <div key={i} className="flex gap-2 items-start">
+                                                                            <span className="text-[#00ff88] mt-1">•</span>
+                                                                            <span dangerouslySetInnerHTML={{ __html: parsed }} />
+                                                                        </div>
+                                                                    );
+                                                                    continue;
+                                                                }
+                                                                
+                                                                // Regular text
+                                                                const parsed = line
+                                                                    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
+                                                                    .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
+                                                                elements.push(
+                                                                    <div key={i} dangerouslySetInnerHTML={{ __html: parsed }} />
+                                                                );
+                                                            }
+                                                            
+                                                            return elements;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>
