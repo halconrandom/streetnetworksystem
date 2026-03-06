@@ -156,30 +156,34 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
 const DetailModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({ entry, onClose }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in shadow-2xl">
-            <div className="bg-terminal-panel border border-terminal-border rounded-3xl p-8 max-w-3xl w-full relative shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            <div className="bg-terminal-panel border border-terminal-border rounded-3xl w-[600px] max-h-[80vh] flex flex-col relative shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                 <button
                     onClick={onClose}
-                    className="absolute top-6 right-6 p-2 text-terminal-muted hover:text-white transition-colors"
+                    className="absolute top-6 right-6 p-2 text-terminal-muted hover:text-white transition-colors z-10"
                 >
                     <X size={20} />
                 </button>
 
-                <div className="flex items-center gap-3 mb-6">
-                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${entry.type === 'feat' ? 'bg-terminal-accent/10 text-terminal-accent' :
-                        entry.type === 'fix' ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-terminal-muted'
-                        }`}>
-                        {entry.type === 'feat' ? 'MEJORA' : entry.type === 'fix' ? 'PARCHE' : entry.type === 'refactor' ? 'OPTIMIZACIÓN' : entry.type === 'security' ? 'SEGURIDAD' : entry.type}
-                    </span>
-                    <span className="text-[10px] font-mono text-terminal-muted/40 font-bold">{entry.date}</span>
+                {/* Header - Fixed */}
+                <div className="p-6 pb-4 border-b border-white/5 flex-shrink-0">
+                    <div className="flex items-center gap-3 mb-3">
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded ${entry.type === 'feat' ? 'bg-terminal-accent/10 text-terminal-accent' :
+                            entry.type === 'fix' ? 'bg-red-500/10 text-red-400' : entry.type === 'refactor' ? 'bg-blue-500/10 text-blue-400' : entry.type === 'security' ? 'bg-orange-500/10 text-orange-400' : 'bg-white/5 text-terminal-muted'
+                            }`}>
+                            {entry.type === 'feat' ? 'MEJORA' : entry.type === 'fix' ? 'PARCHE' : entry.type === 'refactor' ? 'OPTIMIZACIÓN' : entry.type === 'security' ? 'SEGURIDAD' : entry.type}
+                        </span>
+                        <span className="text-[10px] font-mono text-terminal-muted/40 font-bold">{entry.date}</span>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-white capitalize leading-tight tracking-tight pr-8">
+                        {entry.message || entry.msg}
+                    </h2>
                 </div>
 
-                <h2 className="text-2xl font-bold text-white mb-6 capitalize leading-tight tracking-tight">
-                    {entry.message || entry.msg}
-                </h2>
-
-                <div className="space-y-4">
+                {/* Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                     <div className="p-5 bg-black/40 rounded-2xl border border-white/5">
-                        <h4 className="text-[9px] uppercase font-bold text-terminal-accent mb-2 tracking-widest">Novedades y Detalles</h4>
+                        <h4 className="text-[9px] uppercase font-bold text-terminal-accent mb-3 tracking-widest">Novedades y Detalles</h4>
                         <div className="text-[13px] text-terminal-muted leading-relaxed opacity-80">
                             {entry.description ? (
                                 <MarkdownRenderer content={entry.description} />
@@ -188,7 +192,11 @@ const DetailModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({
                             )}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                </div>
+
+                {/* Footer - Fixed */}
+                <div className="p-6 pt-4 border-t border-white/5 flex-shrink-0">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="p-3 bg-white/5 rounded-xl border border-white/5">
                             <span className="block text-[8px] uppercase font-bold text-white/20 mb-1">Estado</span>
                             <span className="text-[10px] text-terminal-accent font-bold">PUBLICADO</span>
@@ -198,14 +206,14 @@ const DetailModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = ({
                             <span className="text-[10px] text-green-400 font-bold">VERIFICADO</span>
                         </div>
                     </div>
-                </div>
 
-                <button
-                    onClick={onClose}
-                    className="w-full mt-8 py-4 bg-white/[0.03] hover:bg-terminal-accent hover:text-black hover:font-bold text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all border border-white/5 active:scale-95"
-                >
-                    Entendido
-                </button>
+                    <button
+                        onClick={onClose}
+                        className="w-full py-3 bg-white/[0.03] hover:bg-terminal-accent hover:text-black hover:font-bold text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all border border-white/5 active:scale-[0.98]"
+                    >
+                        Entendido
+                    </button>
+                </div>
             </div>
         </div>
     );
