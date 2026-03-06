@@ -33,9 +33,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await query<any>(
         `SELECT id, keyword, kind, target_id, display_name, created_at, updated_at
          FROM sn_messagebuilder_mentions
-         WHERE user_id = $1 OR user_id IS NULL
+         WHERE clerk_id = $1 OR clerk_id IS NULL
          ORDER BY created_at DESC`,
-        [user.id]
+        [user.clerk_id]
       );
       return res.json(result.map(normalizeMention));
     }
@@ -51,10 +51,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `INSERT INTO sn_messagebuilder_mentions (keyword, kind, target_id, display_name, user_id)
+        `INSERT INTO sn_messagebuilder_mentions (keyword, kind, target_id, display_name, clerk_id)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id, keyword, kind, target_id, display_name, created_at, updated_at`,
-        [keyword, kind, String(target_id).trim(), display_name || null, user.id]
+        [keyword, kind, String(target_id).trim(), display_name || null, user.clerk_id]
       );
 
       return res.status(201).json(normalizeMention(result[0]));
@@ -68,8 +68,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_mentions WHERE id = $1 AND user_id = $2 RETURNING id`,
-        [id, user.id]
+        `DELETE FROM sn_messagebuilder_mentions WHERE id = $1 AND clerk_id = $2 RETURNING id`,
+        [id, user.clerk_id]
       );
 
       if (!result || result.length === 0) {

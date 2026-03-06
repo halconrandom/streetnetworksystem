@@ -3,35 +3,35 @@
 ## Message Builder - Aislamiento de Datos por Usuario
 
 ### Problema
-Las tablas `sn_messagebuilder_webhook_targets`, `sn_messagebuilder_templates` y `sn_messagebuilder_mentions` no tenían columna `user_id`, permitiendo que cualquier usuario viera los datos de otros usuarios.
+Las tablas `sn_messagebuilder_webhook_targets`, `sn_messagebuilder_templates` y `sn_messagebuilder_mentions` no tenían columna de identificación de usuario, permitiendo que cualquier usuario viera los datos de otros usuarios.
 
 ### Solución
 
 #### 1. Migración SQL
 - Creada `migrations/002_message_builder_user_id.sql`
-- Añadida columna `user_id uuid references sn_users(id)` a las 3 tablas
+- Añadida columna `clerk_id TEXT` a las 3 tablas
 - Creados índices para mejorar performance de consultas
 
 #### 2. Cambios en API Endpoints
 
 **webhooks.ts:**
-- GET: filtra por `user_id = $1 OR user_id IS NULL`
-- POST: inserta con `user_id` del usuario autenticado
-- DELETE: solo permite eliminar si `user_id` coincide
+- GET: filtra por `clerk_id = $1 OR clerk_id IS NULL`
+- POST: inserta con `clerk_id` del usuario autenticado
+- DELETE: solo permite eliminar si `clerk_id` coincide
 
 **templates.ts:**
-- GET: filtra por `user_id = $1 OR user_id IS NULL`
-- POST: inserta con `user_id` del usuario autenticado
-- DELETE: solo permite eliminar si `user_id` coincide
+- GET: filtra por `clerk_id = $1 OR clerk_id IS NULL`
+- POST: inserta con `clerk_id` del usuario autenticado
+- DELETE: solo permite eliminar si `clerk_id` coincide
 
 **mentions.ts:**
-- GET: filtra por `user_id = $1 OR user_id IS NULL`
-- POST: inserta con `user_id` del usuario autenticado
-- DELETE: solo permite eliminar si `user_id` coincide
+- GET: filtra por `clerk_id = $1 OR clerk_id IS NULL`
+- POST: inserta con `clerk_id` del usuario autenticado
+- DELETE: solo permite eliminar si `clerk_id` coincide
 
 ### Comportamiento
 - Cada usuario solo ve sus propios datos
-- Los datos existentes con `user_id IS NULL` son visibles para todos (datos globales legacy)
+- Los datos existentes con `clerk_id IS NULL` son visibles para todos (datos globales legacy)
 - No se pueden eliminar datos de otros usuarios
 
 ### Archivos Modificados

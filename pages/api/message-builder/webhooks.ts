@@ -33,9 +33,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await query<any>(
         `SELECT id, name, value, kind, is_thread_enabled, thread_id, created_at, updated_at
          FROM sn_messagebuilder_webhook_targets
-         WHERE user_id = $1 OR user_id IS NULL
+         WHERE clerk_id = $1 OR clerk_id IS NULL
          ORDER BY created_at DESC`,
-        [user.id]
+        [user.clerk_id]
       );
       return res.json(result.map(normalizeWebhook));
     }
@@ -52,10 +52,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const result = await execute(
         `INSERT INTO sn_messagebuilder_webhook_targets
-         (name, value, kind, is_thread_enabled, thread_id, user_id)
+         (name, value, kind, is_thread_enabled, thread_id, clerk_id)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, name, value, kind, is_thread_enabled, thread_id, created_at, updated_at`,
-        [name, value, kind, !!is_thread_enabled, is_thread_enabled ? String(thread_id).trim() : null, user.id]
+        [name, value, kind, !!is_thread_enabled, is_thread_enabled ? String(thread_id).trim() : null, user.clerk_id]
       );
 
       return res.status(201).json(normalizeWebhook(result[0]));
@@ -69,8 +69,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_webhook_targets WHERE id = $1 AND user_id = $2 RETURNING id`,
-        [id, user.id]
+        `DELETE FROM sn_messagebuilder_webhook_targets WHERE id = $1 AND clerk_id = $2 RETURNING id`,
+        [id, user.clerk_id]
       );
 
       if (!result || result.length === 0) {

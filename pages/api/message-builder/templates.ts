@@ -31,9 +31,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const result = await query<any>(
         `SELECT id, name, data, created_at, updated_at
          FROM sn_messagebuilder_templates
-         WHERE user_id = $1 OR user_id IS NULL
+         WHERE clerk_id = $1 OR clerk_id IS NULL
          ORDER BY created_at DESC`,
-        [user.id]
+        [user.clerk_id]
       );
       return res.json(result.map(normalizeTemplate));
     }
@@ -46,10 +46,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `INSERT INTO sn_messagebuilder_templates (name, data, user_id)
+        `INSERT INTO sn_messagebuilder_templates (name, data, clerk_id)
          VALUES ($1, $2::jsonb, $3)
          RETURNING id, name, data, created_at, updated_at`,
-        [name, JSON.stringify(data), user.id]
+        [name, JSON.stringify(data), user.clerk_id]
       );
 
       return res.status(201).json(normalizeTemplate(result[0]));
@@ -63,8 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const result = await execute(
-        `DELETE FROM sn_messagebuilder_templates WHERE id = $1 AND user_id = $2 RETURNING id`,
-        [id, user.id]
+        `DELETE FROM sn_messagebuilder_templates WHERE id = $1 AND clerk_id = $2 RETURNING id`,
+        [id, user.clerk_id]
       );
 
       if (!result || result.length === 0) {
