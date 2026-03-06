@@ -342,7 +342,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 
 **Notas**
 Los usuarios pueden cambiar entre EN/ES.`}
-                                            className="w-full h-48 min-h-[12rem] bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-xs focus:border-terminal-accent/50 focus:outline-none transition-colors resize-y custom-scrollbar font-mono leading-relaxed placeholder:text-white/15"
+                                            className="w-full h-40 bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-xs focus:border-terminal-accent/50 focus:outline-none transition-colors resize-y custom-scrollbar font-mono leading-relaxed placeholder:text-white/15"
                                         />
                                     </div>
 
@@ -375,13 +375,13 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                 </div>
 
                                 {/* Preview Panel */}
-                                <div className="w-[525px] border-l border-white/5 bg-[#2b2d31] flex flex-col">
+                                <div className="w-80 border-l border-white/5 bg-[#2b2d31] flex flex-col">
                                     <div className="p-3 border-b border-white/5 flex items-center gap-2">
                                         <Eye size={12} className="text-white/40" />
                                         <span className="text-[10px] font-bold uppercase text-white/50 tracking-wider">Vista Previa</span>
                                     </div>
                                     
-                                    <div className="flex-1 p-4 overflow-y-auto custom-scrollbar">
+                                    <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                                         {discordPreview ? (
                                             <div 
                                                 className="rounded-lg overflow-hidden"
@@ -390,15 +390,15 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                     borderLeft: `3px solid #${(discordPreview.components[0].accent_color || 0).toString(16).padStart(6, '0')}`
                                                 }}
                                             >
-                                                <div className="p-4 space-y-3">
-                                                    <div className="text-white font-bold text-base">
+                                                <div className="p-3 space-y-2">
+                                                    <div className="text-white font-bold text-sm">
                                                         {formData.type === 'feat' ? '✨' : formData.type === 'fix' ? '🔧' : formData.type === 'security' ? '🔒' : '⚡'} {formData.message}
                                                     </div>
-                                                    <div className="text-[#949ba4] text-xs">
+                                                    <div className="text-[#949ba4] text-[10px]">
                                                         📅 {formData.date}
                                                     </div>
                                                     <div className="border-t border-white/10" />
-                                                    <div className="text-[#dbdee1] text-sm whitespace-pre-wrap leading-relaxed">
+                                                    <div className="text-[#dbdee1] text-xs whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto custom-scrollbar">
                                                         {(() => {
                                                             const lines = formData.description.split('\n');
                                                             const elements: React.ReactNode[] = [];
@@ -406,44 +406,40 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                             for (let i = 0; i < lines.length; i++) {
                                                                 const line = lines[i];
                                                                 
-                                                                // Empty line
                                                                 if (line.trim() === '') {
-                                                                    elements.push(<div key={i} className="h-2" />);
+                                                                    elements.push(<div key={i} className="h-1" />);
                                                                     continue;
                                                                 }
                                                                 
-                                                                // Bold header (like **Title**)
                                                                 if (line.startsWith('**') && line.endsWith('**') && !line.includes('**', 2)) {
                                                                     const text = line.slice(2, -2);
                                                                     elements.push(
-                                                                        <div key={i} className="font-bold text-white mt-2 mb-1">
+                                                                        <div key={i} className="font-bold text-white mt-1.5 mb-0.5 text-xs">
                                                                             {text}
                                                                         </div>
                                                                     );
                                                                     continue;
                                                                 }
                                                                 
-                                                                // List items
                                                                 if (line.startsWith('- ') || line.startsWith('* ')) {
                                                                     const text = line.slice(2);
                                                                     const parsed = text
                                                                         .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
                                                                         .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
                                                                     elements.push(
-                                                                        <div key={i} className="flex gap-2 items-start">
-                                                                            <span className="text-[#00ff88] mt-1">•</span>
+                                                                        <div key={i} className="flex gap-1.5 items-start text-[11px]">
+                                                                            <span className="text-[#00ff88] mt-0.5">•</span>
                                                                             <span dangerouslySetInnerHTML={{ __html: parsed }} />
                                                                         </div>
                                                                     );
                                                                     continue;
                                                                 }
                                                                 
-                                                                // Regular text
                                                                 const parsed = line
                                                                     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
                                                                     .replace(/\*(.+?)\*/g, '<em class="text-[#00ff88]">$1</em>');
                                                                 elements.push(
-                                                                    <div key={i} dangerouslySetInnerHTML={{ __html: parsed }} />
+                                                                    <div key={i} className="text-[11px]" dangerouslySetInnerHTML={{ __html: parsed }} />
                                                                 );
                                                             }
                                                             
@@ -453,8 +449,8 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="text-center py-12 text-white/30">
-                                                <div className="text-2xl mb-2">📝</div>
+                                            <div className="text-center py-8 text-white/30">
+                                                <div className="text-xl mb-2">📝</div>
                                                 <p className="text-[10px]">Escribe para ver la vista previa</p>
                                             </div>
                                         )}
