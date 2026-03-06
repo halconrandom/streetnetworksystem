@@ -78,6 +78,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
         </div>
       </div>
 
+      {/* Buy me a coffee */}
+      <div className="px-4 py-3 border-b border-terminal-border">
+        <a
+          href="https://www.buymeacoffee.com/halconrandom"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block transition-transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <img
+            src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=halconrandom&button_colour=FF5F5F&font_colour=ffffff&font_family=Comic&outline_colour=000000&coffee_colour=FFDD00"
+            alt="Buy me a coffee"
+            className="w-full rounded-lg"
+          />
+        </a>
+      </div>
+
       <nav className="flex-1 py-6 px-3 space-y-1">
         {filteredItems.map((item) => {
           const active = isActive(item.id, item.path);
