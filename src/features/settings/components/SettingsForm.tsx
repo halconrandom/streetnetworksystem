@@ -353,18 +353,34 @@ export default function SettingsForm() {
                                 {/* Localización */}
                                 <SettingsSection title="Localización" description="Región e idioma del sistema" icon={Globe}>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                        <PremiumSelect
-                                            label="Idioma de Interfaz"
-                                            options={languageOptions}
-                                            value={languageOptions.find(opt => opt.value === formData.language)}
-                                            onChange={(opt: any) => setFormData({ ...formData, language: opt?.value })}
-                                        />
-                                        <PremiumSelect
-                                            label="Zona Horaria"
-                                            options={timezoneOptions}
-                                            value={timezoneOptions.find(opt => opt.value === formData.timezone)}
-                                            onChange={(opt: any) => setFormData({ ...formData, timezone: opt?.value })}
-                                        />
+                                        <div className="relative">
+                                            <PremiumSelect
+                                                label="Idioma de Interfaz"
+                                                options={languageOptions}
+                                                value={languageOptions.find(opt => opt.value === formData.language)}
+                                                onChange={() => {}}
+                                                isDisabled
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-terminal-dark/80 rounded-lg pointer-events-none">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                                                    En Desarrollo
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="relative">
+                                            <PremiumSelect
+                                                label="Zona Horaria"
+                                                options={timezoneOptions}
+                                                value={timezoneOptions.find(opt => opt.value === formData.timezone)}
+                                                onChange={() => {}}
+                                                isDisabled
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-terminal-dark/80 rounded-lg pointer-events-none">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                                                    En Desarrollo
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </SettingsSection>
 
