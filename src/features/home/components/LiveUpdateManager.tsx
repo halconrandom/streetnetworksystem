@@ -188,7 +188,7 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-fade-in">
-            <div className="bg-terminal-panel border border-white/10 rounded-2xl w-full max-w-7xl h-[85vh] flex shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden">
+            <div className="bg-terminal-panel border border-white/10 rounded-2xl w-full max-w-[1340px] h-[85vh] flex shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden">
                 
                 {/* Sidebar - Update List */}
                 <div className="w-72 border-r border-white/5 flex flex-col bg-black/30">
@@ -375,7 +375,7 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                 </div>
 
                                 {/* Preview Panel */}
-                                <div className="w-96 border-l border-white/5 bg-[#2b2d31] flex flex-col">
+                                <div className="w-[420px] border-l border-white/5 bg-[#2b2d31] flex flex-col">
                                     <div className="p-3 border-b border-white/5 flex items-center gap-2">
                                         <Eye size={12} className="text-white/40" />
                                         <span className="text-[10px] font-bold uppercase text-white/50 tracking-wider">Vista Previa</span>
