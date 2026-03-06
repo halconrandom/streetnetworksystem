@@ -7,7 +7,6 @@ import {
     MessageSquare,
     Eye,
     Bell,
-    Palette,
     Lock,
     RefreshCw,
     AlertCircle,
@@ -17,8 +16,6 @@ import {
     Check,
     Clock,
     Globe,
-    Monitor,
-    Moon,
     Zap,
     Activity,
     Terminal,
@@ -34,11 +31,10 @@ import PremiumInput from '@/shared/ui/PremiumInput';
 import PremiumTextarea from '@/shared/ui/PremiumTextarea';
 import PremiumSelect from '@/shared/ui/PremiumSelect';
 
-type Tab = 'profile' | 'appearance' | 'notifications' | 'security' | 'integrations' | 'privacy';
+type Tab = 'profile' | 'notifications' | 'security' | 'integrations' | 'privacy';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: 'Perfil', icon: User },
-    { id: 'appearance', label: 'Apariencia', icon: Palette },
     { id: 'notifications', label: 'Notificaciones', icon: Bell },
     { id: 'security', label: 'Seguridad', icon: Shield },
     { id: 'integrations', label: 'Integraciones', icon: MessageSquare },
@@ -65,15 +61,6 @@ export default function SettingsForm() {
         bio: '',
         language: 'es',
         timezone: 'Europe/Madrid',
-    });
-
-    // Appearance state
-    const [appearance, setAppearance] = useState({
-        theme: 'dark' as 'dark' | 'darker' | 'midnight',
-        fontSize: 'md' as 'sm' | 'md' | 'lg',
-        animations: true,
-        compactMode: false,
-        showAvatars: true,
     });
 
     // Notifications state
@@ -419,115 +406,6 @@ export default function SettingsForm() {
                                             {copiedId ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                                             {copiedId ? 'Copiado' : 'Copiar'}
                                         </button>
-                                    </div>
-                                </SettingsSection>
-                            </>
-                        )}
-
-                        {/* ══════════════════════════════════════════════════
-                            TAB: APARIENCIA
-                        ══════════════════════════════════════════════════ */}
-                        {activeTab === 'appearance' && (
-                            <>
-                                <SettingsSection title="Tema Visual" description="Personaliza el aspecto del sistema" icon={Monitor}>
-                                    <div className="grid grid-cols-3 gap-3 mb-6">
-                                        {([
-                                            { id: 'dark', label: 'Dark', bg: '#0a0a0a', accent: '#ff003c' },
-                                            { id: 'darker', label: 'Darker', bg: '#050505', accent: '#ff003c' },
-                                            { id: 'midnight', label: 'Midnight', bg: '#080818', accent: '#6366f1' },
-                                        ] as const).map((theme) => (
-                                            <button
-                                                key={theme.id}
-                                                onClick={() => setAppearance({ ...appearance, theme: theme.id })}
-                                                className={`
-                                                    relative p-4 rounded-xl border-2 transition-all cursor-pointer
-                                                    ${appearance.theme === theme.id
-                                                        ? 'border-terminal-accent shadow-[0_0_16px_rgba(255,0,60,0.15)]'
-                                                        : 'border-terminal-border hover:border-terminal-border/80'
-                                                    }
-                                                `}
-                                                style={{ background: theme.bg }}
-                                            >
-                                                <div className="flex flex-col gap-2">
-                                                    <div className="flex gap-1">
-                                                        <div className="w-3 h-3 rounded-full" style={{ background: theme.accent }} />
-                                                        <div className="w-3 h-3 rounded-full bg-white/10" />
-                                                        <div className="w-3 h-3 rounded-full bg-white/5" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <div className="h-1.5 rounded-full bg-white/20 w-full" />
-                                                        <div className="h-1.5 rounded-full bg-white/10 w-3/4" />
-                                                    </div>
-                                                </div>
-                                                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-3">
-                                                    {theme.label}
-                                                </p>
-                                                {appearance.theme === theme.id && (
-                                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-terminal-accent flex items-center justify-center">
-                                                        <Check size={10} className="text-white" />
-                                                    </div>
-                                                )}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <SettingsDivider />
-
-                                    <div className="space-y-1">
-                                        <SettingsRow
-                                            label="Animaciones del Sistema"
-                                            description="Transiciones y efectos de movimiento en la UI"
-                                        >
-                                            <ToggleSwitch
-                                                enabled={appearance.animations}
-                                                onChange={(v) => setAppearance({ ...appearance, animations: v })}
-                                            />
-                                        </SettingsRow>
-                                        <SettingsDivider />
-                                        <SettingsRow
-                                            label="Modo Compacto"
-                                            description="Reduce el espaciado para mostrar más contenido"
-                                        >
-                                            <ToggleSwitch
-                                                enabled={appearance.compactMode}
-                                                onChange={(v) => setAppearance({ ...appearance, compactMode: v })}
-                                            />
-                                        </SettingsRow>
-                                        <SettingsDivider />
-                                        <SettingsRow
-                                            label="Mostrar Avatares"
-                                            description="Muestra imágenes de perfil en listas y tablas"
-                                        >
-                                            <ToggleSwitch
-                                                enabled={appearance.showAvatars}
-                                                onChange={(v) => setAppearance({ ...appearance, showAvatars: v })}
-                                            />
-                                        </SettingsRow>
-                                    </div>
-                                </SettingsSection>
-
-                                <SettingsSection title="Tipografía" description="Tamaño de fuente del sistema" icon={Moon}>
-                                    <div className="flex gap-3">
-                                        {([
-                                            { id: 'sm', label: 'Pequeño', size: 'text-xs' },
-                                            { id: 'md', label: 'Normal', size: 'text-sm' },
-                                            { id: 'lg', label: 'Grande', size: 'text-base' },
-                                        ] as const).map((opt) => (
-                                            <button
-                                                key={opt.id}
-                                                onClick={() => setAppearance({ ...appearance, fontSize: opt.id })}
-                                                className={`
-                                                    flex-1 py-3 rounded-lg border text-center transition-all cursor-pointer
-                                                    ${appearance.fontSize === opt.id
-                                                        ? 'border-terminal-accent bg-terminal-accent/10 text-terminal-accent'
-                                                        : 'border-terminal-border text-terminal-muted hover:border-terminal-border/80 hover:text-white'
-                                                    }
-                                                `}
-                                            >
-                                                <span className={`${opt.size} font-medium block`}>Aa</span>
-                                                <span className="text-[10px] uppercase tracking-widest mt-1 block">{opt.label}</span>
-                                            </button>
-                                        ))}
                                     </div>
                                 </SettingsSection>
                             </>
