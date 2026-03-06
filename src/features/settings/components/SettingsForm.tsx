@@ -3,49 +3,36 @@ import {
     User,
     Shield,
     MessageSquare,
-    Globe,
-    Terminal,
     Eye,
-    Palette,
     LogOut,
-    ChevronRight,
-    Save,
-    Check,
     Search,
-    Bell,
     Lock,
     Smartphone,
-    CreditCard,
-    HelpCircle,
     RefreshCw,
     AlertCircle,
     CheckCircle2,
-    Trash2,
     X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useUser, useClerk } from '@clerk/nextjs';
 
 type Category = 'profile' | 'security' | 'integrations' | 'privacy';
 
 export default function SettingsForm() {
-    // API routes are now local - no external backend needed
+    const { user, isLoaded } = useUser();
+    const { signOut } = useClerk();
 
     // Navigation State
     const [activeCategory, setActiveCategory] = useState<Category>('profile');
     const [searchQuery, setSearchQuery] = useState('');
 
     // Logic States
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: '',
-        email: '',
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: '',
         language: 'es'
     });
 
@@ -56,34 +43,28 @@ export default function SettingsForm() {
     const [channelSuccess, setChannelSuccess] = useState<string | null>(null);
     const [discordData, setDiscordData] = useState<{ id: string | null, username: string | null, avatar: string | null }>({ id: null, username: null, avatar: null });
 
+    // Initialize name from Clerk user
     useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const res = await fetch('/api/auth/me', { credentials: 'include' });
-                if (!res.ok) throw new Error('Error al cargar datos de usuario');
-                const data = await res.json();
-                setFormData(prev => ({
-                    ...prev,
-                    name: data.name || '',
-                    email: data.email || ''
-                }));
-                setDiscordData({
-                    id: data.discordId || null,
-                    username: data.discordUsername || null,
-                    avatar: data.discordAvatar || null
-                });
-            } catch (err: any) {
-                setError(err.message || 'Error de conexión');
-            } finally {
-                setLoading(false);
-            }
-        };
+        if (isLoaded && user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.firstName || user.username || '',
+            }));
+        }
+    }, [isLoaded, user]);
 
-        const fetchReviewChannel = async () => {
+    // Fetch DB-side user data (discord info + review channel)
+    useEffect(() => {
+        const fetchUserData = async () => {
             try {
-                const res = await fetch('/api/users/me/review-channel', { credentials: 'include' });
+                const res = await fetch('/api/users/me', { credentials: 'include' });
                 if (res.ok) {
                     const data = await res.json();
+                    setDiscordData({
+                        id: data.discordId || null,
+                        username: data.discordUsername || null,
+                        avatar: data.discordAvatar || null,
+                    });
                     setReviewChannelId(data.discord_review_channel_id || '');
                 }
             } catch {
@@ -91,27 +72,18 @@ export default function SettingsForm() {
             }
         };
 
-        fetchUser();
-        fetchReviewChannel();
-    }, []);
-
-    const handleLinkDiscord = async () => {
-        try {
-            const res = await fetch('/api/auth/discord', { credentials: 'include' });
-            if (!res.ok) throw new Error('Error al iniciar vinculación');
-            const { url } = await res.json();
-            if (url) window.location.href = url;
-        } catch (err: any) {
-            setError(err.message || 'Error al conectar con Discord');
+        if (isLoaded && user) {
+            fetchUserData();
         }
-    };
+    }, [isLoaded, user]);
+
 
     const handleSaveReviewChannel = async () => {
         setSavingChannel(true);
         setChannelError(null);
         setChannelSuccess(null);
         try {
-            const res = await fetch('/api/users/me/review-channel', {
+            const res = await fetch('/api/users/me', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -129,49 +101,19 @@ export default function SettingsForm() {
     };
 
     const handleSubmit = async () => {
+        if (!user) return;
         setSaving(true);
         setError(null);
         setSuccess(null);
 
-        if (formData.newPassword) {
-            if (formData.newPassword !== formData.confirmPassword) {
-                setError('Contraseñas no coinciden');
-                setSaving(false);
-                return;
-            }
-            if (!formData.oldPassword) {
-                setError('Ingrese contraseña actual');
-                setSaving(false);
-                return;
-            }
-        }
-
         try {
-            const payload: any = {};
-            if (formData.name) payload.name = formData.name;
-            if (formData.email) payload.email = formData.email;
-            if (formData.newPassword) {
-                payload.password = formData.newPassword;
-                payload.oldPassword = formData.oldPassword;
+            // Update display name via Clerk
+            const currentName = user.firstName || user.username || '';
+            if (formData.name && formData.name !== currentName) {
+                await user.update({ firstName: formData.name });
             }
-
-            const res = await fetch('/api/users/me', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(payload)
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Fallo en la actualización');
 
             setSuccess('Cambios aplicados');
-            setFormData(prev => ({
-                ...prev,
-                oldPassword: '',
-                newPassword: '',
-                confirmPassword: ''
-            }));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             setError(err.message || 'Error al guardar');
@@ -187,7 +129,7 @@ export default function SettingsForm() {
         { id: 'privacy', label: 'Privacidad', icon: Eye },
     ];
 
-    if (loading) {
+    if (!isLoaded) {
         return (
             <div className="flex h-full w-full items-center justify-center bg-[#0a0a0a]">
                 <RefreshCw size={24} className="animate-spin text-[#ff003c]" />
@@ -236,16 +178,19 @@ export default function SettingsForm() {
                 <div className="mt-auto p-8 border-t border-white-[0.05]">
                     <div className="flex items-center gap-3 mb-6">
                         <img
-                            src={discordData.avatar || `https://ui-avatars.com/api/?name=${formData.name}&background=1a1a1a&color=666`}
+                            src={user?.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'U')}&background=1a1a1a&color=666`}
                             className="w-8 h-8 rounded-lg grayscale opacity-70 border border-white/[0.05]"
                             alt="Avatar"
                         />
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{formData.name}</p>
+                            <p className="text-xs font-semibold text-white truncate">{user?.firstName || user?.username || formData.name}</p>
                             <p className="text-[10px] text-slate-600 uppercase tracking-wider font-medium">Nivel 4</p>
                         </div>
                     </div>
-                    <button className="flex items-center gap-2 text-[10px] text-slate-600 hover:text-[#ff003c] transition-colors uppercase font-bold tracking-wider">
+                    <button
+                        onClick={() => signOut({ redirectUrl: '/sign-in' })}
+                        className="flex items-center gap-2 text-[10px] text-slate-600 hover:text-[#ff003c] transition-colors uppercase font-bold tracking-wider"
+                    >
                         <LogOut className="w-3.5 h-3.5" />
                         Cerrar Sesión
                     </button>
@@ -320,10 +265,11 @@ export default function SettingsForm() {
                                                     <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Correo Electrónico</label>
                                                     <input
                                                         type="email"
-                                                        className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ff003c]/20 transition-all opacity-60"
-                                                        value={formData.email}
+                                                        className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none transition-all opacity-60 cursor-not-allowed"
+                                                        value={user?.primaryEmailAddress?.emailAddress || ''}
                                                         readOnly
                                                     />
+                                                    <p className="text-[9px] text-slate-600 uppercase font-medium tracking-wider">Gestionado por Clerk</p>
                                                 </div>
                                             </div>
                                         </section>
@@ -352,37 +298,14 @@ export default function SettingsForm() {
                                     <div className="space-y-12">
                                         <section>
                                             <h3 className="text-sm font-semibold text-white mb-8">Credenciales de Acceso</h3>
-                                            <div className="max-w-md space-y-8">
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Contraseña Actual</label>
-                                                    <input
-                                                        type="password"
-                                                        placeholder="••••••••"
-                                                        className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ff003c]/20 transition-all"
-                                                        value={formData.oldPassword}
-                                                        onChange={(e) => setFormData({ ...formData, oldPassword: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-6">
-                                                    <div className="space-y-3">
-                                                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Nueva Clave</label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder="••••••••"
-                                                            className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ff003c]/20 transition-all"
-                                                            value={formData.newPassword}
-                                                            onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-3">
-                                                        <label className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Repetir</label>
-                                                        <input
-                                                            type="password"
-                                                            placeholder="••••••••"
-                                                            className="w-full bg-white/[0.02] border border-white/[0.05] rounded-lg px-4 py-2.5 text-xs text-white focus:outline-none focus:border-[#ff003c]/20 transition-all"
-                                                            value={formData.confirmPassword}
-                                                            onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                                                        />
+                                            <div className="max-w-md">
+                                                <div className="p-6 bg-white/[0.02] border border-white/[0.05] rounded-2xl flex items-start gap-4">
+                                                    <Lock className="w-5 h-5 text-slate-600 mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-white uppercase tracking-wider">Seguridad gestionada por Clerk</p>
+                                                        <p className="text-[10px] text-slate-600 mt-2 leading-relaxed uppercase tracking-wider font-medium">
+                                                            El cambio de contraseña y correo electrónico se gestiona directamente en Clerk.
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -434,15 +357,6 @@ export default function SettingsForm() {
                                                             </p>
                                                         </div>
                                                     </div>
-                                                    <button
-                                                        onClick={handleLinkDiscord}
-                                                        className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${discordData.id
-                                                                ? 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white'
-                                                                : 'bg-[#5865F2] text-white hover:bg-[#4752C4] shadow-[0_4px_20px_rgba(88,101,242,0.2)]'
-                                                            }`}
-                                                    >
-                                                        {discordData.id ? 'Revincular' : 'Vincular Cuenta'}
-                                                    </button>
                                                 </div>
 
                                                 <div className="p-8 bg-white/[0.01]">

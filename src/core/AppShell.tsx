@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useAuth, useUser, RedirectToSignIn } from '@clerk/nextjs';
 import { Sidebar } from '@app/Sidebar';
 import { Menu } from '@shared/icons';
 import { Toaster } from 'sonner';
@@ -67,9 +67,9 @@ function AppShell({ currentView, title, children }: AppShellProps) {
     );
   }
 
-  // Si no está autenticado, no renderizar nada (middleware redirige)
+  // Si no está autenticado, redirigir al sign-in de Clerk
   if (!isSignedIn) {
-    return null;
+    return <RedirectToSignIn />;
   }
 
   return (

@@ -8,7 +8,7 @@ import '@features/message-builder/legacy/slider.css';
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <ClerkProvider {...pageProps}>
+    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
       <Component {...pageProps} />
     </ClerkProvider>
   );

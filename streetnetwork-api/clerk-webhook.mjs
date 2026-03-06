@@ -9,6 +9,7 @@
  */
 
 import { Webhook } from 'svix';
+import { clerkClient } from './clerk-auth.mjs';
 
 const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET || '';
 
@@ -96,60 +97,132 @@ function extractUserData(payload) {
 }
 
 /**
- * Crea un nuevo usuario en la base de datos
+ * Crea un nuevo usuario en la base de datos.
+ * Si ya existe un usuario con el mismo email (migración desde sistema anterior),
+ * vincula ese registro existente al nuevo clerk_id en lugar de crear un duplicado.
+ * Esto preserva los flags y el rol del usuario original, y los sincroniza
+ * de vuelta a Clerk publicMetadata para que AppShell los pueda leer.
  */
 async function createUser(pool, userData) {
   const client = await pool.connect();
+  let userId;
+  let syncToClerk = null; // { flags, role } para sincronizar después del commit
+
   try {
     await client.query('BEGIN');
 
-    // Insertar usuario
-    const userResult = await client.query(
-      `INSERT INTO public.sn_users 
-        (clerk_id, email, name, role, is_active, is_verified, discord_id, discord_username, discord_avatar, created_at)
-       VALUES ($1, $2, $3, $4, true, true, $5, $6, $7, now())
-       ON CONFLICT (clerk_id) DO UPDATE SET
-        email = EXCLUDED.email,
-        name = EXCLUDED.name,
-        discord_id = EXCLUDED.discord_id,
-        discord_username = EXCLUDED.discord_username,
-        discord_avatar = EXCLUDED.discord_avatar,
-        updated_at = now()
-       RETURNING id`,
-      [
-        userData.clerkId,
-        userData.email,
-        userData.fullName,
-        userData.role,
-        userData.discordId,
-        userData.discordUsername,
-        userData.avatarUrl,
-      ]
-    );
-
-    const userId = userResult.rows[0]?.id;
-
-    if (!userId) {
-      throw new Error('Failed to create user');
+    // Verificar si ya existe un usuario con el mismo email (caso de migración)
+    let existingUser = null;
+    if (userData.email) {
+      const existing = await client.query(
+        `SELECT id FROM public.sn_users WHERE email = $1`,
+        [userData.email]
+      );
+      existingUser = existing.rows[0] || null;
     }
 
-    // Insertar flags
-    for (const flag of userData.flags) {
-      await client.query(
-        `INSERT INTO public.sn_user_flags (user_id, flag) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [userId, flag]
+    if (existingUser) {
+      // Leer flags y role existentes ANTES de actualizar (para sincronizar a Clerk)
+      const flagsResult = await client.query(
+        `SELECT flag FROM public.sn_user_flags WHERE user_id = $1`,
+        [existingUser.id]
       );
+      const existingFlags = flagsResult.rows.map(r => r.flag);
+
+      const roleResult = await client.query(
+        `SELECT role FROM public.sn_users WHERE id = $1`,
+        [existingUser.id]
+      );
+      const existingRole = roleResult.rows[0]?.role || 'user';
+
+      // Usuario existente: vincular al nuevo clerk_id preservando role y flags
+      const updateResult = await client.query(
+        `UPDATE public.sn_users SET
+          clerk_id = $2,
+          discord_id = COALESCE($3, discord_id),
+          discord_username = COALESCE($4, discord_username),
+          discord_avatar = COALESCE($5, discord_avatar),
+          updated_at = now()
+         WHERE id = $1
+         RETURNING id`,
+        [
+          existingUser.id,
+          userData.clerkId,
+          userData.discordId,
+          userData.discordUsername,
+          userData.avatarUrl,
+        ]
+      );
+      userId = updateResult.rows[0]?.id;
+      syncToClerk = { flags: existingFlags, role: existingRole };
+      console.log(`[CLERK_WEBHOOK] Existing user linked to Clerk: ${userData.clerkId} (${userData.email}) — flags: [${existingFlags.join(', ')}]`);
+    } else {
+      // Usuario nuevo: insertar con flags por defecto
+      const userResult = await client.query(
+        `INSERT INTO public.sn_users 
+          (clerk_id, email, name, role, is_active, is_verified, discord_id, discord_username, discord_avatar, created_at)
+         VALUES ($1, $2, $3, $4, true, true, $5, $6, $7, now())
+         ON CONFLICT (clerk_id) DO UPDATE SET
+          email = EXCLUDED.email,
+          name = EXCLUDED.name,
+          discord_id = EXCLUDED.discord_id,
+          discord_username = EXCLUDED.discord_username,
+          discord_avatar = EXCLUDED.discord_avatar,
+          updated_at = now()
+         RETURNING id`,
+        [
+          userData.clerkId,
+          userData.email,
+          userData.fullName,
+          userData.role,
+          userData.discordId,
+          userData.discordUsername,
+          userData.avatarUrl,
+        ]
+      );
+      userId = userResult.rows[0]?.id;
+
+      if (!userId) {
+        throw new Error('Failed to create user');
+      }
+
+      // Insertar flags por defecto para usuarios nuevos
+      const flagsToInsert = userData.flags.length > 0 ? userData.flags : DEFAULT_FLAGS;
+      for (const flag of flagsToInsert) {
+        await client.query(
+          `INSERT INTO public.sn_user_flags (user_id, flag) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [userId, flag]
+        );
+      }
+      syncToClerk = { flags: flagsToInsert, role: userData.role || 'user' };
+      console.log(`[CLERK_WEBHOOK] New user created: ${userData.clerkId} (${userData.email})`);
     }
 
     await client.query('COMMIT');
-    console.log(`[CLERK_WEBHOOK] User created: ${userData.clerkId} (${userData.email})`);
-    return userId;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
   } finally {
     client.release();
   }
+
+  // Sincronizar flags y role a Clerk publicMetadata (fuera de la transacción)
+  // AppShell.tsx lee user?.publicMetadata?.flags — sin esto el usuario no tiene acceso
+  if (syncToClerk && clerkClient) {
+    try {
+      await clerkClient.users.updateUserMetadata(userData.clerkId, {
+        publicMetadata: {
+          flags: syncToClerk.flags,
+          role: syncToClerk.role,
+        },
+      });
+      console.log(`[CLERK_WEBHOOK] Clerk publicMetadata synced for: ${userData.clerkId} — flags: [${syncToClerk.flags.join(', ')}]`);
+    } catch (err) {
+      console.error(`[CLERK_WEBHOOK] Failed to sync publicMetadata to Clerk for ${userData.clerkId}:`, err.message);
+    }
+  }
+
+  return userId;
 }
 
 /**

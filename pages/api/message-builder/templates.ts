@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getAuth } from '@clerk/nextjs/server';
 import { query, execute } from '@lib/db';
-import { hasFlag } from '@lib/clerk-sync';
+import { hasFlag, getOrCreateUserByClerkId } from '@lib/clerk-sync';
 
 const toIsoUtc = (value: any) => {
   if (!value) return null;
@@ -17,32 +16,11 @@ const normalizeTemplate = (row: any) => ({
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { userId, sessionClaims } = getAuth(req);
-    if (!userId) {
+    const user = await getOrCreateUserByClerkId(req);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const clerkUser = (sessionClaims as any)?.__clerk_user || {};
-    const email = clerkUser.email_addresses?.find(
-      (e: any) => e.id === clerkUser.primary_email_address_id
-    )?.email_address;
-
-    if (!email) {
-      return res.status(400).json({ error: 'No email found' });
-    }
-
-    const currentUser = await query<any>(
-      'SELECT * FROM sn_users WHERE email = $1',
-      [email.toLowerCase()]
-    );
-
-    if (!currentUser || currentUser.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const user = currentUser[0];
-
-    // Check message_builder flag
     const hasMessageBuilder = await hasFlag(user.id, 'message_builder');
     if (!hasMessageBuilder) {
       return res.status(403).json({ error: 'Missing required permission: message_builder' });

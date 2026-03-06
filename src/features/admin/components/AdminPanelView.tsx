@@ -136,7 +136,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
       try {
         const res = await fetch('/api/auth/me', { credentials: 'include' });
         if (!res.ok) {
-          router.replace('/login');
+          router.replace('/sign-in');
           return;
         }
         const payload = await res.json();
@@ -146,7 +146,7 @@ export default function AdminPanelView({ activeTab: initialTab = 'users' }: Admi
         }
         setAccessDenied(false);
       } catch {
-        router.replace('/login');
+        router.replace('/sign-in');
       } finally {
         setCheckingAccess(false);
       }

@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { queryOne } from '@lib/db';
+import { getOrCreateUserByClerkId } from '@lib/clerk-sync';
 
 const toIsoUtc = (value: any) => {
   if (!value) return null;
@@ -25,6 +26,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const currentUser = await getOrCreateUserByClerkId(req);
+    if (!currentUser) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const result = await queryOne<any>(
       `SELECT id, ticket_number, user_id, thread_id, category, status, claimed_by, claimed_by_name,
               closed_by, closed_by_name, created_at, closed_at, opened_by_name, full_name,

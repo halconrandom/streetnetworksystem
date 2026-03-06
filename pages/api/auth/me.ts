@@ -1,7 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getAuth } from '@clerk/nextjs/server';
-import { queryOne, query } from '@lib/db';
-import { getUserFlags, logAudit } from '@lib/clerk-sync';
+import { getUserFlags, getOrCreateUserByClerkId } from '@lib/clerk-sync';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -9,62 +7,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { userId, sessionClaims } = getAuth(req);
-    
-    if (!userId) {
+    const user = await getOrCreateUserByClerkId(req);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get user from Clerk session claims
-    const clerkUser = (sessionClaims as any)?.__clerk_user || {};
-    const email = clerkUser.email_addresses?.find(
-      (e: any) => e.id === clerkUser.primary_email_address_id
-    )?.email_address || 
-      clerkUser.email_addresses?.[0]?.email_address;
-
-    if (!email) {
-      return res.status(400).json({ error: 'No email found' });
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'User disabled' });
     }
 
-    // Find or create user in DB
-    let user = await queryOne<any>(
-      'SELECT * FROM sn_users WHERE email = $1',
-      [email.toLowerCase()]
-    );
-
-    if (!user) {
-      // Create new user
-      const id = crypto.randomUUID();
-      await query(
-        `INSERT INTO sn_users (id, email, role, is_active, is_verified, created_at, updated_at)
-         VALUES ($1, $2, 'user', true, true, NOW(), NOW())`,
-        [id, email.toLowerCase()]
-      );
-      
-      user = await queryOne<any>(
-        'SELECT * FROM sn_users WHERE id = $1',
-        [id]
-      );
-    }
-
-    // Get user flags
     const flags = await getUserFlags(user.id);
-
-    // Log login
-    await logAudit(
-      'auth.login',
-      user.id,
-      null,
-      { method: 'clerk' },
-      req.headers['x-forwarded-for'] as string || req.socket.remoteAddress,
-      req.headers['user-agent']
-    );
-
-    // Update last login
-    await query(
-      'UPDATE sn_users SET last_login_at = NOW() WHERE id = $1',
-      [user.id]
-    );
 
     return res.status(200).json({
       id: user.id,

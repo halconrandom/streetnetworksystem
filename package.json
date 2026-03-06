@@ -4,13 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "proxy": "node proxy/corsProxy.mjs"
   },
   "dependencies": {
-    "@clerk/nextjs": "^5.7.5",
+    "@clerk/nextjs": "^6.39.0",
     "@reduxjs/toolkit": "^1.8.5",
     "ejs": "^3.1.10",
     "emoji-mart": "^3.0.1",
@@ -18,7 +18,7 @@
     "i18next": "^22.4.10",
     "i18next-browser-languagedetector": "^7.0.1",
     "lucide-react": "^0.562.0",
-    "next": "^16.1.4",
+    "next": "^15.5.12",
     "rc-slider": "^9.7.5",
     "react": "^18.2.0",
     "react-code-blocks": "^0.1.6",
@@ -32,6 +32,7 @@
     "react-select": "^5.10.1",
     "react-textarea-autosize": "^8.3.4",
     "sonner": "^2.0.7",
+    "svix": "^1.86.0",
     "use-file-picker": "^2.1.2"
   },
   "devDependencies": {

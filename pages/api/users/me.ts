@@ -1,37 +1,25 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { getAuth } from '@clerk/nextjs/server';
-import { queryOne, execute } from '@lib/db';
+import { execute } from '@lib/db';
+import { getOrCreateUserByClerkId } from '@lib/clerk-sync';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const { userId, sessionClaims } = getAuth(req);
-    if (!userId) {
+    const user = await getOrCreateUserByClerkId(req);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Get user email from Clerk session claims
-    const clerkUser = (sessionClaims as any)?.__clerk_user || {};
-    const email = clerkUser.email_addresses?.find(
-      (e: any) => e.id === clerkUser.primary_email_address_id
-    )?.email_address;
-
-    if (!email) {
-      return res.status(400).json({ error: 'No email found' });
-    }
-
-    // Get current user from DB
-    const user = await queryOne<any>(
-      'SELECT * FROM sn_users WHERE email = $1',
-      [email.toLowerCase()]
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
     if (req.method === 'GET') {
-      // Get review channel
+      // Return full DB-side user profile (extensible for future fields)
       return res.status(200).json({
+        id: user.id,
+        email: user.email,
+        name: user.name || null,
+        role: user.role,
+        is_active: user.is_active,
+        discordId: user.discord_id || null,
+        discordUsername: user.discord_username || null,
+        discordAvatar: user.discord_avatar || null,
         discord_review_channel_id: user.discord_review_channel_id || null,
       });
     }
