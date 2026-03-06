@@ -3,18 +3,15 @@ import {
     X,
     Plus,
     Trash2,
-    PenTool,
     Save,
-    Clock,
-    AlertCircle,
-    CheckCircle,
     Copy,
-    Eye
+    Eye,
+    Shield
 } from '@/components/Icons';
+import { Sparkles, Bug, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import {
     buildDiscordMessage,
-    UPDATE_COLORS,
     DiscordMessage
 } from './discord-components';
 
@@ -32,14 +29,19 @@ interface LiveUpdateManagerProps {
     onUpdate?: () => void;
 }
 
+const TYPE_CONFIG = {
+    feat: { icon: Sparkles, color: 'emerald', label: 'Mejora' },
+    fix: { icon: Bug, color: 'red', label: 'Parche' },
+    security: { icon: Shield, color: 'amber', label: 'Seguridad' },
+    refactor: { icon: Zap, color: 'blue', label: 'Optimización' }
+} as const;
+
 export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, onUpdate }) => {
     const [updates, setUpdates] = useState<LiveUpdate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [editingId, setEditingId] = useState<number | 'new' | null>(null);
-    const [showPreview, setShowPreview] = useState(false);
 
-    // Form state
     const [formData, setFormData] = useState<Partial<LiveUpdate>>({
         type: 'feat',
         message: '',
@@ -151,13 +153,12 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
         );
         
         navigator.clipboard.writeText(JSON.stringify(discordMessage, null, 2));
-        toast.success('JSON de Discord copiado al portapapeles');
+        toast.success('JSON copiado al portapapeles');
     };
 
     const startEditing = (update: LiveUpdate) => {
         setFormData(update);
         setEditingId(update.id);
-        setShowPreview(false);
     };
 
     const startNew = () => {
@@ -169,10 +170,8 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
             is_active: true
         });
         setEditingId('new');
-        setShowPreview(false);
     };
 
-    // Generate Discord preview
     const getDiscordPreview = (): DiscordMessage | null => {
         if (!formData.message || !formData.description) return null;
         
@@ -185,251 +184,251 @@ export const LiveUpdateManager: React.FC<LiveUpdateManagerProps> = ({ onClose, o
     };
 
     const discordPreview = getDiscordPreview();
+    const currentType = TYPE_CONFIG[formData.type as keyof typeof TYPE_CONFIG] || TYPE_CONFIG.feat;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-            <div className="bg-terminal-panel border border-terminal-border rounded-3xl w-full max-w-[85vw] max-h-[95vh] flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden">
-                {/* Header */}
-                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <div>
-                        <h2 className="text-xl font-black text-white uppercase tracking-tighter">Gestión de Actualizaciones</h2>
-                        <p className="text-[10px] text-terminal-accent font-bold uppercase tracking-widest mt-1 opacity-60">Formato Discord Components V2</p>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md animate-fade-in">
+            <div className="bg-terminal-panel border border-white/10 rounded-2xl w-full max-w-6xl h-[85vh] flex shadow-[0_0_60px_rgba(0,0,0,0.5)] overflow-hidden">
+                
+                {/* Sidebar - Update List */}
+                <div className="w-72 border-r border-white/5 flex flex-col bg-black/30">
+                    <div className="p-4 border-b border-white/5">
+                        <h2 className="text-sm font-black text-white uppercase tracking-tight">Actualizaciones</h2>
+                        <p className="text-[10px] text-white/40 mt-1">{updates.length} entradas</p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-terminal-muted hover:text-white transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-hidden flex">
-                    {/* List Sidebar */}
-                    <div className="w-72 border-r border-white/5 overflow-y-auto custom-scrollbar p-4 bg-black/20">
+                    
+                    <div className="p-3">
                         <button
                             onClick={startNew}
-                            className="w-full mb-4 py-3 bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-terminal-accent hover:text-black transition-all flex items-center justify-center gap-2"
+                            className="w-full py-2.5 bg-terminal-accent text-black text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white transition-colors flex items-center justify-center gap-2"
                         >
-                            <Plus size={14} /> Nueva Actualización
+                            <Plus size={14} /> Nueva
                         </button>
-
-                        <div className="space-y-2">
-                            {isLoading ? (
-                                <div className="text-center py-10 opacity-20 animate-pulse">Cargando...</div>
-                            ) : updates.map(update => (
-                                <div
-                                    key={update.id}
-                                    onClick={() => startEditing(update)}
-                                    className={`p-3 rounded-xl border transition-all cursor-pointer group ${editingId === update.id ? 'bg-terminal-accent/10 border-terminal-accent/50' : 'bg-white/5 border-white/5 hover:border-white/10'}`}
-                                >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${update.type === 'feat' ? 'bg-emerald-500/20 text-emerald-400' : update.type === 'fix' ? 'bg-red-500/20 text-red-400' : update.type === 'security' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                            {update.type}
-                                        </span>
-                                        <span className="text-[8px] font-mono opacity-30">{new Date(update.date).toLocaleDateString()}</span>
-                                    </div>
-                                    <p className="text-[11px] text-white/70 font-bold truncate group-hover:text-white transition-colors">
-                                        {update.message}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
                     </div>
 
-                    {/* Editor Main */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        {editingId ? (
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-3 pt-0 space-y-2">
+                        {isLoading ? (
+                            <div className="text-center py-8 text-white/30 text-xs">Cargando...</div>
+                        ) : updates.length === 0 ? (
+                            <div className="text-center py-8 text-white/30 text-xs">Sin actualizaciones</div>
+                        ) : (
+                            updates.map(update => {
+                                const typeCfg = TYPE_CONFIG[update.type as keyof typeof TYPE_CONFIG] || TYPE_CONFIG.feat;
+                                const TypeIcon = typeCfg.icon;
+                                const isSelected = editingId === update.id;
+                                
+                                return (
+                                    <button
+                                        key={update.id}
+                                        onClick={() => startEditing(update)}
+                                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                                            isSelected 
+                                                ? 'bg-terminal-accent/20 border border-terminal-accent/40' 
+                                                : 'bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-${typeCfg.color}-500/20 text-${typeCfg.color}-400`}>
+                                                <TypeIcon size={10} />
+                                                {typeCfg.label}
+                                            </span>
+                                            <span className="text-[9px] text-white/30 font-mono ml-auto">
+                                                {new Date(update.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-white/80 font-medium truncate leading-tight">
+                                            {update.message}
+                                        </p>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    {editingId ? (
+                        <>
+                            {/* Editor Header */}
+                            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg bg-${currentType.color}-500/20`}>
+                                        <currentType.icon size={16} className={`text-${currentType.color}-400`} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-white">
+                                            {editingId === 'new' ? 'Nueva Actualización' : 'Editar Actualización'}
+                                        </h3>
+                                        <p className="text-[10px] text-white/40">
+                                            {editingId === 'new' ? 'Crea una nueva entrada' : 'Modifica los cambios'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Editor Body */}
                             <div className="flex-1 flex overflow-hidden">
-                                {/* Editor Panel */}
-                                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar border-r border-white/5">
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block pl-1">Categoría</label>
-                                                <select
-                                                    value={formData.type}
-                                                    onChange={e => setFormData({ ...formData, type: e.target.value })}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-terminal-accent/50 transition-colors outline-none appearance-none"
-                                                >
-                                                    <option value="feat">✨ Mejora</option>
-                                                    <option value="fix">🔧 Parche / Arreglo</option>
-                                                    <option value="refactor">⚡ Optimización</option>
-                                                    <option value="security">🔒 Seguridad</option>
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block pl-1">Fecha</label>
-                                                <input
-                                                    type="date"
-                                                    value={formData.date?.split('T')[0]}
-                                                    onChange={e => setFormData({ ...formData, date: e.target.value })}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-terminal-accent/50 transition-colors outline-none [color-scheme:dark]"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block pl-1">Título</label>
-                                            <input
-                                                type="text"
-                                                placeholder="e.g. Sistema de i18n implementado"
-                                                value={formData.message}
-                                                onChange={e => setFormData({ ...formData, message: e.target.value })}
-                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:border-terminal-accent/50 transition-colors outline-none"
-                                            />
-                                        </div>
-
-                                        <div className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/5 rounded-xl">
-                                            <input
-                                                type="checkbox"
-                                                id="is-active"
-                                                checked={formData.is_active}
-                                                onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                                                className="w-4 h-4 accent-terminal-accent rounded border-white/10"
-                                            />
-                                            <label htmlFor="is-active" className="text-[10px] font-black uppercase text-white/60 tracking-widest cursor-pointer select-none">
-                                                Publicar en la página de inicio
-                                            </label>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between pl-1">
-                                                <label className="text-[9px] font-black uppercase text-terminal-muted tracking-widest block">Descripción (Discord Markdown)</label>
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        onClick={() => {
-                                                            const textarea = document.getElementById('description-editor') as HTMLTextAreaElement;
-                                                            if (textarea) {
-                                                                const currentHeight = textarea.offsetHeight;
-                                                                textarea.style.height = currentHeight < 400 ? '32rem' : '16rem';
-                                                            }
-                                                        }}
-                                                        className="p-1.5 text-terminal-muted hover:text-terminal-accent hover:bg-white/5 rounded transition-all"
-                                                        title="Expandir/Contraer"
-                                                    >
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <path d="M12 5v14M5 12h14" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <textarea
-                                                id="description-editor"
-                                                placeholder={`### Cambios realizados
-- **Nueva funcionalidad**: Selector de idiomas
-- **Mejora**: Traducciones completas
-- **Fix**: Error en el selector de canales
-
-### Notas adicionales
-Los usuarios pueden cambiar entre EN/ES desde el TopBar.`}
-                                                value={formData.description}
-                                                onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                                className="w-full h-64 min-h-[16rem] max-h-[32rem] bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white text-xs focus:border-terminal-accent/50 transition-colors outline-none resize-y custom-scrollbar font-mono leading-relaxed"
-                                            />
-                                            <p className="text-[9px] text-white/30">
-                                                Usa **bold**, *italic*, `code`, # headers, - bullets, 1. numeración
-                                            </p>
-                                        </div>
-
-                                        <div className="flex items-center gap-3 pt-3 border-t border-white/5">
-                                            <button
-                                                onClick={handleSave}
-                                                disabled={isSaving}
-                                                className="flex-1 py-3 bg-terminal-accent text-black font-black uppercase text-[10px] tracking-[0.2em] rounded-xl hover:bg-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+                                {/* Form */}
+                                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
+                                    {/* Type & Date Row */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider block mb-1.5">Tipo</label>
+                                            <select
+                                                value={formData.type}
+                                                onChange={e => setFormData({ ...formData, type: e.target.value })}
+                                                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-terminal-accent/50 focus:outline-none transition-colors"
                                             >
-                                                <Save size={16} /> {editingId === 'new' ? 'Publicar' : 'Guardar'}
-                                            </button>
-                                            <button
-                                                onClick={handleCopyDiscordJson}
-                                                className="px-4 py-3 bg-white/5 text-white/60 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
-                                            >
-                                                <Copy size={14} /> Copiar JSON
-                                            </button>
-                                            {editingId !== 'new' && (
-                                                <button
-                                                    onClick={() => handleDelete(editingId as number)}
-                                                    className="p-3 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl hover:bg-red-500 hover:text-white transition-all"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            )}
+                                                <option value="feat">✨ Mejora</option>
+                                                <option value="fix">🔧 Parche</option>
+                                                <option value="refactor">⚡ Optimización</option>
+                                                <option value="security">🔒 Seguridad</option>
+                                            </select>
                                         </div>
+                                        <div>
+                                            <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider block mb-1.5">Fecha</label>
+                                            <input
+                                                type="date"
+                                                value={formData.date?.split('T')[0]}
+                                                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-terminal-accent/50 focus:outline-none transition-colors [color-scheme:dark]"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Title */}
+                                    <div>
+                                        <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider block mb-1.5">Título</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Ej: Sistema de i18n implementado"
+                                            value={formData.message}
+                                            onChange={e => setFormData({ ...formData, message: e.target.value })}
+                                            className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:border-terminal-accent/50 focus:outline-none transition-colors placeholder:text-white/20"
+                                        />
+                                    </div>
+
+                                    {/* Active Toggle */}
+                                    <label className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/5 rounded-lg cursor-pointer hover:bg-white/[0.05] transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.is_active}
+                                            onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                                            className="w-4 h-4 accent-terminal-accent rounded"
+                                        />
+                                        <span className="text-xs text-white/70">Publicar en la página de inicio</span>
+                                    </label>
+
+                                    {/* Description */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-[9px] font-bold uppercase text-white/50 tracking-wider">Descripción</label>
+                                            <span className="text-[9px] text-white/30">**bold** *italic* - lista</span>
+                                        </div>
+                                        <textarea
+                                            value={formData.description}
+                                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                            placeholder={`**Cambios realizados**
+- Nueva funcionalidad: Selector de idiomas
+- Mejora: Traducciones completas
+- Fix: Error en selector
+
+**Notas**
+Los usuarios pueden cambiar entre EN/ES.`}
+                                            className="w-full h-48 min-h-[12rem] bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 text-white text-xs focus:border-terminal-accent/50 focus:outline-none transition-colors resize-y custom-scrollbar font-mono leading-relaxed placeholder:text-white/15"
+                                        />
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={isSaving}
+                                            className="flex-1 py-2.5 bg-terminal-accent text-black text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            <Save size={14} />
+                                            {isSaving ? 'Guardando...' : (editingId === 'new' ? 'Publicar' : 'Guardar')}
+                                        </button>
+                                        <button
+                                            onClick={handleCopyDiscordJson}
+                                            className="px-4 py-2.5 bg-white/5 border border-white/10 text-white/60 text-[11px] font-bold uppercase tracking-wider rounded-lg hover:bg-white/10 hover:text-white transition-colors flex items-center gap-2"
+                                        >
+                                            <Copy size={14} />
+                                            JSON
+                                        </button>
+                                        {editingId !== 'new' && (
+                                            <button
+                                                onClick={() => handleDelete(editingId as number)}
+                                                className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-colors"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Discord Preview Panel */}
-                                <div className="w-[400px] p-6 overflow-y-auto custom-scrollbar bg-[#36393f]">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <Eye size={14} className="text-white/60" />
-                                        <span className="text-[10px] font-black uppercase text-white/60 tracking-widest">Vista Previa Discord</span>
+                                {/* Preview Panel */}
+                                <div className="w-80 border-l border-white/5 bg-[#2b2d31] flex flex-col">
+                                    <div className="p-3 border-b border-white/5 flex items-center gap-2">
+                                        <Eye size={12} className="text-white/40" />
+                                        <span className="text-[10px] font-bold uppercase text-white/50 tracking-wider">Vista Previa</span>
                                     </div>
                                     
-                                    {discordPreview ? (
-                                        <div className="space-y-4">
-                                            {/* Simulated Discord Container */}
+                                    <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+                                        {discordPreview ? (
                                             <div 
-                                                className="rounded-xl overflow-hidden"
+                                                className="rounded-lg overflow-hidden"
                                                 style={{
-                                                    backgroundColor: '#2b2d31',
-                                                    borderLeft: `4px solid #${(discordPreview.components[0].accent_color || 0).toString(16).padStart(6, '0')}`
+                                                    backgroundColor: '#1e2024',
+                                                    borderLeft: `3px solid #${(discordPreview.components[0].accent_color || 0).toString(16).padStart(6, '0')}`
                                                 }}
                                             >
-                                                <div className="p-4 space-y-3">
-                                                    {/* Header */}
-                                                    <div className="text-white font-bold text-lg">
+                                                <div className="p-3 space-y-2">
+                                                    <div className="text-white font-bold text-sm">
                                                         {formData.type === 'feat' ? '✨' : formData.type === 'fix' ? '🔧' : formData.type === 'security' ? '🔒' : '⚡'} {formData.message}
                                                     </div>
-                                                    <div className="text-[#949ba4] text-xs">
+                                                    <div className="text-[#949ba4] text-[10px]">
                                                         📅 {formData.date}
                                                     </div>
-                                                    
-                                                    {/* Separator */}
-                                                    <div className="border-t border-white/10" />
-                                                    
-                                                    {/* Content */}
-                                                    <div className="text-[#dbdee1] text-sm whitespace-pre-wrap">
+                                                    <div className="border-t border-white/10 my-2" />
+                                                    <div className="text-[#dbdee1] text-[11px] whitespace-pre-wrap leading-relaxed">
                                                         {formData.description.split('\n').map((line, i) => {
-                                                            // Parse markdown
                                                             let parsed = line
-                                                                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                                                                .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                                                                .replace(/^### (.+)$/g, '<strong class="text-white">$1</strong>')
-                                                                .replace(/^## (.+)$/g, '<strong class="text-white text-base">$1</strong>')
-                                                                .replace(/^# (.+)$/g, '<strong class="text-white text-lg">$1</strong>');
-                                                            
+                                                                .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+                                                                .replace(/\*(.+?)\*/g, '<em class="text-terminal-accent">$1</em>');
                                                             return (
-                                                                <div key={i} className="leading-relaxed">
-                                                                    <span dangerouslySetInnerHTML={{ __html: parsed }} />
+                                                                <div key={i}>
+                                                                    <span dangerouslySetInnerHTML={{ __html: parsed || '&nbsp;' }} />
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {/* JSON Preview */}
-                                            <details className="text-[10px]">
-                                                <summary className="cursor-pointer text-white/40 hover:text-white/60 mb-2">
-                                                    Ver JSON
-                                                </summary>
-                                                <pre className="bg-black/30 p-3 rounded-lg overflow-x-auto text-white/70 font-mono">
-                                                    {JSON.stringify(discordPreview, null, 2)}
-                                                </pre>
-                                            </details>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-10 text-white/30">
-                                            <AlertCircle size={32} className="mx-auto mb-2 opacity-50" />
-                                            <p className="text-xs">Complete el título y descripción para ver la vista previa</p>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="text-center py-12 text-white/30">
+                                                <div className="text-2xl mb-2">📝</div>
+                                                <p className="text-[10px]">Escribe para ver la vista previa</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
-                                <AlertCircle size={48} className="mb-4" />
-                                <h3 className="text-lg font-black uppercase tracking-widest">Esperando selección</h3>
-                                <p className="text-xs mt-2 italic">Selecciona una entrada o añade una nueva actualización para comenzar.</p>
-                            </div>
-                        )}
-                    </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-white/30">
+                            <div className="text-4xl mb-3">📋</div>
+                            <p className="text-sm font-medium mb-1">Selecciona una entrada</p>
+                            <p className="text-[11px]">o crea una nueva actualización</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
