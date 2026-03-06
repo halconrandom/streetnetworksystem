@@ -386,21 +386,21 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                     <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                                         {discordPreview ? (
                                             <div 
-                                                className="rounded-lg overflow-hidden"
+                                                className="rounded-lg overflow-hidden h-full flex flex-col"
                                                 style={{
                                                     backgroundColor: '#1e2024',
                                                     borderLeft: `3px solid #${(discordPreview.components[0].accent_color || 0).toString(16).padStart(6, '0')}`
                                                 }}
                                             >
-                                                <div className="p-3 space-y-2">
-                                                    <div className="text-white font-bold text-sm">
+                                                <div className="p-3 flex flex-col h-full">
+                                                    <div className="text-white font-bold text-sm mb-1">
                                                         {formData.type === 'feat' ? '✨' : formData.type === 'fix' ? '🔧' : formData.type === 'security' ? '🔒' : '⚡'} {formData.message}
                                                     </div>
-                                                    <div className="text-[#949ba4] text-[10px]">
+                                                    <div className="text-[#949ba4] text-[10px] mb-2">
                                                         📅 {formData.date}
                                                     </div>
-                                                    <div className="border-t border-white/10" />
-                                                    <div className="text-[#dbdee1] text-sm leading-relaxed max-h-64 overflow-y-auto custom-scrollbar prose prose-invert prose-sm">
+                                                    <div className="border-t border-white/10 mb-2" />
+                                                    <div className="text-[#dbdee1] text-sm leading-relaxed flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-sm">
                                                         <ReactMarkdown
                                                             components={{
                                                                 h1: ({ children }) => <h1 className="text-base font-bold text-white mt-3 mb-1">{children}</h1>,
