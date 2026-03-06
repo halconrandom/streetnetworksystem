@@ -4,6 +4,15 @@ import { getOrCreateUserByClerkId } from '@lib/clerk-sync';
 
 const CACHE_LIMIT = 20;
 
+// Increase body size limit for large screenshot images (base64)
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const currentUser = await getOrCreateUserByClerkId(req);
