@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings } from '../constants';
+import { CACHE_KEY, DEFAULT_COLOR, defaultSettings, defaultTextSettings, defaultFilterSettings } from '../constants';
 import type { CacheItem, ChatLine, EditorSettings, OverlayImage, RedactionArea, TextBlock, TextBlockSettings } from '../types';
 import { buildLinesFromBlocks, getCombinedText } from '../utils';
 import { useHistory } from './useHistory';
@@ -257,7 +257,7 @@ export const useEditorState = () => {
             } else {
                 // Revert if failed
                 setCacheItems(prev => prev.filter(p => p.id !== tempId));
-                
+
                 // Show error message to user
                 try {
                     const errorData = await res.json();
@@ -309,7 +309,14 @@ export const useEditorState = () => {
             locked: o.locked ?? false
         }));
 
-        const nextSettings = { ...defaultSettings, ...item.settings };
+        const nextSettings: EditorSettings = {
+            ...defaultSettings,
+            ...item.settings,
+            filters: {
+                ...defaultFilterSettings,
+                ...(item.settings?.filters || {})
+            }
+        };
 
         const nextOrder = (item.layerOrder && item.layerOrder.length > 0)
             ? item.layerOrder

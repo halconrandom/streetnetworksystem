@@ -560,14 +560,17 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
                   overlay={overlays.find((o) => o.id === activeCropOverlayId)!}
                   onCancel={() => setActiveCropOverlayId(null)}
                   onApply={(updateValue) => {
+                    // Invalidate cache FIRST so the canvas re-renders with fresh image
+                    invalidateCache(activeCropOverlayId);
+                    // Then update the overlay state
                     updateOverlay(activeCropOverlayId, { crop: updateValue });
                     setActiveCropOverlayId(null);
-                    invalidateCache(activeCropOverlayId);
                     commitHistory();
                   }}
                   onSaveAsCopy={(crop) => {
                     const overlay = overlays.find(o => o.id === activeCropOverlayId);
                     if (overlay) {
+                      // Create new overlay with crop - will be cached on first render
                       addOverlay({
                         ...overlay,
                         id: `${Date.now()}-copy`,

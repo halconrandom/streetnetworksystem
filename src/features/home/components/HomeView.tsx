@@ -44,7 +44,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
                 return <strong key={i} className="text-white font-black">{part.slice(2, -2)}</strong>;
             }
             if (part.startsWith('*') && part.endsWith('*')) {
-                return <em key={i} className="text-terminal-accent italic">{part.slice(1, -1)}</em>;
+                return <em key={i} className="text-[#00ff88] italic">{part.slice(1, -1)}</em>;
             }
             if (part.startsWith('`') && part.endsWith('`')) {
                 return <code key={i} className="bg-white/10 px-1.5 py-0.5 rounded text-terminal-accent font-mono text-[11px]">{part.slice(1, -1)}</code>;
@@ -70,27 +70,27 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
         // Headers: ###, ##, #
         if (trimmedLine.startsWith('### ')) {
             elements.push(
-                <h4 key={`h3-${i}`} className="text-lg font-bold text-white mb-1 mt-3">
+                <h3 key={`h3-${i}`} className="text-lg font-semibold text-white mt-2 mb-1">
                     {renderText(trimmedLine.slice(4))}
-                </h4>
+                </h3>
             );
             i++;
             continue;
         }
         if (trimmedLine.startsWith('## ')) {
             elements.push(
-                <h3 key={`h2-${i}`} className="text-xl font-bold text-white mb-1 mt-4">
+                <h2 key={`h2-${i}`} className="text-xl font-bold text-white mt-2 mb-1">
                     {renderText(trimmedLine.slice(3))}
-                </h3>
+                </h2>
             );
             i++;
             continue;
         }
         if (trimmedLine.startsWith('# ')) {
             elements.push(
-                <h2 key={`h1-${i}`} className="text-2xl font-black text-white mb-2 mt-4">
+                <h1 key={`h1-${i}`} className="text-2xl font-bold text-white mt-3 mb-2">
                     {renderText(trimmedLine.slice(2))}
-                </h2>
+                </h1>
             );
             i++;
             continue;
@@ -135,7 +135,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
             elements.push(
                 <ListTag
                     key={`list-${i}`}
-                    className={`my-2 ml-5 space-y-0.5 ${listType === 'ul' ? 'list-disc' : 'list-decimal'} marker:text-terminal-accent/50`}
+                    className={`my-2 ml-5 space-y-0.5 text-sm ${listType === 'ul' ? 'list-disc' : 'list-decimal'} marker:text-terminal-accent/50`}
                 >
                     {listItems}
                 </ListTag>

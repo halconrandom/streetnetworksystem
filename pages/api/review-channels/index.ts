@@ -1,11 +1,35 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { query, queryOne } from '@lib/db';
+import { query, queryOne, execute } from '@lib/db';
 import { getOrCreateUserByClerkId } from '@lib/clerk-sync';
+
+// Auto-migration: ensure the table exists before any query
+async function ensureTable() {
+  await execute(`
+    CREATE TABLE IF NOT EXISTS sn_review_channels (
+      id SERIAL PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES sn_users(id) ON DELETE CASCADE,
+      name VARCHAR(100) NOT NULL,
+      channel_id VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await execute(`
+    CREATE INDEX IF NOT EXISTS idx_review_channels_user_id ON sn_review_channels(user_id)
+  `);
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const currentUser = await getOrCreateUserByClerkId(req);
   if (!currentUser) {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Ensure table exists (idempotent)
+  try {
+    await ensureTable();
+  } catch (err) {
+    console.error('[REVIEW_CHANNELS] Migration error:', err);
+    return res.status(500).json({ error: 'Error de base de datos' });
   }
 
   if (req.method === 'GET') {
@@ -23,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     const { name, channelId } = req.body || {};
-    
+
     if (!name || !channelId) {
       return res.status(400).json({ error: 'Nombre y Channel ID son requeridos' });
     }

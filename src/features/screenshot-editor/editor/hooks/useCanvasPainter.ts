@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { defaultTextSettings, DEFAULT_COLOR } from '../constants';
+import { useEffect, useRef, useCallback } from 'react';
+import { defaultTextSettings, DEFAULT_COLOR, defaultFilterSettings } from '../constants';
 import type { ChatLine, EditorSettings, OverlayImage, RedactionArea, TextBlock } from '../types';
 import { colorWithAlpha, parseChatLines } from '../utils';
 
@@ -17,9 +17,6 @@ type RenderLine = {
 const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, size: number = 8) => {
   if (w <= 0 || h <= 0) return;
 
-  // Diagnostic log for the developer console
-  console.log(`Pixelating at ${x},${y} with size ${w}x${h}`);
-
   try {
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
@@ -34,7 +31,6 @@ const pixelateRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: nu
     tempCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, sw, sh);
 
     ctx.save();
-    // FORCE RESET ALL STATE that could hide the draw
     ctx.filter = 'none';
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
@@ -56,7 +52,6 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   if (maxWidth <= 0) return [{ text, redactions: [] }];
 
   const MARKER = '//';
-  // Split by whitespace and markers
   const tokens = text.split(/(\s+|\/\/)/).filter(s => s !== undefined && s !== "");
   const lines: { text: string; redactions: RedactionRegion[] }[] = [];
 
@@ -66,7 +61,6 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   let currentRedactions: RedactionRegion[] = [];
 
   const pushLine = () => {
-    // If we wrap in the middle of a redaction, close it for the current line
     if (inRedaction && redactionStartPos !== null) {
       const endPos = ctx.measureText(currentText).width;
       if (endPos > redactionStartPos) {
@@ -79,7 +73,6 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     currentText = '';
     currentRedactions = [];
 
-    // If we wrapped in the middle of a redaction, it continues at the start of the next line
     if (inRedaction) {
       redactionStartPos = 0;
     } else {
@@ -106,22 +99,17 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
       return;
     }
 
-    // Skip leading spaces on a new line to keep things clean
     if (currentText === "" && /^\s+$/.test(token)) return;
 
     const testText = currentText + token;
     const testWidth = ctx.measureText(testText).width;
 
     if (testWidth > maxWidth) {
-      // If we already have some text, push it and try the word on a new line
       if (currentText !== "") {
         pushLine();
-
-        // Skip the token if it's just a space that caused the wrap
         if (/^\s+$/.test(token)) return;
       }
 
-      // If the word itself is still too long for a single line, use character-based fallback for it
       if (ctx.measureText(token).width > maxWidth) {
         for (let i = 0; i < token.length; i++) {
           const char = token[i];
@@ -138,7 +126,6 @@ const wrapText = (ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
     }
   });
 
-  // Final push if there's any pending text
   if (currentText !== "" || lines.length === 0 || inRedaction) {
     pushLine();
   }
@@ -155,7 +142,6 @@ const wrapChatLines = (ctx: CanvasRenderingContext2D, chatLines: ChatLine[], max
   });
   return wrapped;
 };
-
 
 
 type UseCanvasPainterProps = {
@@ -190,102 +176,100 @@ export const useCanvasPainter = ({
 
       const image = new window.Image();
       image.onload = () => {
-        canvas.width = settings.width;
-        canvas.height = settings.height;
+        canvas.width = settings.width || 1920;
+        canvas.height = settings.height || 1080;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const canvasRatio = settings.width / settings.height;
+        const canvasRatio = canvas.width / canvas.height;
         const imageRatio = image.width / image.height;
 
-        let drawWidth = settings.width;
-        let drawHeight = settings.height;
+        let drawWidth = canvas.width;
+        let drawHeight = canvas.height;
         let offsetX = 0;
         let offsetY = 0;
 
+        // Defensive: use defaultFilterSettings if filters are missing
+        const filters = { ...defaultFilterSettings, ...(settings.filters || {}) };
+        const { brightness, contrast, saturate, sepia, vignette } = filters;
+
         if (settings.fitMode === 'crop') {
-          drawWidth = image.width * settings.imageScale;
-          drawHeight = image.height * settings.imageScale;
-          offsetX = (settings.width - drawWidth) / 2 + settings.imageOffsetX;
-          offsetY = (settings.height - drawHeight) / 2 + settings.imageOffsetY;
+          drawWidth = image.width * (settings.imageScale || 1);
+          drawHeight = image.height * (settings.imageScale || 1);
+          offsetX = (canvas.width - drawWidth) / 2 + (settings.imageOffsetX || 0);
+          offsetY = (canvas.height - drawHeight) / 2 + (settings.imageOffsetY || 0);
 
           ctx.save();
-          // Apply Filters
-          const { brightness, contrast, saturate, sepia } = settings.filters;
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
 
           if (settings.imageRotation !== 0) {
             ctx.translate(offsetX + drawWidth / 2, offsetY + drawHeight / 2);
-            ctx.rotate((settings.imageRotation * Math.PI) / 180);
+            ctx.rotate(((settings.imageRotation || 0) * Math.PI) / 180);
             ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
           } else {
             ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           }
           ctx.restore();
-          ctx.filter = 'none'; // Ensure filter is reset
+          ctx.filter = 'none';
         } else if (settings.fitMode === 'contain') {
           if (imageRatio > canvasRatio) {
-            drawWidth = settings.width;
-            drawHeight = settings.width / imageRatio;
-            offsetY = (settings.height - drawHeight) / 2;
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / imageRatio;
+            offsetY = (canvas.height - drawHeight) / 2;
           } else {
-            drawHeight = settings.height;
-            drawWidth = settings.height * imageRatio;
-            offsetX = (settings.width - drawWidth) / 2;
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * imageRatio;
+            offsetX = (canvas.width - drawWidth) / 2;
           }
           ctx.save();
-          const { brightness, contrast, saturate, sepia } = settings.filters;
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
           ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           ctx.restore();
-          ctx.filter = 'none'; // Ensure filter is reset
+          ctx.filter = 'none';
         } else if (settings.fitMode === 'cover') {
           if (imageRatio > canvasRatio) {
-            drawHeight = settings.height;
-            drawWidth = settings.height * imageRatio;
-            offsetX = (settings.width - drawWidth) / 2;
+            drawHeight = canvas.height;
+            drawWidth = canvas.height * imageRatio;
+            offsetX = (canvas.width - drawWidth) / 2;
           } else {
-            drawWidth = settings.width;
-            drawHeight = settings.width / imageRatio;
-            offsetY = (settings.height - drawHeight) / 2;
+            drawWidth = canvas.width;
+            drawHeight = canvas.width / imageRatio;
+            offsetY = (canvas.height - drawHeight) / 2;
           }
           ctx.save();
-          const { brightness, contrast, saturate, sepia } = settings.filters;
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
           ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
           ctx.restore();
-          ctx.filter = 'none'; // Ensure filter is reset
+          ctx.filter = 'none';
         } else {
           // Stretch
           ctx.save();
-          const { brightness, contrast, saturate, sepia } = settings.filters;
           ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
-          ctx.drawImage(image, 0, 0, settings.width, settings.height);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
           ctx.restore();
-          ctx.filter = 'none'; // Ensure filter is reset
+          ctx.filter = 'none';
         }
 
         // Apply Vignette
-        if (settings.filters.vignette > 0) {
-          const centerX = settings.width / 2;
-          const centerY = settings.height / 2;
+        if (vignette > 0) {
+          const centerX = canvas.width / 2;
+          const centerY = canvas.height / 2;
           const radius = Math.sqrt(centerX ** 2 + centerY ** 2);
           const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
           gradient.addColorStop(0, 'transparent');
-          gradient.addColorStop(1, `rgba(0,0,0,${settings.filters.vignette})`);
+          gradient.addColorStop(1, `rgba(0,0,0,${vignette})`);
 
           ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, settings.width, settings.height);
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // --- Render Manual Redaction Masks (ON TOP OF IMAGE, BEFORE TEXT/OVERLAYS) ---
+        // Render redaction areas (before text/overlays)
         if (redactionAreas && redactionAreas.length > 0) {
           redactionAreas.forEach(area => {
             pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
           });
         }
 
-        // Pre-calculate lines per block to avoid doing it inside the loop
         const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {
           const key = line.blockId ?? 'default';
           if (!acc[key]) acc[key] = [];
@@ -294,33 +278,35 @@ export const useCanvasPainter = ({
         }, {});
 
         const renderOverlay = (overlay: OverlayImage) => {
-          if (overlay.visible === false) return; // Explicit check for false, undefined defaults to true
+          if (overlay.visible === false) return;
 
           let overlayImage = overlayImageCacheRef.current[overlay.id];
           if (!overlayImage) {
             overlayImage = new window.Image();
-            overlayImage.onload = () => drawCanvas();
-            overlayImage.src = overlay.dataUrl;
             overlayImageCacheRef.current[overlay.id] = overlayImage;
+            // Set onload BEFORE src so it fires before browser can make image complete
+            overlayImage.onload = () => drawCanvas();
+            overlayImage.onerror = () => {
+              delete overlayImageCacheRef.current[overlay.id];
+            };
+            overlayImage.src = overlay.dataUrl;
+            // Some browsers (or data-URL handling) may set complete=true synchronously
+            // before onload fires. Schedule a redraw to handle that case.
+            if (overlayImage.complete) {
+              queueMicrotask(() => drawCanvas());
+            }
           }
           if (!overlayImage.complete) return;
 
-          // Calculate dimensions
           const sourceX = overlay.crop?.x ?? 0;
           const sourceY = overlay.crop?.y ?? 0;
           const sourceW = overlay.crop?.width ?? overlayImage.width;
           const sourceH = overlay.crop?.height ?? overlayImage.height;
 
-          // If we crop, we want to maintain the "display size" as per scale? 
-          // Usually if I crop 50% of image, I expect it to shrink on screen unless I resize.
-          // overlay.width/height updates?
-          // Let's assume overlay.width/height is ALWAYS the full original size.
-          // So drawn size should be proportional to crop.
-          const ratioW = sourceW / overlayImage.width;
-          const ratioH = sourceH / overlayImage.height;
-
-          const drawW = overlay.width * overlay.scale * ratioW;
-          const drawH = overlay.height * overlay.scale * ratioH;
+          // Maintain the display size based on the overlay dimensions and scale.
+          // The crop only changes which part of the source image is sampled.
+          const drawW = overlay.width * overlay.scale;
+          const drawH = overlay.height * overlay.scale;
 
           const rotation = (overlay.rotation * Math.PI) / 180;
           ctx.save();
@@ -362,11 +348,11 @@ export const useCanvasPainter = ({
 
           const startX = blockSettings.paddingX;
           let startY = blockSettings.textPosition === 'bottom-left'
-            ? settings.height - blockSettings.paddingY
+            ? canvas.height - blockSettings.paddingY
             : blockSettings.paddingY;
           startY += blockSettings.textOffsetY;
           const baseX = startX + blockSettings.textOffsetX;
-          const availableWidth = Math.max(0, settings.width - baseX);
+          const availableWidth = Math.max(0, canvas.width - baseX);
           const maxWidth = Math.max(0, Math.min(blockSettings.textBoxWidth, availableWidth));
           const effectiveLineHeight = blockSettings.backdropMode === 'text'
             ? blockSettings.lineHeight + 2
@@ -389,7 +375,7 @@ export const useCanvasPainter = ({
 
           const totalHeight = renderLines.length > 1 ? (renderLines.length - 1) * effectiveLineHeight : 0;
           if (blockSettings.textPosition === 'bottom-left') {
-            const bottomStartY = settings.height - blockSettings.paddingY - totalHeight - fontHeight;
+            const bottomStartY = canvas.height - blockSettings.paddingY - totalHeight - fontHeight;
             if (rotationRadians !== 0) {
               ctx.translate(0, bottomStartY - startY);
             } else {
@@ -444,7 +430,6 @@ export const useCanvasPainter = ({
             }
             ctx.fillText(line.text, lineX, lineTopY);
 
-            // Apply redactions (Pixelate)
             if (line.redactions && line.redactions.length > 0) {
               line.redactions.forEach(reg => {
                 const pixelSize = Math.max(3, Math.floor(fontHeight / 3));
@@ -455,12 +440,9 @@ export const useCanvasPainter = ({
           ctx.restore();
         };
 
-        // Render based on layerOrder or fall back to Overlay -> Text
+        // Render based on layerOrder
         if (layerOrder && layerOrder.length > 0) {
           layerOrder.forEach(id => {
-            // Try identifying if it's overlay or text. 
-            // We could check overlays first or rely on the fact IDs should indicate type or we just check both.
-            // Optimization: maintain a map, but array find is cheap enough for now.
             const overlay = overlays.find(o => o.id === id);
             if (overlay) {
               renderOverlay(overlay);
@@ -472,17 +454,12 @@ export const useCanvasPainter = ({
               return;
             }
           });
-
-          // Fallback: If for some reason we have orphaned items not in layerOrder (sync issues), we should maybe render them on top? 
-          // Or just assume layerOrder is source of truth for rendering.
-          // Let's stick to layerOrder being strictly what's rendered to avoid ghosts.
         } else {
-          // Legacy Rendering
           overlays.forEach(renderOverlay);
           textBlocks.forEach(renderTextBlock);
         }
 
-        // Render manual redaction masks (AFTER EVERYTHING)
+        // Render manual redaction masks (after everything)
         if (redactionAreas && redactionAreas.length > 0) {
           redactionAreas.forEach(area => {
             pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 10);
@@ -496,9 +473,11 @@ export const useCanvasPainter = ({
     drawCanvas();
   }, [imageDataUrl, settings, textBlocks, visibleLines, overlays, layerOrder, redactionAreas]);
 
+  const invalidateCache = useCallback((id: string) => {
+    delete overlayImageCacheRef.current[id];
+  }, []);
+
   return {
-    invalidateCache: (id: string) => {
-      delete overlayImageCacheRef.current[id];
-    }
-  }
+    invalidateCache
+  };
 };
