@@ -405,9 +405,9 @@ Los usuarios pueden cambiar entre EN/ES.`}
                                                     <div className="text-[#dbdee1] text-sm leading-relaxed flex-1 overflow-y-auto custom-scrollbar prose prose-invert prose-sm">
                                                         <ReactMarkdown
                                                             components={{
-                                                                h1: ({ children }) => <h1 className="text-xl font-bold text-white mt-3 mb-2">{children}</h1>,
-                                                                h2: ({ children }) => <h2 className="text-lg font-bold text-white mt-2 mb-1">{children}</h2>,
-                                                                h3: ({ children }) => <h3 className="text-base font-semibold text-white mt-2 mb-1">{children}</h3>,
+                                                                h1: ({ children }) => <h1 className="text-2xl font-bold text-white mt-3 mb-2">{children}</h1>,
+                                                                h2: ({ children }) => <h2 className="text-xl font-bold text-white mt-2 mb-1">{children}</h2>,
+                                                                h3: ({ children }) => <h3 className="text-lg font-semibold text-white mt-2 mb-1">{children}</h3>,
                                                                 p: ({ children }) => <p className="text-sm text-[#dbdee1] mb-1">{children}</p>,
                                                                 ul: ({ children }) => <ul className="list-none space-y-0.5 mb-2">{children}</ul>,
                                                                 li: ({ children }) => <li className="flex items-start gap-1.5 text-sm"><span className="text-[#00ff88] mt-1">•</span><span>{children}</span></li>,
