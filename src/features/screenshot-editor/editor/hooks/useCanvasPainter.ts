@@ -422,4 +422,3 @@ export const useCanvasPainter = ({
         }
 
         renderLines.forEach((line, index) => {
-          const lineTopY = localStartY + index * effectiveLineHeight;
