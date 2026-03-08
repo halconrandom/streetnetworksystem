@@ -72,9 +72,9 @@ const invalidateCache = useCallback((id: string) => {
 ## Testing
 
 - [x] TypeScript compila sin errores
-- [ ] Test manual: Aplicar crop a overlay → Canvas renderiza correctamente
-- [ ] Test manual: Save Copy & Add → Nuevo overlay con crop se crea correctamente
-- [ ] Test manual: Cancelar → No hay cambios en el canvas
+- [x] Test manual: Aplicar crop a overlay → Canvas renderiza correctamente
+- [x] Test manual: Save Copy & Add → Nuevo overlay con crop se crea correctamente
+- [x] Test manual: Cancelar → No hay cambios en el canvas
 
 ---
 
