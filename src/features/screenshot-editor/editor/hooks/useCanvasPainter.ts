@@ -423,4 +423,112 @@ export const useCanvasPainter = ({
 
         renderLines.forEach((line, index) => {
           const lineTopY = localStartY + index * effectiveLineHeight;
-          const textWidth
+          const textWidth = ctx.measureText(line.text).width;
+          const lineX = localBaseX;
+
+          // Per-line backdrop
+          if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
+            ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
+            ctx.fillRect(
+              lineX - blockSettings.backdropPadding,
+              lineTopY - blockSettings.backdropPadding,
+              textWidth + blockSettings.backdropPadding * 2,
+              fontHeight + blockSettings.backdropPadding * 2
+            );
+          }
+
+          // Draw stroke
+          if (blockSettings.strokeWidth > 0) {
+            ctx.strokeText(line.text, lineX, lineTopY);
+          }
+
+          // Draw fill
+          ctx.fillStyle = line.color;
+          ctx.fillText(line.text, lineX, lineTopY);
+
+          // Apply redactions for this line
+          if (line.redactions && line.redactions.length > 0) {
+            line.redactions.forEach(redaction => {
+              pixelateRect(
+                ctx,
+                lineX + redaction.startX,
+                lineTopY,
+                redaction.width,
+                fontHeight,
+                4
+              );
+            });
+          }
+        });
+
+        ctx.restore();
+      };
+
+      // Render layers in order
+      const orderedLayers = layerOrder && layerOrder.length > 0
+        ? layerOrder
+        : [...overlays.map(o => o.id), ...textBlocks.map(b => b.id)];
+
+      const overlayMap = new Map(overlays.map(o => [o.id, o]));
+      const textBlockMap = new Map(textBlocks.map(b => [b.id, b]));
+
+      orderedLayers.forEach(layerId => {
+        const overlay = overlayMap.get(layerId);
+        if (overlay) {
+          renderOverlay(overlay);
+          return;
+        }
+
+        const textBlock = textBlockMap.get(layerId);
+        if (textBlock) {
+          renderTextBlock(textBlock);
+          return;
+        }
+      });
+
+      // Final redaction pass (after overlays/text)
+      if (redactionAreas && redactionAreas.length > 0) {
+        redactionAreas.forEach(area => {
+          pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
+        });
+      }
+    };
+
+    if (bgImage.complete) {
+      drawEverything();
+    } else {
+      bgImage.onload = drawEverything;
+    }
+    bgImage.src = imageDataUrl;
+  }, [
+    canvasRef,
+    imageDataUrl,
+    settings,
+    textBlocks,
+    visibleLines,
+    overlays,
+    layerOrder,
+    redactionAreas,
+    loadOverlayImage,
+    renderVersion,
+  ]);
+
+  // Trigger render when dependencies change
+  useEffect(() => {
+    render();
+  }, [render]);
+
+  // Function to invalidate cache and force re-render
+  const invalidateCache = useCallback((id?: string) => {
+    if (id) {
+      overlayImageCacheRef.current.delete(id);
+      loadingOverlaysRef.current.delete(id);
+    } else {
+      overlayImageCacheRef.current.clear();
+      loadingOverlaysRef.current.clear();
+    }
+    setRenderVersion(v => v + 1);
+  }, []);
+
+  return { invalidateCache };
+};
