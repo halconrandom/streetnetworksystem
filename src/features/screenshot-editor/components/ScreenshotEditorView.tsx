@@ -559,28 +559,31 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
                 <CropEditor
                   overlay={overlays.find((o) => o.id === activeCropOverlayId)!}
                   onCancel={() => setActiveCropOverlayId(null)}
-                  onApply={(updateValue) => {
-                    // Invalidate cache FIRST so the canvas re-renders with fresh image
+                  onApply={(crop) => {
+                    // Invalidate the overlay image cache so it re-renders with fresh data
                     invalidateCache(activeCropOverlayId);
-                    // Then update the overlay state
-                    updateOverlay(activeCropOverlayId, { crop: updateValue });
+                    // Update the overlay with the new crop — performAction already pushes to history
+                    updateOverlay(activeCropOverlayId, { crop });
+                    // Close the crop editor (re-mounts CenterColumn)
                     setActiveCropOverlayId(null);
-                    commitHistory();
+                    // NOTE: Do NOT call commitHistory() here — updateOverlay already pushed to history.
+                    // Calling it would overwrite the crop with stale closure values.
                   }}
                   onSaveAsCopy={(crop) => {
-                    const overlay = overlays.find(o => o.id === activeCropOverlayId);
-                    if (overlay) {
-                      // Create new overlay with crop - will be cached on first render
+                    const srcOverlay = overlays.find(o => o.id === activeCropOverlayId);
+                    if (srcOverlay) {
+                      // Create a new overlay with the crop applied — performAction already pushes to history
                       addOverlay({
-                        ...overlay,
+                        ...srcOverlay,
                         id: `${Date.now()}-copy`,
-                        name: `${overlay.name} (Crop)`,
+                        name: `${srcOverlay.name} (Crop)`,
                         crop,
                         x: settings.width / 2 + 20,
-                        y: settings.height / 2 + 20
+                        y: settings.height / 2 + 20,
                       });
+                      // Close the crop editor
                       setActiveCropOverlayId(null);
-                      commitHistory();
+                      // NOTE: Do NOT call commitHistory() here — addOverlay already pushed to history.
                     }
                   }}
                   width={settings.width}

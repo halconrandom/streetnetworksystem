@@ -175,65 +175,117 @@ export const useCanvasPainter = ({
   layerOrder,
   redactionAreas,
 }: UseCanvasPainterProps) => {
-  // Cache for loaded overlay images
+  // ── Cached images ──────────────────────────────────────────────────
+  const bgImageRef = useRef<HTMLImageElement | null>(null);
+  const bgImageUrlRef = useRef<string | null>(null);
   const overlayImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  // Track which overlays are currently loading
   const loadingOverlaysRef = useRef<Set<string>>(new Set());
-  // Version counter to force re-renders
-  const [renderVersion, setRenderVersion] = useState(0);
+  const [renderTick, setRenderTick] = useState(0);
+  const rafRef = useRef<number>(0);
 
-  // Load an overlay image into cache
+  // ── Load background image (only when URL changes) ──────────────────
+  useEffect(() => {
+    if (!imageDataUrl) {
+      bgImageRef.current = null;
+      bgImageUrlRef.current = null;
+      return;
+    }
+
+    // Skip if already loaded for this URL
+    if (bgImageUrlRef.current === imageDataUrl && bgImageRef.current?.complete) {
+      return;
+    }
+
+    bgImageUrlRef.current = imageDataUrl;
+    bgImageRef.current = null; // Mark as loading
+
+    const img = new window.Image();
+
+    img.onload = () => {
+      // Only accept if this is still the current URL (guard against race)
+      if (bgImageUrlRef.current === imageDataUrl) {
+        bgImageRef.current = img;
+        setRenderTick(t => t + 1); // Trigger re-paint
+      }
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load background image');
+      bgImageRef.current = null;
+    };
+
+    // Set src AFTER attaching onload to avoid missing synchronous loads
+    img.src = imageDataUrl;
+
+    // For data-URLs the browser may decode synchronously.
+    // If so, onload already fired and bgImageRef is set.
+    // If not, onload will fire later and bump renderTick.
+    if (img.complete && img.naturalWidth > 0) {
+      bgImageRef.current = img;
+    }
+  }, [imageDataUrl]);
+
+  // ── Load overlay images into cache ─────────────────────────────────
   const loadOverlayImage = useCallback((overlay: OverlayImage): HTMLImageElement | null => {
     const cached = overlayImageCacheRef.current.get(overlay.id);
-    if (cached && cached.complete) {
+    if (cached && cached.complete && cached.naturalWidth > 0) {
       return cached;
     }
 
-    // If already loading, don't start again
     if (loadingOverlaysRef.current.has(overlay.id)) {
       return null;
     }
 
-    // Start loading
     loadingOverlaysRef.current.add(overlay.id);
     const img = new window.Image();
-    
+
     img.onload = () => {
       overlayImageCacheRef.current.set(overlay.id, img);
       loadingOverlaysRef.current.delete(overlay.id);
-      setRenderVersion(v => v + 1);
+      setRenderTick(v => v + 1);
     };
-    
+
     img.onerror = () => {
       loadingOverlaysRef.current.delete(overlay.id);
       console.error(`Failed to load overlay image: ${overlay.id}`);
     };
-    
+
     img.src = overlay.dataUrl;
-    return null;
+
+    // Handle synchronous decode for data-URLs
+    if (img.complete && img.naturalWidth > 0) {
+      overlayImageCacheRef.current.set(overlay.id, img);
+      loadingOverlaysRef.current.delete(overlay.id);
+    }
+
+    return overlayImageCacheRef.current.get(overlay.id) ?? null;
   }, []);
 
-  // Main render function
-  const render = useCallback(() => {
+  // ── Synchronous draw (only paints if bg image is ready) ────────────
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !imageDataUrl) return;
+    if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Load background image
-    const bgImage = new window.Image();
-    
-    const drawEverything = () => {
-      const width = settings.width || 1920;
-      const height = settings.height || 1080;
-      
+    const bgImage = bgImageRef.current;
+
+    const width = settings.width || 1920;
+    const height = settings.height || 1080;
+
+    // Resize canvas (resets context state)
+    if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
       canvas.height = height;
-      ctx.clearRect(0, 0, width, height);
+    }
 
+    ctx.clearRect(0, 0, width, height);
+
+    // ── Draw background ────────────────────────────────────────────
+    if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
       const canvasRatio = width / height;
-      const imageRatio = bgImage.width / bgImage.height;
+      const imageRatio = bgImage.naturalWidth / bgImage.naturalHeight;
 
       let drawWidth = width;
       let drawHeight = height;
@@ -243,13 +295,12 @@ export const useCanvasPainter = ({
       const filters = { ...defaultFilterSettings, ...(settings.filters || {}) };
       const { brightness, contrast, saturate, sepia, vignette } = filters;
 
-      // Draw background based on fit mode
       ctx.save();
       ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%)`;
 
       if (settings.fitMode === 'crop') {
-        drawWidth = bgImage.width * (settings.imageScale || 1);
-        drawHeight = bgImage.height * (settings.imageScale || 1);
+        drawWidth = bgImage.naturalWidth * (settings.imageScale || 1);
+        drawHeight = bgImage.naturalHeight * (settings.imageScale || 1);
         offsetX = (width - drawWidth) / 2 + (settings.imageOffsetX || 0);
         offsetY = (height - drawHeight) / 2 + (settings.imageOffsetY || 0);
 
@@ -288,7 +339,7 @@ export const useCanvasPainter = ({
       }
       ctx.restore();
 
-      // Apply vignette
+      // Vignette
       if (vignette > 0) {
         const centerX = width / 2;
         const centerY = height / 2;
@@ -299,210 +350,196 @@ export const useCanvasPainter = ({
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
       }
+    }
 
-      // Render redaction areas (before overlays/text)
-      if (redactionAreas && redactionAreas.length > 0) {
-        redactionAreas.forEach(area => {
-          pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
-        });
+    // ── Redaction areas (before overlays/text) ─────────────────────
+    if (redactionAreas && redactionAreas.length > 0) {
+      redactionAreas.forEach(area => {
+        pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
+      });
+    }
+
+    // ── Group lines by block ───────────────────────────────────────
+    const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {
+      const key = line.blockId ?? 'default';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(line);
+      return acc;
+    }, {});
+
+    // ── Render overlay with crop support ───────────────────────────
+    const renderOverlay = (overlay: OverlayImage) => {
+      if (overlay.visible === false) return;
+
+      const img = loadOverlayImage(overlay);
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+
+      const sourceX = overlay.crop?.x ?? 0;
+      const sourceY = overlay.crop?.y ?? 0;
+      const sourceW = overlay.crop?.width ?? img.naturalWidth;
+      const sourceH = overlay.crop?.height ?? img.naturalHeight;
+
+      // Use crop dimensions for display size so the overlay shrinks to the cropped region
+      const drawW = (overlay.crop ? overlay.crop.width : overlay.width) * overlay.scale;
+      const drawH = (overlay.crop ? overlay.crop.height : overlay.height) * overlay.scale;
+
+      const rotation = (overlay.rotation * Math.PI) / 180;
+      ctx.save();
+      ctx.globalAlpha = overlay.opacity;
+      ctx.translate(overlay.x, overlay.y);
+      ctx.rotate(rotation);
+
+      ctx.drawImage(
+        img,
+        sourceX, sourceY, sourceW, sourceH,
+        -drawW / 2, -drawH / 2, drawW, drawH
+      );
+      ctx.restore();
+    };
+
+    // ── Render text block ──────────────────────────────────────────
+    const renderTextBlock = (block: TextBlock) => {
+      if (block.visible === false) return;
+
+      const blockSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
+      const blockLines = linesByBlock[block.id] ?? parseChatLines(block.text, DEFAULT_COLOR, block.id);
+      if (blockLines.length === 0) return;
+
+      ctx.save();
+      ctx.font = `${blockSettings.fontWeight} ${blockSettings.fontSize}px ${blockSettings.fontFamily}`;
+      ctx.textBaseline = 'top';
+
+      if (blockSettings.shadowEnabled) {
+        ctx.shadowColor = blockSettings.shadowColor;
+        ctx.shadowBlur = blockSettings.shadowBlur;
+        ctx.shadowOffsetX = blockSettings.shadowOffsetX;
+        ctx.shadowOffsetY = blockSettings.shadowOffsetY;
+      }
+      ctx.lineWidth = blockSettings.strokeWidth;
+      ctx.strokeStyle = blockSettings.strokeColor;
+
+      const startX = blockSettings.paddingX;
+      let startY = blockSettings.textPosition === 'bottom-left'
+        ? height - blockSettings.paddingY
+        : blockSettings.paddingY;
+      startY += blockSettings.textOffsetY;
+      const baseX = startX + blockSettings.textOffsetX;
+      const maxWidth = Math.max(0, Math.min(blockSettings.textBoxWidth, width - baseX));
+      const effectiveLineHeight = blockSettings.backdropMode === 'text'
+        ? blockSettings.lineHeight + 2
+        : blockSettings.lineHeight;
+      const fontMetrics = ctx.measureText('Mg');
+      const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent || blockSettings.fontSize;
+      const renderLines = wrapChatLines(ctx, blockLines, maxWidth);
+
+      if (renderLines.length === 0) {
+        ctx.restore();
+        return;
       }
 
-      // Group lines by block
-      const linesByBlock = visibleLines.reduce<Record<string, ChatLine[]>>((acc, line) => {
-        const key = line.blockId ?? 'default';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(line);
-        return acc;
-      }, {});
+      const rotationRadians = (blockSettings.textRotation * Math.PI) / 180;
+      const localBaseX = rotationRadians !== 0 ? 0 : baseX;
+      let localStartY = rotationRadians !== 0 ? 0 : startY;
 
-      // Render overlay with crop support
-      const renderOverlay = (overlay: OverlayImage) => {
-        if (overlay.visible === false) return;
+      if (rotationRadians !== 0) {
+        ctx.translate(baseX, startY);
+        ctx.rotate(rotationRadians);
+      }
 
-        // Get or load the overlay image
-        const img = loadOverlayImage(overlay);
-        if (!img) return; // Still loading
-
-        // Calculate source coordinates (with crop)
-        const sourceX = overlay.crop?.x ?? 0;
-        const sourceY = overlay.crop?.y ?? 0;
-        const sourceW = overlay.crop?.width ?? img.width;
-        const sourceH = overlay.crop?.height ?? img.height;
-
-        // Calculate draw dimensions
-        const drawW = overlay.width * overlay.scale;
-        const drawH = overlay.height * overlay.scale;
-
-        const rotation = (overlay.rotation * Math.PI) / 180;
-        ctx.save();
-        ctx.globalAlpha = overlay.opacity;
-        ctx.translate(overlay.x, overlay.y);
-        ctx.rotate(rotation);
-        
-        ctx.drawImage(
-          img,
-          sourceX, sourceY, sourceW, sourceH,
-          -drawW / 2, -drawH / 2, drawW, drawH
-        );
-        ctx.restore();
-      };
-
-      // Render text block
-      const renderTextBlock = (block: TextBlock) => {
-        if (block.visible === false) return;
-
-        const blockSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
-        const blockLines = linesByBlock[block.id] ?? parseChatLines(block.text, DEFAULT_COLOR, block.id);
-        if (blockLines.length === 0) return;
-
-        ctx.save();
-        ctx.font = `${blockSettings.fontWeight} ${blockSettings.fontSize}px ${blockSettings.fontFamily}`;
-        ctx.textBaseline = 'top';
-        
-        if (blockSettings.shadowEnabled) {
-          ctx.shadowColor = blockSettings.shadowColor;
-          ctx.shadowBlur = blockSettings.shadowBlur;
-          ctx.shadowOffsetX = blockSettings.shadowOffsetX;
-          ctx.shadowOffsetY = blockSettings.shadowOffsetY;
-        }
-        ctx.lineWidth = blockSettings.strokeWidth;
-        ctx.strokeStyle = blockSettings.strokeColor;
-
-        const startX = blockSettings.paddingX;
-        let startY = blockSettings.textPosition === 'bottom-left'
-          ? height - blockSettings.paddingY
-          : blockSettings.paddingY;
-        startY += blockSettings.textOffsetY;
-        const baseX = startX + blockSettings.textOffsetX;
-        const maxWidth = Math.max(0, Math.min(blockSettings.textBoxWidth, width - baseX));
-        const effectiveLineHeight = blockSettings.backdropMode === 'text'
-          ? blockSettings.lineHeight + 2
-          : blockSettings.lineHeight;
-        const fontMetrics = ctx.measureText('Mg');
-        const fontHeight = fontMetrics.actualBoundingBoxAscent + fontMetrics.actualBoundingBoxDescent || blockSettings.fontSize;
-        const renderLines = wrapChatLines(ctx, blockLines, maxWidth);
-        
-        if (renderLines.length === 0) {
-          ctx.restore();
-          return;
-        }
-
-        const rotationRadians = (blockSettings.textRotation * Math.PI) / 180;
-        const localBaseX = rotationRadians !== 0 ? 0 : baseX;
-        let localStartY = rotationRadians !== 0 ? 0 : startY;
-        
+      const totalHeight = renderLines.length > 1 ? (renderLines.length - 1) * effectiveLineHeight : 0;
+      if (blockSettings.textPosition === 'bottom-left') {
+        const bottomStartY = height - blockSettings.paddingY - totalHeight - fontHeight;
         if (rotationRadians !== 0) {
-          ctx.translate(baseX, startY);
-          ctx.rotate(rotationRadians);
+          ctx.translate(0, bottomStartY - startY);
+        } else {
+          localStartY = bottomStartY;
         }
+      }
 
-        const totalHeight = renderLines.length > 1 ? (renderLines.length - 1) * effectiveLineHeight : 0;
-        if (blockSettings.textPosition === 'bottom-left') {
-          const bottomStartY = height - blockSettings.paddingY - totalHeight - fontHeight;
-          if (rotationRadians !== 0) {
-            ctx.translate(0, bottomStartY - startY);
-          } else {
-            localStartY = bottomStartY;
-          }
-        }
+      if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'all') {
+        const maxLineWidth = renderLines.reduce(
+          (max, line) => Math.max(max, Math.min(ctx.measureText(line.text).width, maxWidth)),
+          0
+        );
+        const blockHeight = (renderLines.length - 1) * effectiveLineHeight + fontHeight;
+        ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
+        ctx.fillRect(
+          localBaseX - blockSettings.backdropPadding,
+          localStartY - blockSettings.backdropPadding,
+          maxLineWidth + blockSettings.backdropPadding * 2,
+          blockHeight + blockSettings.backdropPadding * 2
+        );
+      }
 
-        if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'all') {
-          const maxLineWidth = renderLines.reduce(
-            (max, line) => Math.max(max, Math.min(ctx.measureText(line.text).width, maxWidth)),
-            0
-          );
-          const blockHeight = (renderLines.length - 1) * effectiveLineHeight + fontHeight;
+      renderLines.forEach((line, index) => {
+        const lineTopY = localStartY + index * effectiveLineHeight;
+        const textWidth = ctx.measureText(line.text).width;
+        const lineX = localBaseX;
+
+        if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
           ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
           ctx.fillRect(
-            localBaseX - blockSettings.backdropPadding,
-            localStartY - blockSettings.backdropPadding,
-            maxLineWidth + blockSettings.backdropPadding * 2,
-            blockHeight + blockSettings.backdropPadding * 2
+            lineX - blockSettings.backdropPadding,
+            lineTopY - blockSettings.backdropPadding,
+            textWidth + blockSettings.backdropPadding * 2,
+            fontHeight + blockSettings.backdropPadding * 2
           );
         }
 
-        renderLines.forEach((line, index) => {
-          const lineTopY = localStartY + index * effectiveLineHeight;
-          const textWidth = ctx.measureText(line.text).width;
-          const lineX = localBaseX;
-
-          // Per-line backdrop
-          if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
-            ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
-            ctx.fillRect(
-              lineX - blockSettings.backdropPadding,
-              lineTopY - blockSettings.backdropPadding,
-              textWidth + blockSettings.backdropPadding * 2,
-              fontHeight + blockSettings.backdropPadding * 2
-            );
-          }
-
-          // Draw stroke
-          if (blockSettings.strokeWidth > 0) {
-            ctx.strokeText(line.text, lineX, lineTopY);
-          }
-
-          // Draw fill
-          ctx.fillStyle = line.color;
-          ctx.fillText(line.text, lineX, lineTopY);
-
-          // Apply redactions for this line
-          if (line.redactions && line.redactions.length > 0) {
-            line.redactions.forEach(redaction => {
-              pixelateRect(
-                ctx,
-                lineX + redaction.startX,
-                lineTopY,
-                redaction.width,
-                fontHeight,
-                4
-              );
-            });
-          }
-        });
-
-        ctx.restore();
-      };
-
-      // Render layers in order
-      const orderedLayers = layerOrder && layerOrder.length > 0
-        ? layerOrder
-        : [...overlays.map(o => o.id), ...textBlocks.map(b => b.id)];
-
-      const overlayMap = new Map(overlays.map(o => [o.id, o]));
-      const textBlockMap = new Map(textBlocks.map(b => [b.id, b]));
-
-      orderedLayers.forEach(layerId => {
-        const overlay = overlayMap.get(layerId);
-        if (overlay) {
-          renderOverlay(overlay);
-          return;
+        if (blockSettings.strokeWidth > 0) {
+          ctx.strokeText(line.text, lineX, lineTopY);
         }
 
-        const textBlock = textBlockMap.get(layerId);
-        if (textBlock) {
-          renderTextBlock(textBlock);
-          return;
+        ctx.fillStyle = line.color;
+        ctx.fillText(line.text, lineX, lineTopY);
+
+        if (line.redactions && line.redactions.length > 0) {
+          line.redactions.forEach(redaction => {
+            pixelateRect(
+              ctx,
+              lineX + redaction.startX,
+              lineTopY,
+              redaction.width,
+              fontHeight,
+              4
+            );
+          });
         }
       });
 
-      // Final redaction pass (after overlays/text)
-      if (redactionAreas && redactionAreas.length > 0) {
-        redactionAreas.forEach(area => {
-          pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
-        });
-      }
+      ctx.restore();
     };
 
-    if (bgImage.complete) {
-      drawEverything();
-    } else {
-      bgImage.onload = drawEverything;
+    // ── Render layers in order ─────────────────────────────────────
+    const orderedLayers = layerOrder && layerOrder.length > 0
+      ? layerOrder
+      : [...overlays.map(o => o.id), ...textBlocks.map(b => b.id)];
+
+    const overlayMap = new Map(overlays.map(o => [o.id, o]));
+    const textBlockMap = new Map(textBlocks.map(b => [b.id, b]));
+
+    orderedLayers.forEach(layerId => {
+      const overlay = overlayMap.get(layerId);
+      if (overlay) {
+        renderOverlay(overlay);
+        return;
+      }
+
+      const textBlock = textBlockMap.get(layerId);
+      if (textBlock) {
+        renderTextBlock(textBlock);
+        return;
+      }
+    });
+
+    // ── Final redaction pass (after overlays/text) ─────────────────
+    if (redactionAreas && redactionAreas.length > 0) {
+      redactionAreas.forEach(area => {
+        pixelateRect(ctx, area.x, area.y, area.width, area.height, area.intensity || 8);
+      });
     }
-    bgImage.src = imageDataUrl;
   }, [
     canvasRef,
-    imageDataUrl,
     settings,
     textBlocks,
     visibleLines,
@@ -510,15 +547,18 @@ export const useCanvasPainter = ({
     layerOrder,
     redactionAreas,
     loadOverlayImage,
-    renderVersion,
   ]);
 
-  // Trigger render when dependencies change
+  // ── Schedule paint via rAF whenever draw or renderTick changes ───
   useEffect(() => {
-    render();
-  }, [render]);
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      draw();
+    });
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw, renderTick]);
 
-  // Function to invalidate cache and force re-render
+  // ── Invalidate cache helper ──────────────────────────────────────
   const invalidateCache = useCallback((id?: string) => {
     if (id) {
       overlayImageCacheRef.current.delete(id);
@@ -527,7 +567,7 @@ export const useCanvasPainter = ({
       overlayImageCacheRef.current.clear();
       loadingOverlaysRef.current.clear();
     }
-    setRenderVersion(v => v + 1);
+    setRenderTick(v => v + 1);
   }, []);
 
   return { invalidateCache };
