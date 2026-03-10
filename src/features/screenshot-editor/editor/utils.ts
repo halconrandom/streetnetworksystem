@@ -1,5 +1,80 @@
 import { CHATLOG_REGEX, DEFAULT_COLOR, TIMESTAMP_REGEX } from './constants';
-import type { CacheItem, ChatLine, TextBlock } from './types';
+import type { CacheItem, TextBlock, TextSegment } from './types';
+
+/**
+ * Parses inline color markers from text.
+ * Supports:
+ * - (#hex) or {#hex} to start a color
+ * - // to reset to default color (action separator)
+ *
+ * Example: "Hello (#ff0000)world // bye" => [
+ *   { text: "Hello ", color: "#ffffff" },
+ *   { text: "world ", color: "#ff0000" },
+ *   { text: "bye", color: "#ffffff" }
+ * ]
+ */
+export const parseInlineColors = (text: string, defaultColor: string): TextSegment[] => {
+  const segments: TextSegment[] = [];
+  let currentColor = defaultColor;
+  let remaining = text;
+
+  // Regex to match color markers: (#hex) or {#hex}
+  const colorMarkerRegex = /[({]#([0-9a-fA-F]{6})[)}]/g;
+  // Regex to match action separator: //
+  const actionSeparatorRegex = /\/\//g;
+
+  while (remaining.length > 0) {
+    // Find next color marker
+    colorMarkerRegex.lastIndex = 0;
+    const colorMatch = colorMarkerRegex.exec(remaining);
+
+    // Find next action separator
+    actionSeparatorRegex.lastIndex = 0;
+    const separatorMatch = actionSeparatorRegex.exec(remaining);
+
+    // Determine which comes first
+    const colorIndex = colorMatch ? colorMatch.index : Infinity;
+    const separatorIndex = separatorMatch ? separatorMatch.index : Infinity;
+
+    if (colorIndex === Infinity && separatorIndex === Infinity) {
+      // No more markers, add remaining text with current color
+      if (remaining.length > 0) {
+        segments.push({ text: remaining, color: currentColor });
+      }
+      break;
+    }
+
+    if (separatorIndex < colorIndex) {
+      // Action separator comes first
+      const beforeSeparator = remaining.slice(0, separatorIndex);
+      if (beforeSeparator.length > 0) {
+        segments.push({ text: beforeSeparator, color: currentColor });
+      }
+      // Reset to default color
+      currentColor = defaultColor;
+      // Skip the separator "//"
+      remaining = remaining.slice(separatorIndex + 2);
+    } else {
+      // Color marker comes first
+      const beforeColor = remaining.slice(0, colorIndex);
+      if (beforeColor.length > 0) {
+        segments.push({ text: beforeColor, color: currentColor });
+      }
+      // Extract the new color
+      const newColor = `#${colorMatch![1]}`;
+      currentColor = newColor;
+      // Skip the color marker
+      remaining = remaining.slice(colorIndex + colorMatch![0].length);
+    }
+  }
+
+  // If no segments were created, return the whole text with default color
+  if (segments.length === 0) {
+    return [{ text, color: defaultColor }];
+  }
+
+  return segments;
+};
 
 export const parseChatLines = (input: string, defaultColor: string, idPrefix = `${Date.now()}`) => {
   const lines = input
@@ -8,13 +83,30 @@ export const parseChatLines = (input: string, defaultColor: string, idPrefix = `
     .filter(Boolean);
 
   return lines.map((line, index) => {
-    const match = line.match(/^\(#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})\)\s*(.*)$/);
-    const color = match ? `#${match[1]}` : defaultColor;
-    const text = match ? match[2] : line;
+    // Check for legacy format: color at start of line
+    const legacyMatch = line.match(/^\(#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})\)\s*(.*)$/);
+
+    if (legacyMatch) {
+      // Legacy format: entire line has this color
+      const color = `#${legacyMatch[1]}`;
+      const text = legacyMatch[2];
+      return {
+        id: `${idPrefix}-${index}`,
+        text,
+        color,
+        segments: [{ text, color }],
+        enabled: true,
+      };
+    }
+
+    // New format: parse inline colors
+    const segments = parseInlineColors(line, defaultColor);
+
     return {
       id: `${idPrefix}-${index}`,
-      text,
-      color,
+      text: line,
+      color: defaultColor, // Default color for backwards compatibility
+      segments,
       enabled: true,
     };
   });

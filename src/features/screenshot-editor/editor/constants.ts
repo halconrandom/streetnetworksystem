@@ -5,6 +5,12 @@ export const DEFAULT_COLOR = '#ffffff';
 export const TIMESTAMP_REGEX = /^\s*\[?\d{1,2}:\d{2}:\d{2}\]?\s*/;
 export const CHATLOG_REGEX = /\[Chatlog\]\s*/i;
 
+// Inline color markers: (#hex) or {#hex}
+// eslint-disable-next-line no-useless-escape
+export const INLINE_COLOR_REGEX = /[(\{]#([0-9a-fA-F]{6})[)\}]/g;
+// Action separator: // (resets color to default)
+export const ACTION_SEPARATOR = '//';
+
 export const defaultFilterSettings: FilterSettings = {
   brightness: 100,
   contrast: 100,

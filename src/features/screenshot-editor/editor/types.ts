@@ -1,7 +1,13 @@
+export type TextSegment = {
+  text: string;
+  color: string;
+};
+
 export type ChatLine = {
   id: string;
   text: string;
-  color: string;
+  color: string; // Default color for backwards compatibility
+  segments: TextSegment[]; // Inline color segments
   enabled: boolean;
   blockId?: string;
 };

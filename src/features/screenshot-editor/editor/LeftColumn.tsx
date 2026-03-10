@@ -260,6 +260,20 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
                 >
                   Dialog
                 </button>
+                <button
+                  onClick={() => onAppendToBlock(`${input.name || '[Nombre]'} dice: (#bd9dd4)`)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-[#bd9dd4]/20 hover:border-[#bd9dd4]/30 rounded-lg transition-all"
+                  title="Diálogo con acción inline - escribe la acción después del color"
+                >
+                  Dialog+Act
+                </button>
+                <button
+                  onClick={() => onAppendToBlock(`(#bd9dd4)le da la mano. // `)}
+                  className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-widest bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-[#bd9dd4]/20 hover:border-[#bd9dd4]/30 rounded-lg transition-all"
+                  title="Acción con color inline - el texto después de // vuelve al color normal"
+                >
+                  Action
+                </button>
               </div>
             </div>
           ))}

@@ -8,9 +8,15 @@ type RedactionRegion = {
   width: number;
 };
 
+type RenderSegment = {
+  text: string;
+  color: string;
+};
+
 type RenderLine = {
   text: string;
   color: string;
+  segments: RenderSegment[];
   redactions?: RedactionRegion[];
 };
 
@@ -52,105 +58,55 @@ const pixelateRect = (
   }
 };
 
-// Text wrapping helper
-const wrapText = (
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): { text: string; redactions: RedactionRegion[] }[] => {
-  if (!text) return [{ text: '', redactions: [] }];
-  if (maxWidth <= 0) return [{ text, redactions: [] }];
-
-  const MARKER = '//';
-  const tokens = text.split(/(\s+|\/\/)/).filter(s => s !== undefined && s !== "");
-  const lines: { text: string; redactions: RedactionRegion[] }[] = [];
-
-  let currentText = '';
-  let inRedaction = false;
-  let redactionStartPos: number | null = null;
-  let currentRedactions: RedactionRegion[] = [];
-
-  const pushLine = () => {
-    if (inRedaction && redactionStartPos !== null) {
-      const endPos = ctx.measureText(currentText).width;
-      if (endPos > redactionStartPos) {
-        currentRedactions.push({ startX: redactionStartPos, width: endPos - redactionStartPos });
-      }
-    }
-    lines.push({ text: currentText, redactions: [...currentRedactions] });
-    currentText = '';
-    currentRedactions = [];
-    if (inRedaction) {
-      redactionStartPos = 0;
-    } else {
-      redactionStartPos = null;
-    }
-  };
-
-  tokens.forEach((token) => {
-    if (token === MARKER) {
-      if (!inRedaction) {
-        inRedaction = true;
-        redactionStartPos = ctx.measureText(currentText).width;
-      } else {
-        const endPos = ctx.measureText(currentText).width;
-        if (endPos > (redactionStartPos ?? 0)) {
-          currentRedactions.push({
-            startX: redactionStartPos!,
-            width: endPos - redactionStartPos!
-          });
-        }
-        inRedaction = false;
-        redactionStartPos = null;
-      }
-      return;
-    }
-
-    if (currentText === "" && /^\s+$/.test(token)) return;
-
-    const testText = currentText + token;
-    const testWidth = ctx.measureText(testText).width;
-
-    if (testWidth > maxWidth) {
-      if (currentText !== "") {
-        pushLine();
-        if (/^\s+$/.test(token)) return;
-      }
-
-      if (ctx.measureText(token).width > maxWidth) {
-        for (let i = 0; i < token.length; i++) {
-          const char = token[i];
-          if (ctx.measureText(currentText + char).width > maxWidth) {
-            pushLine();
-          }
-          currentText += char;
-        }
-      } else {
-        currentText = token;
-      }
-    } else {
-      currentText = testText;
-    }
-  });
-
-  if (currentText !== "" || lines.length === 0 || inRedaction) {
-    pushLine();
-  }
-
-  return lines;
-};
-
 const wrapChatLines = (
   ctx: CanvasRenderingContext2D,
   chatLines: ChatLine[],
   maxWidth: number
 ): RenderLine[] => {
   const wrapped: RenderLine[] = [];
+  
   chatLines.forEach((line) => {
-    wrapText(ctx, line.text, maxWidth).forEach((res) => {
-      wrapped.push({ text: res.text, color: line.color, redactions: res.redactions });
+    // Use segments if available, otherwise fall back to single color
+    const segments = line.segments ?? [{ text: line.text, color: line.color }];
+    
+    // Process each segment and wrap text while preserving colors
+    let currentLineSegments: RenderSegment[] = [];
+    let currentLineWidth = 0;
+    
+    const flushLine = () => {
+      if (currentLineSegments.length > 0) {
+        const fullText = currentLineSegments.map(s => s.text).join('');
+        wrapped.push({
+          text: fullText,
+          color: line.color,
+          segments: [...currentLineSegments],
+          redactions: [],
+        });
+        currentLineSegments = [];
+        currentLineWidth = 0;
+      }
+    };
+    
+    segments.forEach((segment) => {
+      const words = segment.text.split(/(\s+)/);
+      
+      words.forEach((word) => {
+        if (!word) return;
+        
+        const wordWidth = ctx.measureText(word).width;
+        
+        if (currentLineWidth + wordWidth > maxWidth && currentLineSegments.length > 0) {
+          flushLine();
+        }
+        
+        currentLineSegments.push({ text: word, color: segment.color });
+        currentLineWidth += wordWidth;
+      });
     });
+    
+    flushLine();
   });
+  
   return wrapped;
 };
 
@@ -287,8 +243,8 @@ export const useCanvasPainter = ({
       const canvasRatio = width / height;
       const imageRatio = bgImage.naturalWidth / bgImage.naturalHeight;
 
-      let drawWidth = width;
-      let drawHeight = height;
+      let drawWidth: number;
+      let drawHeight: number;
       let offsetX = 0;
       let offsetY = 0;
 
@@ -473,8 +429,10 @@ export const useCanvasPainter = ({
 
       renderLines.forEach((line, index) => {
         const lineTopY = localStartY + index * effectiveLineHeight;
-        const textWidth = ctx.measureText(line.text).width;
         const lineX = localBaseX;
+
+        // Calculate total line width for backdrop
+        const textWidth = ctx.measureText(line.text).width;
 
         if (blockSettings.backdropEnabled && blockSettings.backdropMode === 'text') {
           ctx.fillStyle = colorWithAlpha(blockSettings.backdropColor, blockSettings.backdropOpacity);
@@ -486,12 +444,18 @@ export const useCanvasPainter = ({
           );
         }
 
+        // Draw stroke for entire line first (if enabled)
         if (blockSettings.strokeWidth > 0) {
           ctx.strokeText(line.text, lineX, lineTopY);
         }
 
-        ctx.fillStyle = line.color;
-        ctx.fillText(line.text, lineX, lineTopY);
+        // Draw each segment with its own color
+        let segmentX = lineX;
+        line.segments.forEach((segment) => {
+          ctx.fillStyle = segment.color;
+          ctx.fillText(segment.text, segmentX, lineTopY);
+          segmentX += ctx.measureText(segment.text).width;
+        });
 
         if (line.redactions && line.redactions.length > 0) {
           line.redactions.forEach(redaction => {
