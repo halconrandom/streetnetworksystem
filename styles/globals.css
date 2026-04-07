@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  /* SDK editing panel variables */
+  --sn-bg:           #f4f1ea;
+  --sn-panel:        #fdfbf7;
+  --sn-panel-strong: #ede9e0;
+  --sn-text:         #1e293b;
+  --sn-text-dim:     #64748b;
+  --sn-text-muted:   #94a3b8;
+  --sn-border:       #d4cfc6;
+  --sn-border-strong:#000000;
+  --sn-accent:       #8b5cf6;
+  --sn-accent-hover: #7c3aed;
+  --sn-accent-dark:  #6d28d9;
+
+  /* Preview canvas */
+  --sn-preview-bg:   #f4f1ea;
+  --sn-preview-text: #1e293b;
+}
+
+@layer base {
+  body {
+    @apply bg-[#f4f1ea] text-slate-900 antialiased selection:bg-violet-500 selection:text-[#fdfbf7];
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight;
+  }
+}
+
+@utility neo-border {
+  @apply border-2 border-black;
+}
+
+@utility neo-shadow {
+  box-shadow: 4px 4px 0px #000000;
+}
+
+@utility neo-shadow-sm {
+  box-shadow: 2px 2px 0px #000000;
+}
+
+@utility neo-panel {
+  @apply bg-[#fdfbf7] border-2 border-black neo-shadow;
+}
+
+@utility neo-btn {
+  @apply bg-[#fdfbf7] border-2 border-black neo-shadow active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-75 font-display font-bold;
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    @apply w-3 h-3;
+  }
+  &::-webkit-scrollbar-track {
+    @apply bg-[#f4f1ea] border-l-2 border-black;
+  }
+  &::-webkit-scrollbar-thumb {
+    @apply bg-violet-500 border-2 border-black hover:bg-violet-600;
+  }
+}
