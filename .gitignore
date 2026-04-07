@@ -20,6 +20,10 @@ out/
 # Build info
 tsconfig.tsbuildinfo
 
+# Internal docs
+DB_SETUP.md
+PLAN.md
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
