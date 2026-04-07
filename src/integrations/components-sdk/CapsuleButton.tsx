@@ -26,7 +26,7 @@ type props = {
 
 export function CapsuleButton({context, callback, className, style, interactiveDisabled} : props) {
     const {open, setOpen, ignoreRef} = useStateOpen(false);
-    const cls = className ? " " + className : "";
+    const cls = (className ? " " + className : "") + (open ? " " + Styles.open : "");
     const btn_select = useRef<HTMLDivElement>(null);
     const {t} = useTranslation("components-sdk")
 

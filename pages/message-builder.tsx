@@ -11,9 +11,7 @@ const BuilderApp = dynamic(
 export default function MessageBuilderPage() {
     return (
         <Provider store={store}>
-            <div className="flex flex-col h-[calc(100vh-64px)]">
-                <BuilderApp />
-            </div>
+            <BuilderApp />
         </Provider>
     );
 }

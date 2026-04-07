@@ -18,6 +18,7 @@ import { EmojiShow } from './EmojiShow';
 import { ColorPicker } from './ColorPicker';
 import { webhookImplementation } from './webhook.impl';
 import { ErrorBoundary } from 'react-error-boundary';
+import { Button } from '@/components/ui/button';
 
 function getThreadId(webhookUrl: string) {
     try {
@@ -629,25 +630,27 @@ function App() {
     // ── Render ──────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col h-full min-h-0">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between gap-2 px-4 py-2 border-b-2 border-black bg-[#fdfbf7] flex-wrap">
-                <div className="flex items-center gap-2">
-                    <span className="font-black text-base tracking-tight">Message Builder</span>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-black pb-4">
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl md:text-3xl font-display font-bold text-black">Message Builder</h1>
                     {selectedTargetId && (
                         <span className="text-xs font-bold border-2 border-black px-2 py-0.5 bg-black text-[#fdfbf7]">
                             {targets.find((t) => t.id === selectedTargetId)?.name || 'Selected'}
                         </span>
                     )}
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    <NbButton onClick={() => setShowJson((p) => !p)}>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowJson((p) => !p)}>
                         {showJson ? 'Hide JSON' : 'Show JSON'}
-                    </NbButton>
+                    </Button>
 
                     {/* Color picker popover */}
                     <div className="relative" ref={colorPickerRef}>
-                        <NbButton
+                        <Button
+                            variant="outline"
+                            size="sm"
                             disabled={primaryContainerIndex < 0}
                             onClick={() => setColorPickerOpen((p) => !p)}
                             className={accentColor != null ? 'ring-2 ring-black' : ''}
@@ -659,7 +662,7 @@ function App() {
                                 />
                             )}
                             Color
-                        </NbButton>
+                        </Button>
                         {colorPickerOpen && (
                             <div className="absolute right-0 top-full mt-1 z-20">
                                 <ColorPicker hexColor={accentHex} onChange={updateContainerAccent} />
@@ -667,27 +670,29 @@ function App() {
                         )}
                     </div>
 
-                    <NbButton
+                    <Button
+                        variant="outline"
+                        size="sm"
                         disabled={primaryContainerIndex < 0}
                         onClick={toggleContainerSpoiler}
-                        className={spoilerEnabled ? 'bg-black text-[#fdfbf7]' : ''}
+                        className={spoilerEnabled ? '!bg-black !text-[#fdfbf7]' : ''}
                     >
                         Incognito
-                    </NbButton>
-                    <NbButton onClick={shareState}>Share</NbButton>
-                    <NbButton onClick={() => setMentionsOpen(true)}>Mentions</NbButton>
-                    <NbButton onClick={() => setTemplatesOpen(true)}>Saved Containers</NbButton>
-                    <NbButton onClick={() => setTargetsOpen(true)}>Saved Webhooks</NbButton>
-                    <NbButton variant="primary" disabled={requestUrl == null} onClick={sendMessage}>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={shareState}>Share</Button>
+                    <Button variant="outline" size="sm" onClick={() => setMentionsOpen(true)}>Mentions</Button>
+                    <Button variant="outline" size="sm" onClick={() => setTemplatesOpen(true)}>Saved Containers</Button>
+                    <Button variant="outline" size="sm" onClick={() => setTargetsOpen(true)}>Saved Webhooks</Button>
+                    <Button variant="default" size="sm" disabled={requestUrl == null} onClick={sendMessage}>
                         Send
-                    </NbButton>
+                    </Button>
                 </div>
             </div>
 
             {/* Main layout: builder + optional right panel */}
-            <div className="flex flex-1 min-h-0 overflow-hidden">
+            <div className="flex gap-6 items-start">
                 {/* Capsule — Discord component builder */}
-                <div className="flex-1 overflow-auto p-4">
+                <div className="flex-1 min-w-0">
                     <ErrorBoundary fallback={<div className="p-4 border-2 border-red-500 text-red-700 font-bold">Builder error — check console</div>}>
                         <Capsule
                             state={state}
@@ -701,7 +706,7 @@ function App() {
 
                 {/* Right panel: thread input + JSON */}
                 {(showThread || showJson) && (
-                    <div className="w-72 shrink-0 border-l-2 border-black overflow-y-auto p-4 space-y-4 bg-[#fdfbf7]">
+                    <div className="w-72 shrink-0 neo-panel p-4 space-y-4">
                         <p className="text-xs text-gray-500 font-medium">
                             Select a saved webhook to send messages. Saved Webhooks can include Channel IDs for bot mode.
                         </p>

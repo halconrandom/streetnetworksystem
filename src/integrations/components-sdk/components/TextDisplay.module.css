@@ -1,6 +1,6 @@
 .text_display {
-  border: 1px solid var(--sn-border);
-  border-radius: 6px;
+  border: 2px solid var(--sn-border);
+  border-radius: 0;
   background: var(--sn-panel);
 }
 
