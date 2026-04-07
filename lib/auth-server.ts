@@ -1,15 +1,19 @@
 import crypto from 'crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getAuth } from '@clerk/nextjs/server';
 import { queryOne } from '@lib/db';
-import { getAuth0SessionUser } from './auth0';
 
 /**
  * Verifica si la request tiene una sesión local válida (sn_session cookie).
  * Reemplaza getOrCreateUserByClerkId + isAdmin del sistema original.
  */
 export function isAuthenticated(req: NextApiRequest): boolean {
-  const hasAuth0Cookie = Object.keys(req.cookies || {}).some((name) => name.startsWith('appSession'));
-  if (hasAuth0Cookie) return true;
+  try {
+    const { userId } = getAuth(req);
+    if (userId) return true;
+  } catch {
+    // Continue with fallback legacy session auth.
+  }
 
   const token = req.cookies['sn_session'];
   if (!token) return false;
@@ -31,17 +35,41 @@ export async function getAuthenticatedAdminUser(
 ): Promise<{ id: string; name: string | null; email: string } | null> {
   if (!isAuthenticated(req)) return null;
 
-  const auth0User = await getAuth0SessionUser(req, res);
-  if (auth0User?.email) {
-    const byEmail = await queryOne<{ id: string; name: string | null; email: string }>(
-      'SELECT id, name, email FROM sn_users WHERE email = $1 LIMIT 1',
-      [auth0User.email]
-    );
-    if (byEmail) return byEmail;
+  let clerkUserId: string | null = null;
+  let clerkEmail: string | null = null;
+
+  try {
+    const auth = getAuth(req);
+    clerkUserId = auth.userId ?? null;
+    const claims = auth.sessionClaims as Record<string, any> | null | undefined;
+    clerkEmail = claims?.email || claims?.email_address || null;
+  } catch {
+    // Legacy session fallback path
   }
 
-  // Temporary fallback during migration: use first admin row in DB.
-  // No synthetic fallback is allowed because user_id columns are UUID.
+  if (clerkUserId) {
+    const byClerkId = await queryOne<{ id: string; name: string | null; email: string }>(
+      'SELECT id, name, email FROM sn_users WHERE clerk_id = $1 LIMIT 1',
+      [clerkUserId]
+    );
+    if (byClerkId) return byClerkId;
+  }
+
+  if (clerkEmail) {
+    const byEmail = await queryOne<{ id: string; name: string | null; email: string }>(
+      'SELECT id, name, email FROM sn_users WHERE email = $1 LIMIT 1',
+      [clerkEmail]
+    );
+    if (byEmail) {
+      if (clerkUserId) {
+        await queryOne('UPDATE sn_users SET clerk_id = $1 WHERE id = $2', [clerkUserId, byEmail.id]);
+      }
+      return byEmail;
+    }
+  }
+
+  // Fallback during migration: use first admin row in DB.
+  // Never return synthetic IDs (user_id columns are UUID).
   return queryOne<{ id: string; name: string | null; email: string }>(
     `SELECT id, name, email FROM sn_users WHERE role = 'admin' LIMIT 1`
   );

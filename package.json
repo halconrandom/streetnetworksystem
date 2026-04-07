@@ -10,7 +10,6 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "^4.16.2",
     "@clerk/nextjs": "^6.39.0",
     "@reduxjs/toolkit": "^1.8.5",
     "clsx": "^2.1.1",

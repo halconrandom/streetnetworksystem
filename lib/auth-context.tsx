@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import { useClerk, useUser } from '@clerk/nextjs';
 
 interface AuthUser {
   username: string;
@@ -18,24 +19,23 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerk();
 
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setUser(data ?? null))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
-  }, []);
+  const user = useMemo<AuthUser | null>(() => {
+    if (!clerkUser) return null;
+    return {
+      username: clerkUser.username || clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress || 'admin',
+      role: 'admin',
+    };
+  }, [clerkUser]);
 
   const logout = async () => {
-    setUser(null);
-    window.location.href = '/api/auth/logout';
+    await signOut({ redirectUrl: '/sign-in' });
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading: !isLoaded, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,28 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import crypto from 'crypto';
-import { getAuth0SessionUser, isAuth0Enabled } from '@lib/auth0';
+import { getAuth } from '@clerk/nextjs/server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (isAuth0Enabled()) {
-    const user = await getAuth0SessionUser(req, res);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-
-    return res.status(200).json({
-      username: user.nickname || user.name || user.email || 'admin',
-      role: 'admin',
-      email: user.email || null,
-      sub: user.sub || null,
-    });
+  const auth = getAuth(req);
+  if (!auth.userId) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const token = req.cookies['sn_session'];
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  const claims = auth.sessionClaims as Record<string, any> | null | undefined;
+  const email = claims?.email || claims?.email_address || null;
+  const username = claims?.username || claims?.name || email || auth.userId;
 
-  const secret = process.env.SESSION_SECRET || 'dev-secret-change-me';
-  const username = process.env.ADMIN_USERNAME || 'admin';
-  const expected = crypto.createHmac('sha256', secret).update(username).digest('hex');
-
-  if (token !== expected) return res.status(401).json({ error: 'Invalid session' });
-
-  return res.status(200).json({ username, role: 'admin' });
+  return res.status(200).json({
+    username,
+    role: 'admin',
+    email,
+    sub: auth.userId,
+  });
 }
