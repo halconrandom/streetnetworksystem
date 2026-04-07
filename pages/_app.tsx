@@ -8,6 +8,7 @@ import '../src/integrations/components-sdk/components-sdk.css';
 
 export type NextPageWithLayout = NextPage & {
   noLayout?: boolean;
+  fullWidth?: boolean;
 };
 
 type AppPropsWithLayout = AppProps & {
@@ -16,13 +17,14 @@ type AppPropsWithLayout = AppProps & {
 
 export default function App({ Component, pageProps }: AppPropsWithLayout) {
   const noLayout = Component.noLayout ?? false;
+  const fullWidth = Component.fullWidth ?? false;
 
   return (
     <AuthProvider>
       {noLayout ? (
         <Component {...pageProps} />
       ) : (
-        <Layout>
+        <Layout fullWidth={fullWidth}>
           <Component {...pageProps} />
         </Layout>
       )}

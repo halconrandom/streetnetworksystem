@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/api/auth/login', '/api/auth/logout'];
+const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/api/auth/login', '/api/auth/logout', '/api/auth/callback'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return;
 
-  const session = req.cookies.get('sn_session');
+  const hasLegacySession = Boolean(req.cookies.get('sn_session')?.value);
+  const hasAuth0Session = req.cookies.getAll().some((c) => c.name.startsWith('appSession'));
 
-  if (!session?.value) {
+  if (!hasLegacySession && !hasAuth0Session) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

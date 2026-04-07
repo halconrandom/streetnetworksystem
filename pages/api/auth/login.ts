@@ -1,7 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
+import { auth0Login, isAuth0Enabled } from '@lib/auth0';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (isAuth0Enabled() && req.method === 'GET') {
+    return auth0Login(req, res);
+  }
+
+  if (req.method === 'GET') {
+    return res.redirect('/sign-in');
+  }
+
   if (req.method !== 'POST') return res.status(405).end();
 
   const { username, password } = req.body ?? {};

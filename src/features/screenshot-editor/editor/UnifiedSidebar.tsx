@@ -1,0 +1,899 @@
+import React, { useEffect, useState } from 'react';
+import {
+    Image as ImageIcon,
+    Type,
+    Plus,
+    Move,
+    Layers,
+    Settings,
+    Palette,
+    Clock,
+    Trash2,
+    FileText,
+    UserPlus,
+    Activity,
+    ChevronDown,
+    ChevronUp,
+    Square,
+    Shield,
+    Filter,
+    MousePointer2,
+    Copy,
+    MessageSquare
+} from '@/components/Icons';
+import { defaultTextSettings } from './constants';
+import type { CacheItem, ChatLine, EditorSettings, FitMode, OverlayImage, TextBlock, TextBlockSettings } from './types';
+import { LayersPanel } from './LayersPanel';
+import { colorWithAlpha, normalizeHexInput } from './utils';
+
+type UnifiedSidebarProps = {
+    // Source
+    onImageFile: (file: File) => void;
+    onChatFile: (file: File) => void;
+    overlays: OverlayImage[];
+    onOverlayFile: (file: File) => void;
+    onUpdateOverlay: (id: string, update: Partial<OverlayImage>) => void;
+    onRemoveOverlay: (id: string) => void;
+    // Characters
+    nameInputs: { id: string; name: string }[];
+    onAddNameInput: () => void;
+    onRemoveNameInput: (id: string) => void;
+    onUpdateNameInput: (id: string, name: string) => void;
+    onAppendToBlock: (text: string) => void;
+    // Text blocks
+    textBlocks: TextBlock[];
+    onUpdateBlock: (id: string, text: string) => void;
+    onUpdateBlockSettings: (id: string, update: Partial<TextBlockSettings>) => void;
+    onAddBlock: () => void;
+    onDuplicateBlock: (id: string) => void;
+    onClearColors: (id: string) => void;
+    onRemoveBlock: (id: string) => void;
+    onToggleBlockSettings: (id: string) => void;
+    onToggleBlockCollapsed: (id: string) => void;
+    onToggleBlockAdvanced: (id: string) => void;
+    onSetActiveBlockId: (id: string) => void;
+    onSetSelection: (selection: { start: number; end: number } | null) => void;
+    activeBlockId: string | null;
+    // Global Settings & Canvas
+    settings: EditorSettings;
+    onSettingsChange: (update: Partial<EditorSettings>) => void;
+    // Colors
+    colorPicker: string;
+    onColorPickerChange: (value: string) => void;
+    colorAlpha: number;
+    onColorAlphaChange: (value: number) => void;
+    selectedTemplateColor: string | null;
+    onSelectTemplateColor: (value: string) => void;
+    // Log Analysis
+    rawTextFile: string;
+    onRawTextChange: (value: string) => void;
+    onRemoveTimestamps: () => void;
+    onApplyChatLines: () => void;
+    lines: ChatLine[];
+    onUpdateLine: (id: string, update: Partial<ChatLine>) => void;
+    onRemoveLine: (id: string) => void;
+    // History/Cache
+    cacheItems: CacheItem[];
+    onLoadCache: (item: CacheItem) => void;
+    onRemoveCache: (id: string) => void;
+    onRenameCache: (id: string, name: string) => void;
+    // Layers Reordering
+    layerOrder: string[];
+    onSelectLayer: (id: string, type: 'text' | 'overlay') => void;
+    onMoveLayer: (dragIndex: number, hoverIndex: number) => void;
+    onToggleVisible: (id: string, type: 'text' | 'overlay') => void;
+    onToggleLock: (id: string, type: 'text' | 'overlay') => void;
+    // Global Actions
+    width: number;
+    height: number;
+    onParseChat: () => void;
+    onClearBlocks: () => void;
+    onCommitHistory: () => void;
+    // Tools/Panels
+    activeTool: 'move' | 'redact';
+    onSetTool: (tool: 'move' | 'redact') => void;
+    visiblePanels: Record<string, boolean>;
+    onTogglePanel: (id: string) => void;
+    // Crop Tool
+    activeCropOverlayId: string | null;
+    onSetActiveCropOverlayId: (id: string | null) => void;
+    // Redact Tool
+    redactIntensity: number;
+    onRedactIntensityChange: (value: number) => void;
+    // Premium features
+    canUseComicMaker?: boolean;
+};
+
+export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
+    onImageFile,
+    onChatFile,
+    overlays,
+    onOverlayFile,
+    onUpdateOverlay,
+    onRemoveOverlay,
+    nameInputs,
+    onAddNameInput,
+    onRemoveNameInput,
+    onUpdateNameInput,
+    onAppendToBlock,
+    textBlocks,
+    onUpdateBlock,
+    onUpdateBlockSettings,
+    onAddBlock,
+    onDuplicateBlock,
+    onClearColors,
+    onRemoveBlock,
+    onToggleBlockSettings,
+    onToggleBlockCollapsed,
+    onToggleBlockAdvanced,
+    onSetActiveBlockId,
+    onSetSelection,
+    activeBlockId,
+    settings,
+    onSettingsChange,
+    colorPicker,
+    onColorPickerChange,
+    colorAlpha,
+    onColorAlphaChange,
+    selectedTemplateColor,
+    onSelectTemplateColor,
+    rawTextFile,
+    onRawTextChange,
+    onRemoveTimestamps,
+    onApplyChatLines,
+    lines,
+    onUpdateLine,
+    onRemoveLine,
+    cacheItems,
+    onLoadCache,
+    onRemoveCache,
+    onRenameCache,
+    layerOrder,
+    onSelectLayer,
+    onMoveLayer,
+    onToggleVisible,
+    onToggleLock,
+    width,
+    height,
+    onParseChat,
+    onClearBlocks,
+    onCommitHistory,
+    activeTool,
+    onSetTool,
+    visiblePanels,
+    onTogglePanel,
+    activeCropOverlayId,
+    onSetActiveCropOverlayId,
+    redactIntensity,
+    onRedactIntensityChange,
+    canUseComicMaker = false
+}) => {
+    const [imageFileName, setImageFileName] = useState('');
+    const [chatFileName, setChatFileName] = useState('');
+
+    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+        source: true,
+        canvas: true,
+        atmosphere: false,
+    });
+
+    const toggleSection = (id: string) => {
+        setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const SectionHeader = ({ id, label }: { id: string, label: string }) => (
+        <div
+            className="flex items-center justify-between cursor-pointer group/header select-none"
+            onClick={() => toggleSection(id)}
+        >
+            <div className="flex items-center gap-2">
+                <div className={`w-1 h-3.5 bg-violet-500 transition-all ${expandedSections[id] ? 'opacity-100' : 'opacity-40'}`} />
+                <h3 className="text-[11px] uppercase font-black tracking-widest text-slate-600 group-hover/header:text-black transition-colors flex items-center gap-2">
+                    {label}
+                </h3>
+            </div>
+            <div className={`text-slate-400 group-hover/header:text-black transition-all transform ${expandedSections[id] ? 'rotate-0' : '-rotate-90'}`}>
+                <ChevronDown size={14} />
+            </div>
+        </div>
+    );
+
+    const readSavedNames = () => {
+        try {
+            const raw = localStorage.getItem('streetnetwork_saved_names');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+        } catch {
+            return [];
+        }
+    };
+    const [savedNames, setSavedNames] = useState<string[]>([]);
+
+    useEffect(() => {
+        setSavedNames(readSavedNames());
+    }, []);
+
+    const handleSaveName = (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const current = readSavedNames();
+        if (!current.includes(trimmed)) {
+            const updated = [...current, trimmed];
+            localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+            setSavedNames(updated);
+        }
+    };
+
+    const handleRemoveSavedName = (name: string) => {
+        const current = readSavedNames();
+        const updated = current.filter((n: string) => n !== name);
+        localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+        setSavedNames(updated);
+    };
+
+    const toolbarItems = [
+        { id: 'source', icon: ImageIcon, label: 'Background & Overlays' },
+        { id: 'textEditor', icon: Type, label: 'Chat Boxes' },
+        { id: 'move', icon: Move, label: 'Move Tool', isTool: true },
+        { id: 'redact', icon: Shield, label: 'Censor Tool', isTool: true },
+        ...(canUseComicMaker 
+            ? [{ id: 'stripBuilder', icon: Layers, label: 'Comic Maker', isAction: true as const, disabled: false as const, onClick: () => onTogglePanel('stripBuilder') }]
+            : [{ id: 'stripBuilder', icon: Layers, label: 'Premium Feature', isAction: true as const, disabled: true as const, onClick: () => {} }]
+        ),
+    ];
+
+    const [activeTab, setActiveTab] = useState<'source' | 'textEditor'>('source');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredBlocks = textBlocks.filter(b =>
+        b.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="flex bg-[#fdfbf7] border-2 border-black shadow-[4px_4px_0px_#000] overflow-hidden h-full animate-fade-in relative">
+            {/* TOOLBAR STRIP (Left) */}
+            <div className="w-[64px] flex flex-col items-center py-4 gap-2 border-r-2 border-black bg-[#f4f1ea] z-10">
+                {toolbarItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.isTool
+                        ? activeTool === item.id
+                        : (item.id === activeTab);
+
+                    return (
+                        <button
+                            key={item.id}
+                            onClick={() => {
+                                if (item.disabled) return;
+                                if (item.isAction) {
+                                    item.onClick?.();
+                                } else if (item.isTool) {
+                                    onSetTool(item.id as any);
+                                } else {
+                                    setActiveTab(item.id as any);
+                                }
+                            }}
+                            className={`group relative p-3 border-2 border-black transition-all duration-75 ${item.disabled
+                                ? 'bg-[#e8e4db] text-slate-400 cursor-not-allowed'
+                                : isActive || (item.id === 'stripBuilder' && visiblePanels.stripBuilder)
+                                    ? 'bg-violet-500 text-white shadow-[2px_2px_0px_#000]'
+                                    : 'bg-[#fdfbf7] text-slate-600 shadow-[2px_2px_0px_#000] hover:bg-[#f4f1ea] hover:text-black'
+                                }`}
+                            title={item.label}
+                        >
+                            <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                            {item.disabled && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="absolute inset-0 bg-[#f4f1ea]/90" />
+                                    <svg className="relative w-3 h-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-10V4a2 2 0 00-2-2H8a2 2 0 00-2 2v1m8 0V4a2 2 0 012 2h2a2 2 0 012 2v1m-6 0a4 4 0 00-4 4v4a2 2 0 002 2h4a2 2 0 002-2v-4a4 4 0 00-4-4z" />
+                                    </svg>
+                                </div>
+                            )}
+                            {isActive && !item.isAction && !item.disabled && (
+                                <div className="absolute left-[-2px] top-1/4 bottom-1/4 w-1 bg-black" />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* CONTENT AREA (Right) */}
+            <div className="flex-1 flex flex-col min-w-0 bg-[#fdfbf7] overflow-y-auto custom-scrollbar relative">
+                <div className="p-6 space-y-8 pb-32">
+                    {/* Tool specific settings (Floating/Fixed Bar) */}
+                    {activeTool === 'redact' && (
+                        <div className="p-4 bg-[#fff5cc] border-2 border-black shadow-[2px_2px_0px_#000] animate-fade-in-up space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 border-2 border-black bg-violet-500 text-white">
+                                    <Shield size={16} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-black">Censor Tool</span>
+                                    <span className="text-[10px] text-slate-600">Intensity Settings</span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                                <label className="text-[8px] font-black uppercase tracking-widest text-slate-600 whitespace-nowrap">Pixel Size</label>
+                                <input
+                                    type="range"
+                                    min={2}
+                                    max={40}
+                                    step={1}
+                                    value={redactIntensity}
+                                    onChange={(e) => onRedactIntensityChange(Number(e.target.value))}
+                                    className="flex-1 accent-violet-500 h-1"
+                                />
+                                <span className="text-[10px] font-mono text-black min-w-6 text-right">{redactIntensity}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SOURCE MATERIAL */}
+                    {activeTab === 'source' && (
+                        <div className="space-y-8 animate-fade-in">
+                            <section className="space-y-4">
+                                <SectionHeader id="source" label="Background & Overlays" />
+                                {expandedSections.source && (
+                                    <div className="grid grid-cols-3 gap-2 animate-fade-in">
+                                        <label className="flex flex-col items-center justify-center gap-2 p-4 bg-[#f4f1ea] border-2 border-dashed border-black cursor-pointer hover:bg-[#fff4b2] transition-all group">
+                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setImageFileName(file.name); onImageFile(file); } }} />
+                                            <div className="p-2 border-2 border-black bg-[#fdfbf7] group-hover:scale-110 transition-transform"><ImageIcon size={20} className="text-slate-600" /></div>
+                                            <div className="text-center"><span className="block text-[9px] font-bold text-black uppercase tracking-wider">Screenshot</span>{imageFileName && <span className="block text-[7px] text-slate-500 truncate max-w-[60px] mt-1">{imageFileName}</span>}</div>
+                                        </label>
+                                        <label className="flex flex-col items-center justify-center gap-2 p-4 bg-[#f4f1ea] border-2 border-dashed border-black cursor-pointer hover:bg-[#fff4b2] transition-all group">
+                                            <input type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) onOverlayFile(file); }} />
+                                            <div className="p-2 border-2 border-black bg-[#fdfbf7] group-hover:scale-110 transition-transform"><Plus size={20} className="text-slate-600" /></div>
+                                            <div className="text-center"><span className="block text-[9px] font-bold text-black uppercase tracking-wider">Overlays</span></div>
+                                        </label>
+                                        <label className="flex flex-col items-center justify-center gap-2 p-4 bg-[#f4f1ea] border-2 border-dashed border-black cursor-pointer hover:bg-[#fff4b2] transition-all group">
+                                            <input type="file" accept=".txt,.log" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setChatFileName(file.name); onChatFile(file); } }} />
+                                            <div className="p-2 border-2 border-black bg-[#fdfbf7] group-hover:scale-110 transition-transform"><MessageSquare size={20} className="text-slate-600" /></div>
+                                            <div className="text-center"><span className="block text-[9px] font-bold text-black uppercase tracking-wider">Import Logs</span>{chatFileName && <span className="block text-[7px] text-slate-500 truncate max-w-[60px] mt-1">{chatFileName}</span>}</div>
+                                        </label>
+                                    </div>
+                                )}
+                            </section>
+
+                            {/* CANVAS SETUP */}
+                            <section className="space-y-4">
+                                <SectionHeader id="canvas" label="Image Size & Format" />
+                                {expandedSections.canvas && (
+                                    <div className="space-y-4 bg-[#f4f1ea] border-2 border-black p-5 animate-fade-in">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] uppercase font-bold tracking-widest text-slate-600 ml-1">Width</label>
+                                                <input
+                                                    type="number"
+                                                    value={settings.width}
+                                                    onChange={(e) => onSettingsChange({ width: Number(e.target.value) })}
+                                                    className="w-full bg-[#fdfbf7] border-2 border-black px-3 py-2 text-[12px] text-black outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-[9px] uppercase font-bold tracking-widest text-slate-600 ml-1">Height</label>
+                                                <input
+                                                    type="number"
+                                                    value={settings.height}
+                                                    onChange={(e) => onSettingsChange({ height: Number(e.target.value) })}
+                                                    className="w-full bg-[#fdfbf7] border-2 border-black px-3 py-2 text-[12px] text-black outline-none"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <label className="text-[9px] uppercase font-bold tracking-widest text-slate-600 ml-1">Image Fit</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={settings.fitMode}
+                                                    onChange={(e) => onSettingsChange({ fitMode: e.target.value as FitMode })}
+                                                    className="w-full bg-[#fdfbf7] border-2 border-black px-3 py-2 text-[12px] text-black appearance-none outline-none"
+                                                >
+                                                    <option value="contain">Contain (Keep Ratio)</option>
+                                                    <option value="cover">Cover (Fill Space)</option>
+                                                    <option value="stretch">Stretch (Distort)</option>
+                                                    <option value="crop">Manual Transform</option>
+                                                </select>
+                                                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                                            </div>
+                                        </div>
+
+                                        {settings.fitMode === 'crop' && (
+                                            <div className="pt-4 space-y-4 border-t border-black mt-4">
+                                                <div className="text-[9px] uppercase font-bold tracking-widest text-slate-500 ml-1">Background Transform</div>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <span className="text-[9px] uppercase font-bold text-slate-500">Scale</span>
+                                                            <span className="text-[10px] font-mono text-violet-600">{settings.imageScale.toFixed(2)}x</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min={0.1}
+                                                            max={5}
+                                                            step={0.05}
+                                                            value={settings.imageScale}
+                                                            onChange={(e) => onSettingsChange({ imageScale: Number(e.target.value) })}
+                                                            onMouseUp={onCommitHistory}
+                                                            className="w-full accent-violet-500 h-1"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <span className="text-[9px] uppercase font-bold text-slate-500">Rotation</span>
+                                                            <span className="text-[10px] font-mono text-violet-600">{settings.imageRotation}°</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min={-180}
+                                                            max={180}
+                                                            step={1}
+                                                            value={settings.imageRotation}
+                                                            onChange={(e) => onSettingsChange({ imageRotation: Number(e.target.value) })}
+                                                            onMouseUp={onCommitHistory}
+                                                            className="w-full accent-violet-500 h-1"
+                                                        />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] uppercase font-bold tracking-widest text-slate-500 ml-1">Offset X</label>
+                                                            <input
+                                                                type="number"
+                                                                value={settings.imageOffsetX}
+                                                                onChange={(e) => onSettingsChange({ imageOffsetX: Number(e.target.value) })}
+                                                                onBlur={onCommitHistory}
+                                                                className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[9px] uppercase font-bold tracking-widest text-slate-500 ml-1">Offset Y</label>
+                                                            <input
+                                                                type="number"
+                                                                value={settings.imageOffsetY}
+                                                                onChange={(e) => onSettingsChange({ imageOffsetY: Number(e.target.value) })}
+                                                                onBlur={onCommitHistory}
+                                                                className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="pt-2 border-t border-black mt-4">
+                                            <div className="text-[9px] uppercase font-bold tracking-widest text-slate-500 mb-2 ml-1 mt-3">Presets</div>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[
+                                                    { label: 'Classic RP', w: 800, h: 600 },
+                                                    { label: 'Widescreen', w: 1280, h: 720 },
+                                                    { label: 'Vertical', w: 720, h: 1280 },
+                                                ].map((preset) => (
+                                                    <button
+                                                        key={preset.label}
+                                                        onClick={(e) => { e.stopPropagation(); onSettingsChange({ width: preset.w, height: preset.h }); }}
+                                                        className="flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 bg-[#f4f1ea] border border-black rounded-xl hover:bg-[#f4f1ea] hover:border-black transition-all group"
+                                                    >
+                                                        <span className="text-[8px] text-center font-black text-slate-500 group-hover:text-black transition-colors uppercase tracking-wider leading-tight">{preset.label}</span>
+                                                        <span className="text-[7.5px] font-mono text-slate-500 bg-[#f4f1ea] px-2 py-0.5 rounded-md">({preset.w}x{preset.h})</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </section>
+
+                            {/* ATMOSPHERE CONTROL */}
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <SectionHeader id="atmosphere" label="Filters & Lighting" />
+                                    </div>
+                                    {expandedSections.atmosphere && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onSettingsChange({ filters: { brightness: 100, contrast: 100, saturate: 100, sepia: 0, vignette: 0 } });
+                                                onCommitHistory();
+                                            }}
+                                            className="text-[8px] font-black uppercase tracking-widest text-slate-500 hover:text-black transition-colors absolute right-6"
+                                        >
+                                            Reset
+                                        </button>
+                                    )}
+                                </div>
+                                {expandedSections.atmosphere && (
+                                    <div className="space-y-5 p-5 bg-[#f4f1ea] border border-black rounded-2xl animate-fade-in">
+                                        {[
+                                            { label: 'Brightness', key: 'brightness', min: 0, max: 200, unit: '%' },
+                                            { label: 'Contrast', key: 'contrast', min: 0, max: 200, unit: '%' },
+                                            { label: 'Saturation', key: 'saturate', min: 0, max: 200, unit: '%' },
+                                            { label: 'Scanline/Retro', key: 'sepia', min: 0, max: 100, unit: '%' },
+                                            { label: 'Vignette', key: 'vignette', min: 0, max: 1, step: 0.05, unit: '' },
+                                        ].map((filter) => (
+                                            <div key={filter.key} className="space-y-2 group">
+                                                <div className="flex justify-between items-center px-1">
+                                                    <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider group-hover:text-black transition-colors">{filter.label}</span>
+                                                    <span className="text-[10px] font-mono text-violet-600">
+                                                        {(settings.filters as any)[filter.key]}{filter.unit}
+                                                    </span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min={filter.min}
+                                                    max={filter.max}
+                                                    step={(filter as any).step || 1}
+                                                    value={(settings.filters as any)[filter.key]}
+                                                    onChange={(e) => onSettingsChange({
+                                                        filters: { ...settings.filters, [filter.key]: Number(e.target.value) }
+                                                    })}
+                                                    onMouseUp={onCommitHistory}
+                                                    className="w-full accent-violet-500 h-1"
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+
+
+                            {overlays.length > 0 && (
+                                <section className="space-y-4 pt-4 border-t border-black">
+                                    <div className="text-[11px] uppercase font-black tracking-widest text-slate-500">Active Overlays</div>
+                                    <div className="space-y-3">
+                                        {overlays.map(overlay => (
+                                            <div key={overlay.id} className="p-3 bg-[#f4f1ea] border border-black rounded-2xl group space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-10 h-10 rounded-lg bg-[#fdfbf7] overflow-hidden flex-shrink-0 border border-black p-1"><img src={overlay.dataUrl} className="w-full h-full object-contain" /></div>
+                                                        <div className="min-w-0"><div className="text-[10px] text-black truncate font-bold uppercase tracking-wider">{overlay.name}</div><div className="text-[8px] text-slate-500 truncate">ID: {overlay.id.split('-')[0]}</div></div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => onSetActiveCropOverlayId(overlay.id)}
+                                                            className={`p-1.5 rounded-lg border transition-all ${activeCropOverlayId === overlay.id ? 'bg-violet-500 border-black text-white' : 'bg-[#f4f1ea] border-black text-slate-500 hover:text-black hover:bg-[#ede9e0]'}`}
+                                                            title="Crop Overlay (Recortar)"
+                                                        >
+                                                            <Square size={14} />
+                                                        </button>
+                                                        <button onClick={() => onRemoveOverlay(overlay.id)} className="p-2 text-slate-500 hover:text-red-500"><Trash2 size={14} /></button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-3 pt-2">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Scale</label>
+                                                        <input
+                                                            type="number"
+                                                            value={overlay.scale}
+                                                            step={0.05}
+                                                            onChange={(e) => onUpdateOverlay(overlay.id, { scale: Number(e.target.value) })}
+                                                            onBlur={onCommitHistory}
+                                                            className="w-full bg-[#fdfbf7] border border-black rounded-xl px-2 py-1.5 text-[10px] text-slate-700 font-mono"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Rotation</label>
+                                                        <input
+                                                            type="number"
+                                                            value={overlay.rotation}
+                                                            onChange={(e) => onUpdateOverlay(overlay.id, { rotation: Number(e.target.value) })}
+                                                            onBlur={onCommitHistory}
+                                                            className="w-full bg-[#fdfbf7] border border-black rounded-xl px-2 py-1.5 text-[10px] text-slate-700 font-mono"
+                                                        />
+                                                    </div>
+                                                    <div className="col-span-2 space-y-1.5">
+                                                        <div className="flex justify-between items-center px-1">
+                                                            <span className="text-[8px] uppercase font-black text-slate-400 tracking-widest">Opacity</span>
+                                                            <span className="text-[9px] font-mono text-slate-500">{(overlay.opacity * 100).toFixed(0)}%</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min={0}
+                                                            max={1}
+                                                            step={0.05}
+                                                            value={overlay.opacity}
+                                                            onChange={(e) => onUpdateOverlay(overlay.id, { opacity: Number(e.target.value) })}
+                                                            onMouseUp={onCommitHistory}
+                                                            className="w-full accent-violet-500 h-1"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                        </div>
+                    )}
+
+
+                    {/* CONTENT STRATEGY & CHARACTER MATRIX */}
+                    {activeTab === 'textEditor' && (
+                        <div className="space-y-10 animate-fade-in">
+                            {/* INTEGRATED CHARACTER MATRIX */}
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <UserPlus size={14} className="text-slate-500" />
+                                        <h3 className="text-[10px] uppercase font-black tracking-widest text-slate-500">Character Name Quick Actions</h3>
+                                    </div>
+                                    <button
+                                        onClick={onAddNameInput}
+                                        className="px-2.5 py-1.5 bg-[#f4f1ea] border border-black text-slate-500 text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-violet-500 hover:text-black transition-all shadow-lg"
+                                    >
+                                        + Row
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {nameInputs.map((input) => (
+                                        <div key={input.id} className="p-3 bg-[#f4f1ea] border border-black rounded-2xl group transition-all hover:bg-[#ede9e0]">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <input
+                                                    value={input.name}
+                                                    onChange={(e) => onUpdateNameInput(input.id, e.target.value)}
+                                                    onBlur={(e) => handleSaveName(e.target.value)}
+                                                    placeholder="Name..."
+                                                    list="saved-names-unified"
+                                                    className="flex-1 bg-[#fdfbf7] border border-black rounded-xl px-3 py-1.5 text-[11px] text-black focus:border-violet-500 transition-all outline-none"
+                                                />
+                                                <datalist id="saved-names-unified">
+                                                    {savedNames.map(name => <option key={name} value={name} />)}
+                                                </datalist>
+                                                <button
+                                                    onClick={() => handleRemoveSavedName(input.name)}
+                                                    className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                                    title="Remove from history"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                                {nameInputs.length > 1 && (
+                                                    <button onClick={() => onRemoveNameInput(input.id)} className="p-1.5 text-slate-300 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {[
+                                                    { label: '/ME', color: '#bd9dd4' },
+                                                    { label: '/DO', color: '#8fbe2e' },
+                                                    { label: 'CALL', color: '#b4b401' },
+                                                    { label: 'DIC', color: '' }
+                                                ].map(action => (
+                                                    <button
+                                                        key={action.label}
+                                                        onClick={() => onAppendToBlock(
+                                                            action.label === '/ME' ? `(#bd9dd4)* ${input.name || '[Nombre]'} ` :
+                                                                action.label === '/DO' ? `(#8fbe2e)* (( ${input.name || '[Nombre]'} )) ` :
+                                                                    action.label === 'CALL' ? `(#b4b401)${input.name || '[Nombre]'} dice (phone): ` :
+                                                                        `${input.name || '[Nombre]'} dice: `
+                                                        )}
+                                                        className="py-1.5 text-[8px] font-black uppercase tracking-widest bg-[#f4f1ea] border border-black text-slate-500 hover:text-black hover:bg-[#ede9e0] rounded-lg transition-all"
+                                                    >
+                                                        {action.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/5 to-transparent mx-4" />
+
+                            <section className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2"><div className="w-1 h-4 bg-violet-500 rounded-full" /><h3 className="text-[11px] uppercase font-black tracking-widest text-slate-600">Chat Boxes</h3></div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative">
+                                            <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                            <input
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                placeholder="Search blocks..."
+                                                className="bg-[#fdfbf7] border border-black rounded-xl pl-9 pr-3 py-1.5 text-[10px] text-slate-700 focus:border-black outline-none w-32 transition-all"
+                                            />
+                                        </div>
+                                        <button onClick={onAddBlock} className="text-slate-500 hover:text-black transition-colors"><Plus size={18} /></button>
+                                    </div>
+                                </div>
+                                <div className="space-y-6">
+                                    {filteredBlocks.map((block, index) => {
+                                        const actualIndex = textBlocks.findIndex(b => b.id === block.id);
+                                        const bSettings = { ...defaultTextSettings, ...(block.settings ?? {}) };
+                                        return (
+                                            <div key={block.id} className={`bg-[#f4f1ea] border border-black rounded-3xl overflow-hidden transition-all ${block.collapsed ? 'opacity-50' : 'opacity-100 shadow-xl'}`}>
+                                                <div className="flex items-center justify-between px-4 py-3 bg-[#f4f1ea]">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="px-3 py-1 bg-violet-500 text-white text-[9px] font-black uppercase tracking-widest rounded-lg">BOX #{actualIndex + 1}</span>
+                                                        <span className="text-[9px] font-mono text-slate-500">{block.id.split('-')[0]}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => onDuplicateBlock(block.id)}
+                                                            className="p-1.5 text-slate-400 hover:text-black transition-all group/dup"
+                                                            title="Duplicate Block (Duplicar)"
+                                                        >
+                                                            <Copy size={12} className="opacity-50 group-hover/dup:opacity-100" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onClearColors(block.id)}
+                                                            className="p-1.5 text-slate-400 hover:text-black transition-all group/clean"
+                                                            title="Clear Colors (Limpiar Colores)"
+                                                        >
+                                                            <Palette size={12} className="opacity-50 group-hover/clean:opacity-100" />
+                                                        </button>
+                                                        <button onClick={() => onToggleBlockCollapsed(block.id)} className="text-slate-400 hover:text-black transition-colors">{block.collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}</button>
+                                                        <button onClick={() => onToggleBlockSettings(block.id)} className={`transition-colors ${block.settingsOpen ? 'text-violet-600' : 'text-slate-500 hover:text-black'}`}><Settings size={14} /></button>
+                                                        {textBlocks.length > 1 && <button onClick={() => onRemoveBlock(block.id)} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>}
+                                                    </div>
+                                                </div>
+
+                                                {!block.collapsed && (
+                                                    <div className="p-0">
+                                                        <textarea
+                                                            value={block.text}
+                                                            onChange={(e) => onUpdateBlock(block.id, e.target.value)}
+                                                            onFocus={(e) => {
+                                                                onSetActiveBlockId(block.id);
+                                                                onSetSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd });
+                                                            }}
+                                                            onSelect={(e) => onSetSelection({ start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd })}
+                                                            placeholder="Import logs or type narration..."
+                                                            rows={6}
+                                                            className="w-full bg-transparent p-6 text-[12px] text-black font-mono leading-relaxed outline-none border-none resize-y min-h-[150px] custom-scrollbar"
+                                                        />
+
+                                                        {block.settingsOpen && (
+                                                            <div className="p-6 pt-0 space-y-6 animate-fade-in-up border-t border-black bg-[#f4f1ea]">
+                                                                <div className="grid grid-cols-2 gap-4 pt-6">
+                                                                    <div className="flex flex-col gap-1.5 col-span-2">
+                                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Box Width</label>
+                                                                        <div className="flex items-center gap-3">
+                                                                            <input
+                                                                                type="range"
+                                                                                min={100}
+                                                                                max={width}
+                                                                                value={bSettings.textBoxWidth}
+                                                                                onChange={(e) => onUpdateBlockSettings(block.id, { textBoxWidth: Number(e.target.value) })}
+                                                                                onMouseUp={onCommitHistory}
+                                                                                className="flex-1 accent-violet-500 h-1"
+                                                                            />
+                                                                            <span className="text-[10px] font-mono text-slate-500 w-8">{bSettings.textBoxWidth}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Size</label>
+                                                                        <input type="number" value={bSettings.fontSize} onChange={(e) => onUpdateBlockSettings(block.id, { fontSize: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                    </div>
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Line Height</label>
+                                                                        <input type="number" value={bSettings.lineHeight} onChange={(e) => onUpdateBlockSettings(block.id, { lineHeight: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                    </div>
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Align</label>
+                                                                        <select value={bSettings.align} onChange={(e) => onUpdateBlockSettings(block.id, { align: e.target.value as any })} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-slate-600 outline-none">
+                                                                            <option value="left">Left</option>
+                                                                            <option value="center">Center</option>
+                                                                            <option value="right">Right</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Rotation</label>
+                                                                        <input type="number" value={bSettings.textRotation} onChange={(e) => onUpdateBlockSettings(block.id, { textRotation: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-3">
+                                                                    <button onClick={() => onUpdateBlockSettings(block.id, { backdropEnabled: !bSettings.backdropEnabled })} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${bSettings.backdropEnabled ? 'bg-violet-500/10 border-black text-violet-600' : 'bg-[#f4f1ea] border-black text-slate-500'}`}><span className="text-[9px] font-black uppercase tracking-widest">Backdrop</span>{bSettings.backdropEnabled ? <Square size={16} /> : <Shield size={16} />}</button>
+                                                                    <button onClick={() => onUpdateBlockSettings(block.id, { shadowEnabled: !bSettings.shadowEnabled })} className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${bSettings.shadowEnabled ? 'bg-violet-500/10 border-black text-violet-600' : 'bg-[#f4f1ea] border-black text-slate-500'}`}><span className="text-[9px] font-black uppercase tracking-widest">Shadow</span><Filter size={16} /></button>
+                                                                </div>
+
+                                                                {bSettings.backdropEnabled && (
+                                                                    <div className="flex items-center gap-2 p-1 bg-[#fdfbf7] rounded-xl border border-black">
+                                                                        <button
+                                                                            onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'text' })}
+                                                                            className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bSettings.backdropMode === 'text' ? 'bg-violet-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                                                                        >
+                                                                            Fitted
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => onUpdateBlockSettings(block.id, { backdropMode: 'all' })}
+                                                                            className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bSettings.backdropMode === 'all' ? 'bg-violet-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                                                                        >
+                                                                            Full Width
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+
+                                                                <button onClick={() => onToggleBlockAdvanced(block.id)} className="w-full py-3 border border-black rounded-2xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-black transition-all">Extra Text Styles</button>
+
+                                                                {block.advancedOpen && (
+                                                                    <div className="space-y-4 pt-2 animate-fade-in">
+                                                                        <div className="grid grid-cols-2 gap-4">
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Font</label>
+                                                                                <select value={bSettings.fontFamily} onChange={(e) => onUpdateBlockSettings(block.id, { fontFamily: e.target.value })} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-slate-600 outline-none">
+                                                                                    <option value="Arial, sans-serif">Standard</option>
+                                                                                    <option value="Calibri, sans-serif">Modern</option>
+                                                                                    <option value="Raleway, sans-serif">Elegant</option>
+                                                                                    <option value="'Courier New', monospace">Mono</option>
+                                                                                </select>
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Weight</label>
+                                                                                <input type="number" step={100} min={100} max={900} value={bSettings.fontWeight} onChange={(e) => onUpdateBlockSettings(block.id, { fontWeight: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Stroke</label>
+                                                                                <input type="number" step={0.5} value={bSettings.strokeWidth} onChange={(e) => onUpdateBlockSettings(block.id, { strokeWidth: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Stroke Clr</label>
+                                                                                <input value={bSettings.strokeColor} onChange={(e) => onUpdateBlockSettings(block.id, { strokeColor: e.target.value })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Padding X</label>
+                                                                                <input type="number" value={bSettings.paddingX} onChange={(e) => onUpdateBlockSettings(block.id, { paddingX: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Shift X</label>
+                                                                                <input type="number" value={bSettings.textOffsetX} onChange={(e) => onUpdateBlockSettings(block.id, { textOffsetX: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">Shift Y</label>
+                                                                                <input type="number" value={bSettings.textOffsetY} onChange={(e) => onUpdateBlockSettings(block.id, { textOffsetY: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-[#fdfbf7] border border-black rounded-xl px-3 py-2 text-[11px] text-black font-mono" />
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {bSettings.shadowEnabled && (
+                                                                            <div className="grid grid-cols-2 gap-3 p-4 bg-[#fdfbf7] border border-black rounded-2xl">
+                                                                                <div className="space-y-1.5">
+                                                                                    <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">S-Blur</label>
+                                                                                    <input type="number" value={bSettings.shadowBlur} onChange={(e) => onUpdateBlockSettings(block.id, { shadowBlur: Number(e.target.value) })} onBlur={onCommitHistory} className="w-full bg-transparent border border-black rounded-lg px-2 py-1 text-[10px] text-slate-600 font-mono" />
+                                                                                </div>
+                                                                                <div className="space-y-1.5">
+                                                                                    <label className="text-[8px] uppercase font-black text-slate-400 tracking-widest ml-1">S-Color</label>
+                                                                                    <input value={bSettings.shadowColor} onChange={(e) => onUpdateBlockSettings(block.id, { shadowColor: e.target.value })} onBlur={onCommitHistory} className="w-full bg-transparent border border-black rounded-lg px-2 py-1 text-[10px] text-slate-600 font-mono" />
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {block.collapsed && (
+                                                    <div className="px-6 py-4 text-[10px] text-slate-500 italic truncate font-mono">
+                                                        {block.text.slice(0, 80) || '(No Data In Block)'}{block.text.length > 80 ? '...' : ''}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        </div>
+                    )}
+
+                </div>
+            </div>
+
+            {/* FOOTER ACTIONS (Sticky at bottom of Content Area) */}
+            <div className="absolute bottom-0 left-[64px] right-0 p-6 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea] to-transparent pointer-events-none z-20">
+                <div className="flex pointer-events-auto">
+                    <button
+                        onClick={onClearBlocks}
+                        className="w-full py-4 bg-[#f4f1ea] text-slate-500 text-[10px] font-black uppercase tracking-widest border border-black rounded-2xl hover:bg-[#ede9e0] hover:text-black transition-all active:scale-95"
+                    >
+                        Flush All Blocks
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+

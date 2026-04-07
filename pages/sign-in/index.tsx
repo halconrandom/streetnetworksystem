@@ -12,6 +12,11 @@ const SignInPage: NextPageWithLayout = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const handleAuth0Login = () => {
+    const returnTo = encodeURIComponent(from);
+    window.location.href = `/api/auth/login?returnTo=${returnTo}`;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -60,6 +65,20 @@ const SignInPage: NextPageWithLayout = () => {
 
           {/* Body */}
           <div className="px-8 py-7">
+            <button
+              type="button"
+              onClick={handleAuth0Login}
+              className="w-full h-11 mb-5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_#000] font-display font-bold text-sm uppercase tracking-wide hover:bg-slate-900 active:shadow-none active:translate-x-[4px] active:translate-y-[4px] transition-all duration-75"
+            >
+              Continuar con Auth0
+            </button>
+
+            <div className="flex items-center gap-2 mb-5">
+              <div className="flex-1 h-[2px] bg-black" />
+              <span className="text-[10px] font-display font-bold uppercase tracking-widest text-slate-500">Fallback local</span>
+              <div className="flex-1 h-[2px] bg-black" />
+            </div>
+
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
 
               {/* Error */}
