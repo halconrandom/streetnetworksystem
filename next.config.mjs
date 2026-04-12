@@ -17,6 +17,33 @@ const nextConfig = {
       test: /\.ejs$/,
       type: 'asset/source',
     });
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+      async: false,
+    };
+
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    config.module.rules.push({
+      test: /\.(wasm|bin)$/,
+      type: 'asset/resource',
+    });
+
+    config.module.rules.push({
+      oneOf: [
+        {
+          test: /node_modules\/onnxruntime-web\/.*\.wasm$/,
+          type: 'asset/resource',
+        },
+      ],
+    });
+
     return config;
   },
 };

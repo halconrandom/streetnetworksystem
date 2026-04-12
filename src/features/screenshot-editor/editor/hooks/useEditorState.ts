@@ -12,6 +12,69 @@ export type EditorSnapshot = {
     redactionAreas: RedactionArea[];
 };
 
+export type BgRemovalSession = {
+    /** 'main' = imagen de fondo principal, cualquier otro string = overlay id */
+    target: 'main' | string;
+    originalDataUrl: string;
+    removedBgDataUrl: string;
+};
+
+const BG_REMOVAL_CACHE_KEY = 'sn_editor_bg_removal_cache';
+
+type BgRemovalCache = {
+    [target: string]: {
+        originalDataUrl: string;
+        removedBgDataUrl: string;
+        createdAt: number;
+    };
+};
+
+const getBgRemovalCache = (): BgRemovalCache => {
+    if (typeof window === 'undefined') return {};
+    try {
+        const data = localStorage.getItem(BG_REMOVAL_CACHE_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch {
+        return {};
+    }
+};
+
+const setBgRemovalCache = (cache: BgRemovalCache) => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(BG_REMOVAL_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        console.error('Failed to save BG removal cache:', e);
+    }
+};
+
+const saveBgRemovalResult = (target: string, originalDataUrl: string, removedBgDataUrl: string) => {
+    const cache = getBgRemovalCache();
+    cache[target] = { originalDataUrl, removedBgDataUrl, createdAt: Date.now() };
+    setBgRemovalCache(cache);
+};
+
+const getCachedBgRemoval = (target: string, originalDataUrl: string): string | null => {
+    const cache = getBgRemovalCache();
+    const entry = cache[target];
+    if (!entry) return null;
+    if (entry.originalDataUrl !== originalDataUrl) return null;
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    if (Date.now() - entry.createdAt > maxAge) return null;
+    return entry.removedBgDataUrl;
+};
+
+const clearBgRemovalCache = (target?: string) => {
+    const cache = getBgRemovalCache();
+    if (target) {
+        delete cache[target];
+    } else {
+        localStorage.removeItem(BG_REMOVAL_CACHE_KEY);
+        return;
+    }
+    setBgRemovalCache(cache);
+};
+
 export const useEditorState = () => {
     const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
     const [imageName, setImageName] = useState<string>('Untitled');
@@ -617,6 +680,65 @@ export const useEditorState = () => {
         }
     }, [resetHistory]);
 
+    // ── Background Removal ─────────────────────────────────────────────────────
+    const [bgRemoving, setBgRemoving] = useState<string | null>(null);
+    const [bgRemovalSession, setBgRemovalSession] = useState<BgRemovalSession | null>(null);
+
+    const triggerBgRemoval = useCallback(async (target: 'main' | string) => {
+        const sourceUrl = target === 'main'
+            ? imageDataUrl
+            : overlays.find(o => o.id === target)?.dataUrl ?? null;
+
+        if (!sourceUrl) return;
+
+        // Check cache first
+        const cached = getCachedBgRemoval(target, sourceUrl);
+        if (cached) {
+            setBgRemovalSession({ target, originalDataUrl: sourceUrl, removedBgDataUrl: cached });
+            return;
+        }
+
+        setBgRemoving(target);
+        try {
+            const { removeBackground } = await import('@imgly/background-removal');
+            const blob = await removeBackground(sourceUrl, {
+                publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
+            });
+            const resultUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            saveBgRemovalResult(target, sourceUrl, resultUrl);
+            setBgRemovalSession({ target, originalDataUrl: sourceUrl, removedBgDataUrl: resultUrl });
+        } catch (err) {
+            console.error('BG removal failed:', err);
+            alert('Error al procesar la imagen. Intenta de nuevo.');
+        } finally {
+            setBgRemoving(null);
+        }
+    }, [imageDataUrl, overlays]);
+
+    const applyBgRemoval = useCallback((resultDataUrl: string) => {
+        if (!bgRemovalSession) return;
+        if (bgRemovalSession.target === 'main') {
+            setImageDataUrl(resultDataUrl);
+        } else {
+            performAction(prev => ({
+                ...prev,
+                overlays: prev.overlays.map(o =>
+                    o.id === bgRemovalSession.target ? { ...o, dataUrl: resultDataUrl } : o
+                )
+            }));
+        }
+        setBgRemovalSession(null);
+    }, [bgRemovalSession, setImageDataUrl, performAction]);
+
+    const cancelBgRemoval = useCallback(() => {
+        setBgRemovalSession(null);
+    }, []);
+
     return {
         state: {
             imageDataUrl, setImageDataUrl,
@@ -651,7 +773,9 @@ export const useEditorState = () => {
             canUndo, canRedo,
             redactionAreas,
             activeTool, setActiveTool,
-            redactIntensity, setRedactIntensity
+            redactIntensity, setRedactIntensity,
+            bgRemoving,
+            bgRemovalSession,
         },
         computed: { visibleLines },
         actions: {
@@ -663,7 +787,8 @@ export const useEditorState = () => {
             undo, redo, commitHistory, togglePanel, clearAll,
             addRedactionArea, removeRedactionArea, setActiveTool,
             updateSettings, renameCacheItem,
-            exportWorkspace, importWorkspace
+            exportWorkspace, importWorkspace,
+            triggerBgRemoval, applyBgRemoval, cancelBgRemoval,
         }
     };
 };

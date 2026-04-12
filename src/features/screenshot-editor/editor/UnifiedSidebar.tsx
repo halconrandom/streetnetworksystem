@@ -102,6 +102,10 @@ type UnifiedSidebarProps = {
     onRedactIntensityChange: (value: number) => void;
     // Premium features
     canUseComicMaker?: boolean;
+    // Background Removal
+    imageDataUrl: string | null;
+    bgRemoving: string | null;
+    onRemoveBg: (target: 'main' | string) => void;
 };
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -166,7 +170,10 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     onSetActiveCropOverlayId,
     redactIntensity,
     onRedactIntensityChange,
-    canUseComicMaker = false
+    canUseComicMaker = false,
+    imageDataUrl,
+    bgRemoving,
+    onRemoveBg,
 }) => {
     const [imageFileName, setImageFileName] = useState('');
     const [chatFileName, setChatFileName] = useState('');
@@ -353,6 +360,31 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                             <div className="text-center"><span className="block text-[9px] font-bold text-black uppercase tracking-wider">Import Logs</span>{chatFileName && <span className="block text-[7px] text-slate-500 truncate max-w-[60px] mt-1">{chatFileName}</span>}</div>
                                         </label>
                                     </div>
+                                )}
+                                {/* Remove BG for main image */}
+                                {imageDataUrl && (
+                                    <button
+                                        onClick={() => onRemoveBg('main')}
+                                        disabled={bgRemoving !== null}
+                                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-black text-[10px] font-black uppercase tracking-widest transition-all duration-75 ${
+                                            bgRemoving === 'main'
+                                                ? 'bg-[#f4f1ea] text-slate-400 cursor-wait'
+                                                : bgRemoving !== null
+                                                ? 'bg-[#f4f1ea] text-slate-300 cursor-not-allowed'
+                                                : 'bg-yellow-300 hover:bg-yellow-400 shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none'
+                                        }`}
+                                    >
+                                        {bgRemoving === 'main' ? (
+                                            <>
+                                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                                </svg>
+                                                Procesando IA...
+                                            </>
+                                        ) : (
+                                            <>✂ Remove Background</>
+                                        )}
+                                    </button>
                                 )}
                             </section>
 
@@ -549,6 +581,24 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                         <div className="min-w-0"><div className="text-[10px] text-black truncate font-bold uppercase tracking-wider">{overlay.name}</div><div className="text-[8px] text-slate-500 truncate">ID: {overlay.id.split('-')[0]}</div></div>
                                                     </div>
                                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => onRemoveBg(overlay.id)}
+                                                            disabled={bgRemoving !== null}
+                                                            className={`p-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                                bgRemoving === overlay.id
+                                                                    ? 'bg-yellow-100 border-black text-yellow-600 cursor-wait'
+                                                                    : bgRemoving !== null
+                                                                    ? 'bg-[#f4f1ea] border-black text-slate-300 cursor-not-allowed'
+                                                                    : 'bg-yellow-300 border-black text-black hover:bg-yellow-400'
+                                                            }`}
+                                                            title="Remove Background (IA)"
+                                                        >
+                                                            {bgRemoving === overlay.id ? (
+                                                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                                                </svg>
+                                                            ) : '✂'}
+                                                        </button>
                                                         <button
                                                             onClick={() => onSetActiveCropOverlayId(overlay.id)}
                                                             className={`p-1.5 rounded-lg border transition-all ${activeCropOverlayId === overlay.id ? 'bg-violet-500 border-black text-white' : 'bg-[#f4f1ea] border-black text-slate-500 hover:text-black hover:bg-[#ede9e0]'}`}

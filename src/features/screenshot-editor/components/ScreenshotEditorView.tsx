@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { CenterColumn } from '../editor/CenterColumn';
 import { UnifiedSidebar } from '../editor/UnifiedSidebar';
 import { CropEditor } from '../editor/CropEditor';
+import { BgRemovalEditor } from '../editor/BgRemovalEditor';
 import { TopBar } from '../editor/TopBar';
 import { StripBuilder } from '../editor/StripBuilder';
 import { defaultSettings, defaultTextSettings } from '../editor/constants';
@@ -97,8 +98,11 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
     addNameInput, removeNameInput, updateNameInput,
     undo, redo, commitHistory, togglePanel, clearAll,
     addRedactionArea, removeRedactionArea, setActiveTool,
-    updateSettings
+    updateSettings,
+    triggerBgRemoval, applyBgRemoval, cancelBgRemoval,
   } = actions;
+
+  const { bgRemoving, bgRemovalSession } = state;
 
   const { invalidateCache } = useCanvasPainter({
     canvasRef,
@@ -556,6 +560,9 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
                 onRedactIntensityChange={setRedactIntensity}
                 onRenameCache={actions.renameCacheItem}
                 canUseComicMaker={canUseComicMaker}
+                imageDataUrl={imageDataUrl}
+                bgRemoving={bgRemoving}
+                onRemoveBg={triggerBgRemoval}
               />
             </div>
           )}
@@ -687,6 +694,16 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
         onClose={() => togglePanel('stripBuilder')}
         cacheItems={cacheItems}
       />
+
+      {/* BG Removal Editor modal */}
+      {bgRemovalSession && (
+        <BgRemovalEditor
+          originalDataUrl={bgRemovalSession.originalDataUrl}
+          removedBgDataUrl={bgRemovalSession.removedBgDataUrl}
+          onApply={applyBgRemoval}
+          onCancel={cancelBgRemoval}
+        />
+      )}
     </DndProvider>
   );
 };
