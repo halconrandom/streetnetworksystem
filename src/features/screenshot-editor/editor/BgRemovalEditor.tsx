@@ -28,6 +28,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
     const [brushSoftness, setBrushSoftness] = useState(0);   // 0=hard … 1=fully soft
     const [brushShape,    setBrushShape]    = useState<'round' | 'square'>('round');
     const [scale,         setScale]         = useState(1);
+    const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [isReady,       setIsReady]       = useState(false);
 
     // ── Compare mode ──────────────────────────────────────────────────────────
@@ -84,6 +85,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
         removedImg.onload = () => {
             canvas.width  = removedImg.naturalWidth;
             canvas.height = removedImg.naturalHeight;
+            setCanvasNaturalSize({ width: removedImg.naturalWidth, height: removedImg.naturalHeight });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(removedImg, 0, 0);
             setIsReady(true);
@@ -384,12 +386,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
         return () => el.removeEventListener('wheel', handler);
     }, [zoomIn, zoomOut]);
 
-    // Ensure container can always scroll even when zoomed
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.scrollTop = 0;
-    }, [scale]);
+    // (removed broken scrollTop=0 reset — explicit DOM sizing handles scroll correctly)
 
     // ═════════════════════════════════════════════════════════════════════════
     // Cursor shape (CSS) for the visual indicator
@@ -598,7 +595,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
                 {/* ── Canvas area ────────────────────────────────────────── */}
                 <div
                     ref={containerRef}
-                    className="flex-1 overflow-auto flex items-center justify-center min-h-0 relative select-none"
+                    className="flex-1 overflow-auto min-h-0 relative select-none"
                     style={{
                         background: 'repeating-conic-gradient(#d1d5db 0% 25%, #f9fafb 0% 50%) 0 0 / 20px 20px',
                         cursor: compareMode ? 'default' : 'none',
@@ -607,16 +604,6 @@ export const BgRemovalEditor: React.FC<Props> = ({
                     onMouseLeave={handleContainerMouseLeave}
                     onMouseUp={handleContainerMouseUp}
                 >
-                    {/* Loading */}
-                    {!isReady && (
-                        <div className="flex flex-col items-center gap-3 text-slate-500">
-                            <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                            </svg>
-                            <span className="text-xs font-mono">Cargando imagen...</span>
-                        </div>
-                    )}
-
                     {/* Brush cursor (position:fixed — immune to scroll/overflow) */}
                     {isReady && !compareMode && cursorPos && (
                         <div
@@ -635,23 +622,36 @@ export const BgRemovalEditor: React.FC<Props> = ({
                         />
                     )}
 
-                    {/* Scaled canvas wrapper */}
+                    {/*
+                     * Inner centering div: centers the canvas when it fits inside the container.
+                     * min-h-full / min-w-full ensure it always fills the scroll area, so flex
+                     * centering works correctly without creating inaccessible top/left overflow.
+                     */}
+                    <div className="min-h-full min-w-full flex items-center justify-center p-4">
+                    {/* Loading */}
+                    {!isReady && (
+                        <div className="flex flex-col items-center gap-3 text-slate-500">
+                            <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                            </svg>
+                            <span className="text-xs font-mono">Cargando imagen...</span>
+                        </div>
+                    )}
+                    {/* Canvas wrapper: explicit DOM dimensions (naturalSize × scale) so the
+                        scroll container always knows the true scrollable area. This replaces
+                        the old CSS transform: scale() approach which did not affect DOM layout
+                        and made the top of the canvas unreachable when zoomed in. */}
                     <div
                         ref={wrapperRef}
                         style={{
-                            transform:       `scale(${scale})`,
-                            transformOrigin: 'center center',
-                            display:         isReady ? 'inline-block' : 'none',
-                            margin:          '16px', // replaces p-4 so the shadow is visible
+                            width:      canvasNaturalSize.width  ? `${Math.round(canvasNaturalSize.width  * scale)}px` : undefined,
+                            height:     canvasNaturalSize.height ? `${Math.round(canvasNaturalSize.height * scale)}px` : undefined,
+                            position:   'relative',
+                            display:    isReady ? 'block' : 'none',
+                            lineHeight: 0,
+                            flexShrink: 0,
                         }}
                     >
-                        {/*
-                         * Inner relative container sized exactly to the canvas.
-                         * All overlays (img, divider, labels) are absolute children
-                         * of this div, so they always align pixel-perfect with the canvas
-                         * regardless of canvas pixel dimensions or CSS zoom.
-                         */}
-                        <div style={{ position: 'relative', display: 'inline-block', lineHeight: 0 }}>
                             {/* Working canvas */}
                             <canvas
                                 ref={canvasRef}
@@ -659,7 +659,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
                                 onMouseMove={handleCanvasMouseMove}
                                 onMouseUp={handleMouseUp}
                                 className="border-2 border-black shadow-[4px_4px_0px_#000]"
-                                style={{ cursor: 'none', display: 'block' }}
+                                style={{ cursor: 'none', display: 'block', width: '100%', height: '100%' }}
                             />
 
                             {/* ── Onion skin overlay ──────────────────── */}
