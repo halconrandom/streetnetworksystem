@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     Eraser, Paintbrush, RotateCcw, X, Check, Undo2, ZoomIn, ZoomOut,
-    Circle, Square, SplitSquareHorizontal, Layers,
+    Circle, Square, SplitSquareHorizontal, Layers, HelpCircle,
 } from 'lucide-react';
 
 type Props = {
@@ -38,6 +38,26 @@ export const BgRemovalEditor: React.FC<Props> = ({
     // ── Onion skin ────────────────────────────────────────────────────────────
     const [onionSkin,     setOnionSkin]     = useState(false);
     const [onionOpacity,  setOnionOpacity]  = useState(0.35); // 0–1
+
+    // ── Modal animation ───────────────────────────────────────────────────────
+    const [mounted,   setMounted]   = useState(false);
+    const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        // One frame delay so the initial (hidden) state renders before we transition to visible
+        const id = requestAnimationFrame(() => setMounted(true));
+        return () => cancelAnimationFrame(id);
+    }, []);
+
+    /** Runs the exit animation then calls the callback. */
+    const animateClose = useCallback((cb: () => void) => {
+        setIsClosing(true);
+        const t = setTimeout(cb, 220);
+        return () => clearTimeout(t);
+    }, []);
+
+    // ── Help modal ────────────────────────────────────────────────────────────
+    const [showHelp, setShowHelp] = useState(false);
 
     // ── Cursor ────────────────────────────────────────────────────────────────
     const [cursorPos,         setCursorPos]         = useState<{ x: number; y: number } | null>(null);
@@ -314,8 +334,13 @@ export const BgRemovalEditor: React.FC<Props> = ({
     const handleApply = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        onApply(canvas.toDataURL('image/png'));
-    }, [onApply]);
+        const dataUrl = canvas.toDataURL('image/png');
+        animateClose(() => onApply(dataUrl));
+    }, [onApply, animateClose]);
+
+    const handleCancel = useCallback(() => {
+        animateClose(onCancel);
+    }, [onCancel, animateClose]);
 
     // ═════════════════════════════════════════════════════════════════════════
     // Zoom
@@ -340,12 +365,13 @@ export const BgRemovalEditor: React.FC<Props> = ({
             if (e.key === '+' || e.key === '=') zoomIn();
             if (e.key === '-') zoomOut();
             if (e.key === '0') zoomReset();
+            if (e.key === '?') setShowHelp(m => !m);
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [handleUndoLocal, zoomIn, zoomOut, zoomReset]);
 
-    // Ctrl+Scroll zoom
+    // Ctrl+Scroll zoom - allow vertical scroll when not holding Ctrl
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -357,6 +383,13 @@ export const BgRemovalEditor: React.FC<Props> = ({
         el.addEventListener('wheel', handler, { passive: false });
         return () => el.removeEventListener('wheel', handler);
     }, [zoomIn, zoomOut]);
+
+    // Ensure container can always scroll even when zoomed
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        el.scrollTop = 0;
+    }, [scale]);
 
     // ═════════════════════════════════════════════════════════════════════════
     // Cursor shape (CSS) for the visual indicator
@@ -376,12 +409,44 @@ export const BgRemovalEditor: React.FC<Props> = ({
     const active = 'translate-x-[2px] translate-y-[2px] shadow-none';
 
     // ═════════════════════════════════════════════════════════════════════════
+    // Render helpers
+    // ═════════════════════════════════════════════════════════════════════════
+
+    const Row = ({ kbd, label, desc, color = 'bg-[#f4f1ea] text-black' }: {
+        kbd: string; label: string; desc: string; color?: string;
+    }) => (
+        <div className="flex items-start gap-3">
+            <span className={`inline-block shrink-0 font-mono font-black text-[9px] px-2 py-1 border-2 border-black shadow-[1px_1px_0px_#000] whitespace-nowrap ${color}`}>
+                {kbd}
+            </span>
+            <div>
+                <span className="font-black">{label}</span>
+                <span className="text-slate-500 ml-1.5">{desc}</span>
+            </div>
+        </div>
+    );
+
+    // ═════════════════════════════════════════════════════════════════════════
     // Render
     // ═════════════════════════════════════════════════════════════════════════
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4">
-            <div className="flex flex-col bg-[#fdfbf7] border-4 border-black shadow-[8px_8px_0px_#000] w-[95vw] h-[95vh] max-w-[1920px]">
+        <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            style={{
+                background:  'rgba(0,0,0,0.9)',
+                opacity:     mounted && !isClosing ? 1 : 0,
+                transition:  'opacity 220ms ease',
+            }}
+        >
+            <div
+                className="relative flex flex-col bg-[#fdfbf7] border-4 border-black shadow-[8px_8px_0px_#000] w-[95vw] h-[95vh] max-w-[1920px]"
+                style={{
+                    opacity:    mounted && !isClosing ? 1 : 0,
+                    marginTop:  mounted && !isClosing ? '0px' : '16px',
+                    transition: 'opacity 220ms ease, margin-top 220ms cubic-bezier(0.22,1,0.36,1)',
+                }}
+            >
 
                 {/* ── Header ─────────────────────────────────────────────── */}
                 <div className="flex items-center justify-between px-4 py-2.5 border-b-4 border-black bg-[#fdfbf7] flex-shrink-0">
@@ -391,9 +456,18 @@ export const BgRemovalEditor: React.FC<Props> = ({
                             [E] Borrar · [R] Restaurar · [O] Cebolla · [B] Comparar · Ctrl+Z Undo · Ctrl+Scroll Zoom
                         </span>
                     </div>
-                    <button onClick={onCancel} className={btnSm}>
-                        <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            onClick={() => setShowHelp(m => !m)}
+                            className={`${btnSm} ${showHelp ? `bg-black text-white ${active}` : ''}`}
+                            title="Ayuda y shortcuts [?]"
+                        >
+                            <HelpCircle size={14} />
+                        </button>
+                        <button onClick={handleCancel} className={btnSm}>
+                            <X size={14} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* ── Toolbar ────────────────────────────────────────────── */}
@@ -514,7 +588,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
 
                         <div className="w-[2px] h-5 bg-black/30" />
 
-                        <button onClick={onCancel} className={btn}>Cancelar</button>
+                        <button onClick={handleCancel} className={btn}>Cancelar</button>
                         <button onClick={handleApply} disabled={!isReady}
                             className={`${btn} flex items-center gap-1.5 bg-yellow-300 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed`}
                         ><Check size={12} /> Aplicar PNG</button>
@@ -693,6 +767,76 @@ export const BgRemovalEditor: React.FC<Props> = ({
                         </div>
                     </div>
                 </div>
+
+                {/* ── Help modal ─────────────────────────────────────────── */}
+                {showHelp && (
+                    <div
+                        className="absolute inset-0 z-[300] flex items-center justify-center"
+                        style={{ background: 'rgba(0,0,0,0.55)' }}
+                        onClick={() => setShowHelp(false)}
+                    >
+                        <div
+                            className="bg-[#fdfbf7] border-4 border-black shadow-[8px_8px_0px_#000] w-full max-w-lg mx-4"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Modal header */}
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b-4 border-black bg-[#f4f1ea]">
+                                <span className="font-black text-xs uppercase tracking-widest flex items-center gap-2">
+                                    <HelpCircle size={14} /> Atajos y Herramientas
+                                </span>
+                                <button onClick={() => setShowHelp(false)} className={btnSm}><X size={13} /></button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-5 space-y-5 text-[11px]">
+
+                                {/* Tools */}
+                                <section>
+                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Herramientas</p>
+                                    <div className="space-y-1.5">
+                                        <Row kbd="E" label="Borrar" desc="Elimina píxeles del fondo con el pincel activo." color="bg-black text-white" />
+                                        <Row kbd="R" label="Restaurar" desc="Recupera píxeles del original para corregir errores." color="bg-violet-500 text-white" />
+                                    </div>
+                                </section>
+
+                                {/* Brush */}
+                                <section>
+                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Pincel</p>
+                                    <div className="space-y-1.5">
+                                        <Row kbd="Tamaño" label="Slider" desc="Controla el radio del pincel en píxeles de imagen." />
+                                        <Row kbd="Blur" label="Slider" desc="Suaviza el borde del pincel (0 = duro, 100 = muy difuminado). Solo en modo redondo." />
+                                        <Row kbd="○ / □" label="Forma" desc="Alterna entre pincel redondo y cuadrado." />
+                                    </div>
+                                </section>
+
+                                {/* View */}
+                                <section>
+                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Vista</p>
+                                    <div className="space-y-1.5">
+                                        <Row kbd="O" label="Cebolla" desc="Superpone la imagen original semitransparente para pintar con mayor precisión." color="bg-amber-400 text-black" />
+                                        <Row kbd="B" label="Comparar" desc="Divide la pantalla en Antes / Después con un divisor arrastrable." color="bg-sky-500 text-white" />
+                                        <Row kbd="+ / -" label="Zoom" desc="Acerca o aleja la vista del canvas." />
+                                        <Row kbd="0" label="Reset zoom" desc="Restaura el zoom al 100%." />
+                                        <Row kbd="Ctrl+Scroll" label="Zoom rápido" desc="Rueda del ratón mientras se mantiene Ctrl." />
+                                    </div>
+                                </section>
+
+                                {/* History */}
+                                <section>
+                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Historial</p>
+                                    <div className="space-y-1.5">
+                                        <Row kbd="Ctrl+Z" label="Deshacer" desc="Revierte el último trazo. Historial de hasta 20 pasos." />
+                                        <Row kbd="Reset" label="Botón" desc="Descarta todos los cambios y vuelve al resultado de IA original." />
+                                    </div>
+                                </section>
+
+                                <p className="text-[9px] text-slate-400 border-t border-slate-200 pt-3">
+                                    Pulsa <kbd className="bg-[#f4f1ea] border border-black px-1 font-mono">?</kbd> o haz clic fuera de este panel para cerrar.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

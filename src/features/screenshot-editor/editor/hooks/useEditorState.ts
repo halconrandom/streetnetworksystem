@@ -20,6 +20,7 @@ export type BgRemovalSession = {
 };
 
 const BG_REMOVAL_CACHE_KEY = 'sn_editor_bg_removal_cache';
+const MAX_CACHE_ENTRIES = 3;
 
 type BgRemovalCache = {
     [target: string]: {
@@ -39,18 +40,46 @@ const getBgRemovalCache = (): BgRemovalCache => {
     }
 };
 
+/**
+ * Try to save cache, evicting oldest entries if quota exceeded.
+ * Falls back gracefully if storage is full.
+ */
 const setBgRemovalCache = (cache: BgRemovalCache) => {
     if (typeof window === 'undefined') return;
     try {
         localStorage.setItem(BG_REMOVAL_CACHE_KEY, JSON.stringify(cache));
     } catch (e) {
-        console.error('Failed to save BG removal cache:', e);
+        if ((e as DOMException).name !== 'QuotaExceededError') {
+            console.error('Failed to save BG removal cache:', e);
+            return;
+        }
+        const entries = Object.entries(cache);
+        if (entries.length <= 1) {
+            console.warn('BG removal cache quota exceeded, cannot evict');
+            return;
+        }
+        entries.sort((a, b) => a[1].createdAt - b[1].createdAt);
+        const toRemove = entries[0][0];
+        const newCache = { ...cache };
+        delete newCache[toRemove];
+        try {
+            localStorage.setItem(BG_REMOVAL_CACHE_KEY, JSON.stringify(newCache));
+        } catch {
+            console.warn('BG removal cache quota exceeded, dropping all entries');
+            localStorage.removeItem(BG_REMOVAL_CACHE_KEY);
+        }
     }
 };
 
 const saveBgRemovalResult = (target: string, originalDataUrl: string, removedBgDataUrl: string) => {
     const cache = getBgRemovalCache();
     cache[target] = { originalDataUrl, removedBgDataUrl, createdAt: Date.now() };
+    const entries = Object.keys(cache);
+    if (entries.length > MAX_CACHE_ENTRIES) {
+        entries.sort((a, b) => cache[a].createdAt - cache[b].createdAt);
+        const toRemove = entries.slice(0, entries.length - MAX_CACHE_ENTRIES);
+        toRemove.forEach(k => delete cache[k]);
+    }
     setBgRemovalCache(cache);
 };
 
