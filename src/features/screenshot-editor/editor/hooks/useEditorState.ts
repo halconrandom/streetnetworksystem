@@ -4,6 +4,82 @@ import type { CacheItem, ChatLine, EditorSettings, OverlayImage, RedactionArea, 
 import { buildLinesFromBlocks, getCombinedText } from '../utils';
 import { useHistory } from './useHistory';
 
+export type BgRemovalSession = {
+    target: 'main' | string;
+    originalDataUrl: string;
+    removedBgDataUrl: string;
+};
+
+const BG_REMOVAL_CACHE_KEY = 'sn_editor_bg_removal_cache';
+const MAX_CACHE_ENTRIES = 3;
+
+type BgRemovalCache = {
+    [target: string]: {
+        originalDataUrl: string;
+        removedBgDataUrl: string;
+        createdAt: number;
+    };
+};
+
+const getBgRemovalCache = (): BgRemovalCache => {
+    if (typeof window === 'undefined') return {};
+    try {
+        const data = localStorage.getItem(BG_REMOVAL_CACHE_KEY);
+        return data ? JSON.parse(data) : {};
+    } catch {
+        return {};
+    }
+};
+
+const setBgRemovalCache = (cache: BgRemovalCache) => {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(BG_REMOVAL_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        if ((e as DOMException).name !== 'QuotaExceededError') {
+            console.error('Failed to save BG removal cache:', e);
+            return;
+        }
+        const entries = Object.entries(cache);
+        if (entries.length <= 1) {
+            console.warn('BG removal cache quota exceeded, cannot evict');
+            return;
+        }
+        entries.sort((a, b) => a[1].createdAt - b[1].createdAt);
+        const toRemove = entries[0][0];
+        const newCache = { ...cache };
+        delete newCache[toRemove];
+        try {
+            localStorage.setItem(BG_REMOVAL_CACHE_KEY, JSON.stringify(newCache));
+        } catch {
+            console.warn('BG removal cache quota exceeded, dropping all entries');
+            localStorage.removeItem(BG_REMOVAL_CACHE_KEY);
+        }
+    }
+};
+
+const saveBgRemovalResult = (target: string, originalDataUrl: string, removedBgDataUrl: string) => {
+    const cache = getBgRemovalCache();
+    cache[target] = { originalDataUrl, removedBgDataUrl, createdAt: Date.now() };
+    const entries = Object.keys(cache);
+    if (entries.length > MAX_CACHE_ENTRIES) {
+        entries.sort((a, b) => cache[a].createdAt - cache[b].createdAt);
+        const toRemove = entries.slice(0, entries.length - MAX_CACHE_ENTRIES);
+        toRemove.forEach(k => delete cache[k]);
+    }
+    setBgRemovalCache(cache);
+};
+
+const getCachedBgRemoval = (target: string, originalDataUrl: string): string | null => {
+    const cache = getBgRemovalCache();
+    const entry = cache[target];
+    if (!entry) return null;
+    if (entry.originalDataUrl !== originalDataUrl) return null;
+    const maxAge = 24 * 60 * 60 * 1000;
+    if (Date.now() - entry.createdAt > maxAge) return null;
+    return entry.removedBgDataUrl;
+};
+
 export type EditorSnapshot = {
     textBlocks: TextBlock[];
     overlays: OverlayImage[];
@@ -617,6 +693,64 @@ export const useEditorState = () => {
         }
     }, [resetHistory]);
 
+    // ── Background Removal ─────────────────────────────────────────────────────
+    const [bgRemoving, setBgRemoving] = useState<string | null>(null);
+    const [bgRemovalSession, setBgRemovalSession] = useState<BgRemovalSession | null>(null);
+
+    const triggerBgRemoval = useCallback(async (target: 'main' | string) => {
+        const sourceUrl = target === 'main'
+            ? imageDataUrl
+            : overlays.find(o => o.id === target)?.dataUrl ?? null;
+
+        if (!sourceUrl) return;
+
+        const cached = getCachedBgRemoval(target, sourceUrl);
+        if (cached) {
+            setBgRemovalSession({ target, originalDataUrl: sourceUrl, removedBgDataUrl: cached });
+            return;
+        }
+
+        setBgRemoving(target);
+        try {
+            const { removeBackground } = await import('@imgly/background-removal');
+            const blob = await removeBackground(sourceUrl, {
+                publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
+            });
+            const resultUrl = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            saveBgRemovalResult(target, sourceUrl, resultUrl);
+            setBgRemovalSession({ target, originalDataUrl: sourceUrl, removedBgDataUrl: resultUrl });
+        } catch (err) {
+            console.error('BG removal failed:', err);
+            alert('Error al procesar la imagen. Intenta de nuevo.');
+        } finally {
+            setBgRemoving(null);
+        }
+    }, [imageDataUrl, overlays]);
+
+    const applyBgRemoval = useCallback((resultDataUrl: string) => {
+        if (!bgRemovalSession) return;
+        if (bgRemovalSession.target === 'main') {
+            setImageDataUrl(resultDataUrl);
+        } else {
+            performAction(prev => ({
+                ...prev,
+                overlays: prev.overlays.map(o =>
+                    o.id === bgRemovalSession.target ? { ...o, dataUrl: resultDataUrl } : o
+                )
+            }));
+        }
+        setBgRemovalSession(null);
+    }, [bgRemovalSession, setImageDataUrl, performAction]);
+
+    const cancelBgRemoval = useCallback(() => {
+        setBgRemovalSession(null);
+    }, []);
+
     return {
         state: {
             imageDataUrl, setImageDataUrl,
@@ -651,7 +785,9 @@ export const useEditorState = () => {
             canUndo, canRedo,
             redactionAreas,
             activeTool, setActiveTool,
-            redactIntensity, setRedactIntensity
+            redactIntensity, setRedactIntensity,
+            bgRemoving,
+            bgRemovalSession,
         },
         computed: { visibleLines },
         actions: {
@@ -663,7 +799,8 @@ export const useEditorState = () => {
             undo, redo, commitHistory, togglePanel, clearAll,
             addRedactionArea, removeRedactionArea, setActiveTool,
             updateSettings, renameCacheItem,
-            exportWorkspace, importWorkspace
+            exportWorkspace, importWorkspace,
+            triggerBgRemoval, applyBgRemoval, cancelBgRemoval,
         }
     };
 };

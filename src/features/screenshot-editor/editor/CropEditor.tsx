@@ -9,10 +9,13 @@ type CropEditorProps = {
   onCancel: () => void;
   width: number;
   height: number;
+  bgRemoving?: string | null;
+  onRemoveBg?: (overlayId: string) => void;
 };
 
 export const CropEditor: React.FC<CropEditorProps> = ({
-  overlay, onApply, onSaveAsCopy, onCancel, width: containerWidth, height: containerHeight
+  overlay, onApply, onSaveAsCopy, onCancel, width: containerWidth, height: containerHeight,
+  bgRemoving = null, onRemoveBg,
 }) => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -199,6 +202,31 @@ export const CropEditor: React.FC<CropEditorProps> = ({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {onRemoveBg && (
+            <button
+              onClick={() => onRemoveBg(overlay.id)}
+              disabled={bgRemoving !== null}
+              title="Eliminar fondo con IA"
+              className={`flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase tracking-wide border border-terminal-border rounded-md transition-all ${
+                bgRemoving === overlay.id
+                  ? 'text-yellow-400 cursor-wait opacity-70'
+                  : bgRemoving !== null
+                  ? 'text-terminal-muted cursor-not-allowed opacity-30'
+                  : 'text-terminal-muted hover:text-yellow-400'
+              }`}
+            >
+              {bgRemoving === overlay.id ? (
+                <>
+                  <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                  </svg>
+                  Procesando...
+                </>
+              ) : (
+                <>✂ Remove BG</>
+              )}
+            </button>
+          )}
           <button
             onClick={onCancel}
             className="px-4 py-2 text-xs font-semibold uppercase tracking-wide border border-terminal-border text-terminal-muted hover:text-white rounded-md"

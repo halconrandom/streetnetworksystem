@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { CenterColumn } from '../editor/CenterColumn';
 import { UnifiedSidebar } from '../editor/UnifiedSidebar';
 import { CropEditor } from '../editor/CropEditor';
+import { BgRemovalEditor } from '../editor/BgRemovalEditor';
 import { TopBar } from '../editor/TopBar';
 import { StripBuilder } from '../editor/StripBuilder';
 import { defaultSettings, defaultTextSettings } from '../editor/constants';
@@ -41,6 +42,14 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
     computed,
     actions
   } = useEditorState();
+
+  useEffect(() => {
+    return () => {
+      if (submitStatusTimerRef.current) {
+        clearTimeout(submitStatusTimerRef.current);
+      }
+    };
+  }, []);
 
   const {
     imageDataUrl, setImageDataUrl,
@@ -89,8 +98,11 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
     addNameInput, removeNameInput, updateNameInput,
     undo, redo, commitHistory, togglePanel, clearAll,
     addRedactionArea, removeRedactionArea, setActiveTool,
-    updateSettings
+    updateSettings,
+    triggerBgRemoval, applyBgRemoval, cancelBgRemoval,
   } = actions;
+
+  const { bgRemoving, bgRemovalSession } = state;
 
   const { invalidateCache } = useCanvasPainter({
     canvasRef,
@@ -121,20 +133,20 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
     if (!canvas) return;
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `street-network-${imageName}-${Date.now()}.png`;
+    const baseName = (imageName || 'screenshot').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_');
+    link.download = `street-network-${baseName}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   };
 
   const handleCopyScreenshot = async () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !(window as any).ClipboardItem || !navigator.clipboard?.write) return;
     try {
-      const dataUrl = canvas.toDataURL('image/png');
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!blob) return;
       await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob })
+        new (window as any).ClipboardItem({ 'image/png': blob })
       ]);
     } catch (err) {
       console.error('Failed to copy image: ', err);
@@ -548,6 +560,9 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
                 onRedactIntensityChange={setRedactIntensity}
                 onRenameCache={actions.renameCacheItem}
                 canUseComicMaker={canUseComicMaker}
+                imageDataUrl={imageDataUrl}
+                bgRemoving={bgRemoving}
+                onRemoveBg={triggerBgRemoval}
               />
             </div>
           )}
@@ -558,6 +573,8 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
               <div className="flex-1 min-h-0 p-6 flex flex-col">
                 <CropEditor
                   overlay={overlays.find((o) => o.id === activeCropOverlayId)!}
+                  bgRemoving={bgRemoving}
+                  onRemoveBg={triggerBgRemoval}
                   onCancel={() => setActiveCropOverlayId(null)}
                   onApply={(crop) => {
                     // Invalidate the overlay image cache so it re-renders with fresh data
@@ -679,6 +696,20 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
         onClose={() => togglePanel('stripBuilder')}
         cacheItems={cacheItems}
       />
+      {/* BG Removal Editor modal */}
+      {bgRemovalSession && (
+        <BgRemovalEditor
+          originalDataUrl={bgRemovalSession.originalDataUrl}
+          removedBgDataUrl={bgRemovalSession.removedBgDataUrl}
+          onApply={(dataUrl) => {
+            if (bgRemovalSession.target !== 'main') {
+              invalidateCache(bgRemovalSession.target);
+            }
+            applyBgRemoval(dataUrl);
+          }}
+          onCancel={cancelBgRemoval}
+        />
+      )}
     </DndProvider>
   );
 };

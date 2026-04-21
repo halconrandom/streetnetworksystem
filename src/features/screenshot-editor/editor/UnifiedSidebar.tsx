@@ -102,6 +102,10 @@ type UnifiedSidebarProps = {
     onRedactIntensityChange: (value: number) => void;
     // Premium features
     canUseComicMaker?: boolean;
+    // Background Removal
+    imageDataUrl: string | null;
+    bgRemoving: string | null;
+    onRemoveBg: (target: 'main' | string) => void;
 };
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
@@ -166,7 +170,10 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
     onSetActiveCropOverlayId,
     redactIntensity,
     onRedactIntensityChange,
-    canUseComicMaker = false
+    canUseComicMaker = false,
+    imageDataUrl,
+    bgRemoving,
+    onRemoveBg,
 }) => {
     const [imageFileName, setImageFileName] = useState('');
     const [chatFileName, setChatFileName] = useState('');
@@ -337,6 +344,31 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                             <div className="text-center"><span className="block text-[9px] font-bold text-white/60 uppercase tracking-wider">Import Logs</span>{chatFileName && <span className="block text-[7px] text-white/20 truncate max-w-[60px] mt-1">{chatFileName}</span>}</div>
                                         </label>
                                     </div>
+                                )}
+                                {/* Remove BG for main image */}
+                                {imageDataUrl && (
+                                    <button
+                                        onClick={() => onRemoveBg('main')}
+                                        disabled={bgRemoving !== null}
+                                        className={`w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-white/20 text-[10px] font-bold uppercase tracking-widest transition-all rounded-xl mt-2 ${
+                                            bgRemoving === 'main'
+                                                ? 'text-yellow-400 cursor-wait opacity-70'
+                                                : bgRemoving !== null
+                                                ? 'text-white/20 cursor-not-allowed'
+                                                : 'text-white/40 hover:text-yellow-400 hover:border-yellow-400/50'
+                                        }`}
+                                    >
+                                        {bgRemoving === 'main' ? (
+                                            <>
+                                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                                </svg>
+                                                Procesando IA...
+                                            </>
+                                        ) : (
+                                            <>✂ Remove Background (main)</>
+                                        )}
+                                    </button>
                                 )}
                             </section>
 
@@ -533,6 +565,24 @@ export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({
                                                         <div className="min-w-0"><div className="text-[10px] text-white/70 truncate font-bold uppercase tracking-wider">{overlay.name}</div><div className="text-[8px] text-white/20 truncate">ID: {overlay.id.split('-')[0]}</div></div>
                                                     </div>
                                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => onRemoveBg(overlay.id)}
+                                                            disabled={bgRemoving !== null}
+                                                            title="Remove Background (IA)"
+                                                            className={`p-1.5 rounded-lg border transition-all ${
+                                                                bgRemoving === overlay.id
+                                                                    ? 'border-white/10 text-yellow-400 cursor-wait'
+                                                                    : bgRemoving !== null
+                                                                    ? 'border-white/5 text-white/10 cursor-not-allowed'
+                                                                    : 'border-white/10 text-white/30 hover:text-yellow-400'
+                                                            }`}
+                                                        >
+                                                            {bgRemoving === overlay.id ? (
+                                                                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                                                                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                                                                </svg>
+                                                            ) : <span className="text-[10px] font-bold">✂</span>}
+                                                        </button>
                                                         <button
                                                             onClick={() => onSetActiveCropOverlayId(overlay.id)}
                                                             className={`p-1.5 rounded-lg border transition-all ${activeCropOverlayId === overlay.id ? 'bg-[#FF3B3B] border-[#FF3B3B] text-white' : 'bg-white/5 border-white/5 text-white/20 hover:text-white hover:bg-white/10'}`}
