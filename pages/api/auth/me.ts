@@ -16,7 +16,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(403).json({ error: 'User disabled' });
     }
 
-    const flags = await getUserFlags(user.id);
+    // Admins get all flags — avoids needing manual DB inserts per admin user
+    const ALL_FLAGS = [
+      'dashboard', 'transcripts', 'message_builder', 'screenshot_editor',
+      'nexus', 'users', 'audit_logs', 'vault',
+      'review_channels', 'comic_maker', 'cache_drafts', 'premium_access',
+    ];
+    const flags = user.role === 'admin' ? ALL_FLAGS : await getUserFlags(user.id);
 
     return res.status(200).json({
       id: user.id,
