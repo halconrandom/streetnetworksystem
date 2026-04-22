@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import {
     Eraser, Paintbrush, RotateCcw, X, Check, Undo2, ZoomIn, ZoomOut,
     Circle, Square, SplitSquareHorizontal, Layers, HelpCircle,
@@ -30,6 +30,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
     const [scale,         setScale]         = useState(1);
     const [canvasNaturalSize, setCanvasNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
     const [isReady,       setIsReady]       = useState(false);
+    const cursorCircleRef = useRef<HTMLDivElement>(null);
 
     // ── Compare mode ──────────────────────────────────────────────────────────
     const [compareMode,   setCompareMode]   = useState(false);
@@ -263,9 +264,17 @@ export const BgRemovalEditor: React.FC<Props> = ({
     // ═════════════════════════════════════════════════════════════════════════
 
     const handleContainerMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-        // Cursor circle (position:fixed uses viewport coords directly)
-        setCursorPos({ x: e.clientX, y: e.clientY });
-        setBrushScreenRadius(computeBrushScreenRadius());
+        // Update state only once to show/hide
+        if (!cursorPos) {
+            setCursorPos({ x: e.clientX, y: e.clientY });
+        }
+
+        // Direct DOM update for the cursor circle to ensure 1:1 synchronization with the mouse
+        if (cursorCircleRef.current) {
+            const circle = cursorCircleRef.current;
+            circle.style.left = `${e.clientX - brushScreenRadius}px`;
+            circle.style.top  = `${e.clientY - brushScreenRadius}px`;
+        }
 
         // Compare divider drag
         if (isDraggingDividerRef.current) {
@@ -401,24 +410,24 @@ export const BgRemovalEditor: React.FC<Props> = ({
     // Shared button class helpers
     // ═════════════════════════════════════════════════════════════════════════
 
-    const btn    = 'px-3 py-1.5 border-2 border-black text-[10px] font-black uppercase tracking-widest transition-all duration-75 bg-[#fdfbf7] shadow-[2px_2px_0px_#000] hover:bg-[#f4f1ea] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none';
-    const btnSm  = 'p-1.5 border-2 border-black shadow-[2px_2px_0px_#000] hover:bg-[#f4f1ea] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none transition-all duration-75';
-    const active = 'translate-x-[2px] translate-y-[2px] shadow-none';
+    const btn    = 'px-4 py-2 bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-[0.15em] transition-all duration-200 hover:bg-white/10 active:scale-[0.98] text-white/60 hover:text-white rounded-md flex items-center gap-2';
+    const btnSm  = 'p-2 bg-white/5 border border-white/10 transition-all duration-200 hover:bg-white/10 active:scale-[0.98] text-white/60 hover:text-white rounded-md';
+    const active = 'bg-[#ff003c]/10 border-[#ff003c]/40 text-[#ff003c] shadow-[0_0_15px_rgba(255,0,60,0.1)]';
 
     // ═════════════════════════════════════════════════════════════════════════
     // Render helpers
     // ═════════════════════════════════════════════════════════════════════════
 
-    const Row = ({ kbd, label, desc, color = 'bg-[#f4f1ea] text-black' }: {
+    const Row = ({ kbd, label, desc, color = 'bg-white/5 text-white/50 border-white/10' }: {
         kbd: string; label: string; desc: string; color?: string;
     }) => (
-        <div className="flex items-start gap-3">
-            <span className={`inline-block shrink-0 font-mono font-black text-[9px] px-2 py-1 border-2 border-black shadow-[1px_1px_0px_#000] whitespace-nowrap ${color}`}>
+        <div className="flex items-center gap-3">
+            <span className={`inline-block shrink-0 font-mono font-bold text-[9px] px-2 py-1 border rounded uppercase tracking-wider ${color}`}>
                 {kbd}
             </span>
-            <div>
-                <span className="font-black">{label}</span>
-                <span className="text-slate-500 ml-1.5">{desc}</span>
+            <div className="flex flex-col">
+                <span className="font-bold text-white/80">{label}</span>
+                <span className="text-white/20 text-[9px] uppercase tracking-widest">{desc}</span>
             </div>
         </div>
     );
@@ -429,35 +438,39 @@ export const BgRemovalEditor: React.FC<Props> = ({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
             style={{
-                background:  'rgba(0,0,0,0.9)',
+                background:  'rgba(0,0,0,0.85)',
                 opacity:     mounted && !isClosing ? 1 : 0,
                 transition:  'opacity 220ms ease',
             }}
         >
             <div
-                className="relative flex flex-col bg-[#fdfbf7] border-4 border-black shadow-[8px_8px_0px_#000] w-[95vw] h-[95vh] max-w-[1920px]"
+                className="relative flex flex-col bg-[#0a0a0a] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] w-[95vw] h-[95vh] max-w-[1920px] rounded-xl overflow-hidden font-mono"
                 style={{
                     opacity:    mounted && !isClosing ? 1 : 0,
-                    marginTop:  mounted && !isClosing ? '0px' : '16px',
-                    transition: 'opacity 220ms ease, margin-top 220ms cubic-bezier(0.22,1,0.36,1)',
+                    transform:  mounted && !isClosing ? 'scale(1)' : 'scale(0.98)',
+                    transition: 'opacity 220ms ease, transform 220ms cubic-bezier(0.22,1,0.36,1)',
                 }}
             >
 
-                {/* ── Header ─────────────────────────────────────────────── */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b-4 border-black bg-[#fdfbf7] flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <span className="font-black text-xs uppercase tracking-widest">Background Eraser</span>
-                        <span className="hidden sm:block text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 font-mono">
-                            [E] Borrar · [R] Restaurar · [O] Cebolla · [B] Comparar · Ctrl+Z Undo · Ctrl+Scroll Zoom
-                        </span>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#0d0d0d] flex-shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-lg bg-[#ff003c]/10 border border-[#ff003c]/20 flex items-center justify-center shadow-[0_0_10px_rgba(255,0,60,0.1)]">
+                            <Eraser size={16} className="text-[#ff003c]" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="font-bold text-[11px] uppercase tracking-[0.2em] text-white">Background Eraser</span>
+                            <span className="hidden sm:block text-[8px] text-white/30 uppercase tracking-[0.1em]">
+                                [E] Erase · [R] Restore · [O] Onion · [B] Compare · Ctrl+Z Undo
+                            </span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                         <button
                             onClick={() => setShowHelp(m => !m)}
-                            className={`${btnSm} ${showHelp ? `bg-black text-white ${active}` : ''}`}
-                            title="Ayuda y shortcuts [?]"
+                            className={`${btnSm} ${showHelp ? active : ''}`}
+                            title="Help & Shortcuts [?]"
                         >
                             <HelpCircle size={14} />
                         </button>
@@ -467,128 +480,125 @@ export const BgRemovalEditor: React.FC<Props> = ({
                     </div>
                 </div>
 
-                {/* ── Toolbar ────────────────────────────────────────────── */}
-                <div className="flex items-center gap-2 px-3 py-2 border-b-2 border-black bg-[#f4f1ea] flex-wrap flex-shrink-0">
+                <div className="flex items-center gap-4 px-4 py-3 border-b border-white/5 bg-[#0a0a0a] flex-wrap flex-shrink-0">
 
                     {/* Tools */}
-                    <button onClick={() => setActiveTool('erase')}
-                        className={`${btn} flex items-center gap-1.5 ${activeTool === 'erase' ? `bg-black text-white ${active}` : ''}`}
-                        title="[E]"
-                    ><Eraser size={12} /> Borrar</button>
-
-                    <button onClick={() => setActiveTool('restore')}
-                        className={`${btn} flex items-center gap-1.5 ${activeTool === 'restore' ? `bg-violet-500 text-white ${active}` : ''}`}
-                        title="[R]"
-                    ><Paintbrush size={12} /> Restaurar</button>
-
-                    <div className="w-[2px] h-5 bg-black/30" />
-
-                    {/* Brush size */}
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Tamaño</span>
-                        <input type="range" min={2} max={150} value={brushSize}
-                            onChange={e => setBrushSize(Number(e.target.value))}
-                            className="w-24 accent-violet-500"
-                        />
-                        <span className="text-[10px] font-mono w-8 text-center bg-[#fdfbf7] border border-black px-1">{brushSize}</span>
+                    <div className="flex bg-white/5 p-1 rounded-lg border border-white/10">
+                        <button onClick={() => setActiveTool('erase')}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${activeTool === 'erase' ? 'bg-[#ff003c] text-white shadow-[0_0_15px_rgba(255,0,60,0.3)]' : 'text-white/40 hover:text-white/70'}`}
+                            title="[E]"
+                        >Erase</button>
+                        <button onClick={() => setActiveTool('restore')}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${activeTool === 'restore' ? 'bg-indigo-600 text-white shadow-[0_0_15px_rgba(79,70,229,0.3)]' : 'text-white/40 hover:text-white/70'}`}
+                            title="[R]"
+                        >Restore</button>
                     </div>
 
-                    <div className="w-[2px] h-5 bg-black/30" />
+                    <div className="w-[1px] h-6 bg-white/10" />
+
+                    {/* Brush size */}
+                    <div className="flex items-center gap-3">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30">Size</span>
+                        <input type="range" min={2} max={150} value={brushSize}
+                            onChange={e => setBrushSize(Number(e.target.value))}
+                            className="w-24 accent-[#ff003c]"
+                        />
+                        <span className="text-[10px] font-mono w-10 py-1 text-center bg-white/5 border border-white/10 rounded text-[#ff003c]">{brushSize}</span>
+                    </div>
+
+                    <div className="w-[1px] h-6 bg-white/10" />
 
                     {/* Brush softness (blur) — only round */}
-                    <div className="flex items-center gap-1.5">
-                        <span className={`text-[9px] font-black uppercase tracking-widest ${brushShape === 'square' ? 'text-slate-300' : 'text-slate-500'}`}>
+                    <div className="flex items-center gap-3">
+                        <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${brushShape === 'square' ? 'text-white/10' : 'text-white/30'}`}>
                             Blur
                         </span>
                         <input type="range" min={0} max={100} value={Math.round(brushSoftness * 100)}
                             disabled={brushShape === 'square'}
                             onChange={e => setBrushSoftness(Number(e.target.value) / 100)}
-                            className="w-20 accent-violet-500 disabled:opacity-30"
+                            className="w-20 accent-[#ff003c] disabled:opacity-10"
                         />
-                        <span className={`text-[10px] font-mono w-8 text-center bg-[#fdfbf7] border border-black px-1 ${brushShape === 'square' ? 'opacity-30' : ''}`}>
+                        <span className={`text-[10px] font-mono w-10 py-1 text-center bg-white/5 border border-white/10 rounded text-[#ff003c] ${brushShape === 'square' ? 'opacity-10' : ''}`}>
                             {Math.round(brushSoftness * 100)}%
                         </span>
                     </div>
 
-                    <div className="w-[2px] h-5 bg-black/30" />
+                    <div className="w-[1px] h-6 bg-white/10" />
 
                     {/* Brush shape */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5 bg-white/5 p-1 rounded-lg border border-white/10">
                         <button onClick={() => setBrushShape('round')}
-                            className={`${btnSm} flex items-center gap-1 px-2 ${brushShape === 'round' ? `bg-black text-white ${active}` : ''}`}
-                            title="Redondo"
-                        ><Circle size={12} /></button>
+                            className={`p-1.5 rounded-md transition-all ${brushShape === 'round' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                            title="Round"
+                        ><Circle size={14} /></button>
                         <button onClick={() => setBrushShape('square')}
-                            className={`${btnSm} flex items-center gap-1 px-2 ${brushShape === 'square' ? `bg-black text-white ${active}` : ''}`}
-                            title="Cuadrado"
-                        ><Square size={12} /></button>
+                            className={`p-1.5 rounded-md transition-all ${brushShape === 'square' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                            title="Square"
+                        ><Square size={14} /></button>
                     </div>
 
-                    <div className="w-[2px] h-5 bg-black/30" />
+                    <div className="w-[1px] h-6 bg-white/10" />
 
                     {/* Zoom */}
-                    <div className="flex items-center gap-1">
-                        <button onClick={zoomOut}  disabled={scale <= 0.25} className={`${btnSm} disabled:opacity-30 disabled:cursor-not-allowed`}><ZoomOut  size={12} /></button>
-                        <button onClick={zoomReset} className={`${btn} px-2 py-1`}>{Math.round(scale * 100)}%</button>
-                        <button onClick={zoomIn}   disabled={scale >= 8}    className={`${btnSm} disabled:opacity-30 disabled:cursor-not-allowed`}><ZoomIn   size={12} /></button>
+                    <div className="flex items-center gap-2 bg-white/5 p-1 rounded-lg border border-white/10">
+                        <button onClick={zoomOut} disabled={scale <= 0.25} className="p-1.5 rounded-md text-white/40 hover:text-white/80 disabled:opacity-10"><ZoomOut size={14} /></button>
+                        <button onClick={zoomReset} className="px-2 text-[10px] font-bold text-white/70 hover:text-white">{Math.round(scale * 100)}%</button>
+                        <button onClick={zoomIn} disabled={scale >= 8} className="p-1.5 rounded-md text-white/40 hover:text-white/80 disabled:opacity-10"><ZoomIn size={14} /></button>
                     </div>
 
-                    <div className="w-[2px] h-5 bg-black/30" />
+                    <div className="w-[1px] h-6 bg-white/10" />
 
                     {/* Undo / Reset */}
                     <button onClick={handleUndoLocal} disabled={!canUndoLocal}
-                        className={`${btn} flex items-center gap-1.5 ${!canUndoLocal ? 'opacity-30 cursor-not-allowed shadow-none' : ''}`}
+                        className={`${btn} ${!canUndoLocal ? 'opacity-20 cursor-not-allowed' : ''}`}
                         title="Ctrl+Z"
-                    ><Undo2 size={11} /> Undo</button>
+                    ><Undo2 size={12} /> Undo</button>
 
                     <button onClick={handleReset}
-                        className={`${btn} flex items-center gap-1.5`}
-                    ><RotateCcw size={11} /> Reset</button>
+                        className={btn}
+                    ><RotateCcw size={12} /> Reset</button>
 
                     {/* Right side actions */}
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="ml-auto flex items-center gap-3">
                         {/* Onion skin [O] */}
                         <button
                             onClick={() => { setOnionSkin(m => !m); setCompareMode(false); }}
-                            className={`${btn} flex items-center gap-1.5 ${onionSkin ? `bg-amber-400 text-black border-black ${active}` : ''}`}
-                            title="[O] Máscara de cebolla — muestra el original como guía"
+                            className={`${btn} ${onionSkin ? 'bg-amber-500/20 border-amber-500/40 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : ''}`}
+                            title="[O] Onion Mask"
                         >
-                            <Layers size={12} /> Cebolla
+                            <Layers size={14} /> Onion
                         </button>
 
                         {/* Onion opacity — only when active */}
                         {onionSkin && (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-2">
                                 <input
                                     type="range" min={5} max={90} step={5}
                                     value={Math.round(onionOpacity * 100)}
                                     onChange={e => setOnionOpacity(Number(e.target.value) / 100)}
-                                    className="w-20 accent-amber-500"
-                                    title="Opacidad del fantasma"
+                                    className="w-16 accent-amber-500"
                                 />
-                                <span className="text-[10px] font-mono w-8 text-center bg-[#fdfbf7] border border-black px-1">
-                                    {Math.round(onionOpacity * 100)}%
-                                </span>
+                                <span className="text-[10px] font-mono text-amber-500/70">{Math.round(onionOpacity * 100)}%</span>
                             </div>
                         )}
 
-                        <div className="w-[2px] h-5 bg-black/30" />
+                        <div className="w-[1px] h-6 bg-white/10" />
 
                         {/* Before/After compare [B] */}
                         <button
                             onClick={() => { setCompareMode(m => !m); setOnionSkin(false); }}
-                            className={`${btn} flex items-center gap-1.5 ${compareMode ? `bg-sky-500 text-white border-black ${active}` : ''}`}
-                            title="[B] Comparar antes/después"
+                            className={`${btn} ${compareMode ? 'bg-sky-500/20 border-sky-500/40 text-sky-500 shadow-[0_0_15px_rgba(14,165,233,0.1)]' : ''}`}
+                            title="[B] Compare Before/After"
                         >
-                            <SplitSquareHorizontal size={12} /> Comparar
+                            <SplitSquareHorizontal size={14} /> Compare
                         </button>
 
-                        <div className="w-[2px] h-5 bg-black/30" />
+                        <div className="w-[1px] h-6 bg-white/10" />
 
-                        <button onClick={handleCancel} className={btn}>Cancelar</button>
+                        <button onClick={handleCancel} className={btn}>Cancel</button>
                         <button onClick={handleApply} disabled={!isReady}
-                            className={`${btn} flex items-center gap-1.5 bg-yellow-300 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed`}
-                        ><Check size={12} /> Aplicar PNG</button>
+                            className="px-6 py-2 bg-[#ff003c] text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-md transition-all hover:bg-[#ff003c]/90 active:scale-95 disabled:opacity-50 shadow-[0_0_20px_rgba(255,0,60,0.2)] flex items-center gap-2"
+                        ><Check size={14} /> Apply PNG</button>
                     </div>
                 </div>
 
@@ -597,7 +607,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
                     ref={containerRef}
                     className="flex-1 overflow-auto min-h-0 relative select-none"
                     style={{
-                        background: 'repeating-conic-gradient(#d1d5db 0% 25%, #f9fafb 0% 50%) 0 0 / 20px 20px',
+                        background: 'repeating-conic-gradient(#1a1a1a 0% 25%, #050505 0% 50%) 0 0 / 32px 32px',
                         cursor: compareMode ? 'default' : 'none',
                     }}
                     onMouseMove={handleContainerMouseMove}
@@ -607,17 +617,17 @@ export const BgRemovalEditor: React.FC<Props> = ({
                     {/* Brush cursor (position:fixed — immune to scroll/overflow) */}
                     {isReady && !compareMode && cursorPos && (
                         <div
-                            className="pointer-events-none border-2"
+                            ref={cursorCircleRef}
+                            className="pointer-events-none border-2 fixed"
                             style={{
-                                position: 'fixed',
                                 width:  brushScreenRadius * 2,
                                 height: brushScreenRadius * 2,
-                                left:   cursorPos.x - brushScreenRadius,
-                                top:    cursorPos.y - brushScreenRadius,
                                 zIndex: 200,
-                                borderRadius:    cursorBorderRadius,
-                                borderColor:     cursorColor.border,
-                                backgroundColor: cursorColor.bg,
+                                borderRadius:    brushShape === 'round' ? '50%' : '2px',
+                                boxSizing:       'border-box',
+                                borderColor:     activeTool === 'erase' ? '#ff003c' : '#4f46e5',
+                                backgroundColor: activeTool === 'erase' ? 'rgba(255,0,60,0.1)' : 'rgba(79,70,229,0.1)',
+                                boxShadow:       `0 0 10px ${activeTool === 'erase' ? 'rgba(255,0,60,0.2)' : 'rgba(79,70,229,0.2)'}`,
                             }}
                         />
                     )}
@@ -658,7 +668,7 @@ export const BgRemovalEditor: React.FC<Props> = ({
                                 onMouseDown={handleCanvasMouseDown}
                                 onMouseMove={handleCanvasMouseMove}
                                 onMouseUp={handleMouseUp}
-                                className="border-2 border-black shadow-[4px_4px_0px_#000]"
+                                className="border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)]"
                                 style={{ cursor: 'none', display: 'block', width: '100%', height: '100%' }}
                             />
 
@@ -768,71 +778,59 @@ export const BgRemovalEditor: React.FC<Props> = ({
                     </div>
                 </div>
 
-                {/* ── Help modal ─────────────────────────────────────────── */}
+                 {/* ── Help modal ─────────────────────────────────────────── */}
                 {showHelp && (
                     <div
-                        className="absolute inset-0 z-[300] flex items-center justify-center"
-                        style={{ background: 'rgba(0,0,0,0.55)' }}
+                        className="absolute inset-0 z-[300] flex items-center justify-center p-6"
+                        style={{ background: 'rgba(0,0,0,0.7)' }}
                         onClick={() => setShowHelp(false)}
                     >
                         <div
-                            className="bg-[#fdfbf7] border-4 border-black shadow-[8px_8px_0px_#000] w-full max-w-lg mx-4"
+                            className="bg-[#0d0d0d] border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)] w-full max-w-lg rounded-xl overflow-hidden"
                             onClick={e => e.stopPropagation()}
                         >
                             {/* Modal header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 border-b-4 border-black bg-[#f4f1ea]">
-                                <span className="font-black text-xs uppercase tracking-widest flex items-center gap-2">
-                                    <HelpCircle size={14} /> Atajos y Herramientas
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#111]">
+                                <span className="font-bold text-[10px] uppercase tracking-[0.2em] text-white flex items-center gap-3">
+                                    <HelpCircle size={14} className="text-[#ff003c]" /> Shortcuts & Manual
                                 </span>
-                                <button onClick={() => setShowHelp(false)} className={btnSm}><X size={13} /></button>
+                                <button onClick={() => setShowHelp(false)} className={btnSm}><X size={14} /></button>
                             </div>
 
                             {/* Content */}
-                            <div className="p-5 space-y-5 text-[11px]">
+                            <div className="p-6 space-y-6 text-[10px]">
 
                                 {/* Tools */}
                                 <section>
-                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Herramientas</p>
-                                    <div className="space-y-1.5">
-                                        <Row kbd="E" label="Borrar" desc="Elimina píxeles del fondo con el pincel activo." color="bg-black text-white" />
-                                        <Row kbd="R" label="Restaurar" desc="Recupera píxeles del original para corregir errores." color="bg-violet-500 text-white" />
-                                    </div>
-                                </section>
-
-                                {/* Brush */}
-                                <section>
-                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Pincel</p>
-                                    <div className="space-y-1.5">
-                                        <Row kbd="Tamaño" label="Slider" desc="Controla el radio del pincel en píxeles de imagen." />
-                                        <Row kbd="Blur" label="Slider" desc="Suaviza el borde del pincel (0 = duro, 100 = muy difuminado). Solo en modo redondo." />
-                                        <Row kbd="○ / □" label="Forma" desc="Alterna entre pincel redondo y cuadrado." />
+                                    <p className="font-bold uppercase tracking-[0.2em] text-[#ff003c] mb-3">Tools</p>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <Row kbd="E" label="Erase" desc="Remove pixels using active brush." color="bg-[#ff003c]/20 text-[#ff003c] border-[#ff003c]/30" />
+                                        <Row kbd="R" label="Restore" desc="Recover original pixels." color="bg-indigo-500/20 text-indigo-400 border-indigo-500/30" />
                                     </div>
                                 </section>
 
                                 {/* View */}
                                 <section>
-                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Vista</p>
-                                    <div className="space-y-1.5">
-                                        <Row kbd="O" label="Cebolla" desc="Superpone la imagen original semitransparente para pintar con mayor precisión." color="bg-amber-400 text-black" />
-                                        <Row kbd="B" label="Comparar" desc="Divide la pantalla en Antes / Después con un divisor arrastrable." color="bg-sky-500 text-white" />
-                                        <Row kbd="+ / -" label="Zoom" desc="Acerca o aleja la vista del canvas." />
-                                        <Row kbd="0" label="Reset zoom" desc="Restaura el zoom al 100%." />
-                                        <Row kbd="Ctrl+Scroll" label="Zoom rápido" desc="Rueda del ratón mientras se mantiene Ctrl." />
+                                    <p className="font-bold uppercase tracking-[0.2em] text-white/30 mb-3">Viewport</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Row kbd="O" label="Onion" desc="Guide overlay." />
+                                        <Row kbd="B" label="Compare" desc="Split view." />
+                                        <Row kbd="+/-" label="Zoom" desc="Scale view." />
+                                        <Row kbd="Ctrl+Z" label="Undo" desc="History." />
                                     </div>
                                 </section>
 
-                                {/* History */}
-                                <section>
-                                    <p className="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-2">Historial</p>
-                                    <div className="space-y-1.5">
-                                        <Row kbd="Ctrl+Z" label="Deshacer" desc="Revierte el último trazo. Historial de hasta 20 pasos." />
-                                        <Row kbd="Reset" label="Botón" desc="Descarta todos los cambios y vuelve al resultado de IA original." />
-                                    </div>
-                                </section>
-
-                                <p className="text-[9px] text-slate-400 border-t border-slate-200 pt-3">
-                                    Pulsa <kbd className="bg-[#f4f1ea] border border-black px-1 font-mono">?</kbd> o haz clic fuera de este panel para cerrar.
-                                </p>
+                                <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                                    <p className="text-white/20 uppercase tracking-widest text-[8px]">
+                                        Halcon Engine v1.0.4
+                                    </p>
+                                    <button
+                                        onClick={() => setShowHelp(false)}
+                                        className="text-[#ff003c] hover:text-white transition-colors uppercase tracking-widest font-bold"
+                                    >
+                                        Acknowledge
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
