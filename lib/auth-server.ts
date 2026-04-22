@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getAuth } from '@clerk/nextjs/server';
+import { getAuth, clerkClient } from '@clerk/nextjs/server';
 import { queryOne } from '@lib/db';
 
 /**
@@ -53,6 +53,17 @@ export async function getAuthenticatedAdminUser(
       [clerkUserId]
     );
     if (byClerkId) return byClerkId;
+
+    // Email not in session claims — fetch it directly from Clerk API
+    if (!clerkEmail) {
+      try {
+        const client = await clerkClient();
+        const clerkUser = await client.users.getUser(clerkUserId);
+        clerkEmail = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+      } catch {
+        // Clerk API unavailable, continue without email
+      }
+    }
   }
 
   if (clerkEmail) {
