@@ -90,7 +90,7 @@ export default function SignInPage() {
       >
         <img
           src="https://i.imgur.com/NBGmNrx.png"
-          alt="Street Network"
+          alt="Halcon.dev"
           style={{ width: 56, height: 56, objectFit: 'contain' }}
         />
       </div>
@@ -107,7 +107,7 @@ export default function SignInPage() {
             margin: 0,
           }}
         >
-          STREET NETWORK
+          HALCON.DEV
         </p>
         <p
           style={{

@@ -1,5 +1,5 @@
 {
-  "name": "street-network-transcript-viewer",
+  "name": "halcon-dev",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,6 +13,8 @@
     "@clerk/nextjs": "^6.39.0",
     "@imgly/background-removal": "^1.7.0",
     "@reduxjs/toolkit": "^1.8.5",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.0",
     "@types/pg": "^8.18.0",
     "ejs": "^3.1.10",
     "emoji-mart": "^3.0.1",
@@ -21,6 +23,7 @@
     "i18next-browser-languagedetector": "^7.0.1",
     "lucide-react": "^0.562.0",
     "next": "^15.5.12",
+    "onnxruntime-web": "^1.21.0",
     "pg": "^8.20.0",
     "rc-slider": "^9.7.5",
     "react": "^18.2.0",

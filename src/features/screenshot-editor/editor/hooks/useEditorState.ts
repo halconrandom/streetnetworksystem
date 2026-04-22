@@ -663,7 +663,7 @@ export const useEditorState = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `street-network-workspace-${imageName.replace(/\.[^/.]+$/, '')}-${Date.now()}.json`;
+        link.download = `halcon-dev-workspace-${imageName.replace(/\.[^/.]+$/, '')}-${Date.now()}.json`;
         link.click();
         URL.revokeObjectURL(url);
     }, [imageName, imageDataUrl, textBlocks, overlays, settings, layerOrder, redactionAreas]);

@@ -70,11 +70,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags }) => {
     <aside className="w-64 bg-terminal-panel border-r border-terminal-border flex flex-col hidden md:flex">
       <div className="h-24 flex items-center px-6 border-b border-terminal-border">
         <div className="w-14 h-14 rounded-2xl bg-terminal-panel border border-terminal-border flex items-center justify-center mr-4 overflow-hidden shadow-md">
-          <img src="https://i.imgur.com/jJgEFWS.png" alt="Hub Logo" className="w-12 h-12 object-contain" />
+          <img src="https://i.imgur.com/WznCLue.png" alt="halcon.dev Logo" className="w-12 h-12 object-contain" />
         </div>
         <div>
-          <h1 className="font-bold text-white tracking-wider text-sm">STREET NETWORK</h1>
-          <p className="text-[10px] text-terminal-muted uppercase tracking-widest">Hub Center</p>
+          <h1 className="font-bold text-white tracking-wider text-sm">HALCON.DEV</h1>
+          <p className="text-[10px] text-terminal-muted uppercase tracking-widest">Command Center</p>
         </div>
       </div>
 

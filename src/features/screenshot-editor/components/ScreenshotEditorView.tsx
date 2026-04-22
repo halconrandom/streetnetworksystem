@@ -134,7 +134,7 @@ export const ScreenshotEditorView: React.FC<ScreenshotEditorViewProps> = ({ user
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
     const baseName = (imageName || 'screenshot').replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_');
-    link.download = `street-network-${baseName}-${Date.now()}.png`;
+    link.download = `halcon-dev-${baseName}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   };

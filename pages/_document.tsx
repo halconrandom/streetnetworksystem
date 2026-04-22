@@ -4,8 +4,8 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <title>Street Network Solutions</title>
-        <meta name="description" content="Street Network Solutions - Panel de Administración" />
+        <title>halcon.dev</title>
+        <meta name="description" content="halcon.dev - Panel de Administración" />
         <link rel="icon" type="image/png" href="https://i.imgur.com/jJgEFWS.png" />
         <link rel="shortcut icon" href="https://i.imgur.com/jJgEFWS.png" />
         <link rel="apple-touch-icon" href="https://i.imgur.com/jJgEFWS.png" />

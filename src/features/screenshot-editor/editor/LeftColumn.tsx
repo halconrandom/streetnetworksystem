@@ -93,23 +93,23 @@ export const LeftColumn: React.FC<LeftColumnProps> = ({
   const [overlayFileName, setOverlayFileName] = useState('');
 
   // Local storage for saved names (dropdown list)
-  const savedNames: string[] = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+  const savedNames: string[] = JSON.parse(localStorage.getItem('halcondev_saved_names') || '[]');
 
   const handleSaveName = (name: string) => {
     if (!name.trim()) return;
-    const current = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+    const current = JSON.parse(localStorage.getItem('halcondev_saved_names') || '[]');
     if (!current.includes(name.trim())) {
       const updated = [...current, name.trim()];
-      localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+      localStorage.setItem('halcondev_saved_names', JSON.stringify(updated));
       // Force re-render if needed, but here it depends on state. 
       // For now, it will update next time the component renders.
     }
   };
 
   const handleRemoveSavedName = (name: string) => {
-    const current = JSON.parse(localStorage.getItem('streetnetwork_saved_names') || '[]');
+    const current = JSON.parse(localStorage.getItem('halcondev_saved_names') || '[]');
     const updated = current.filter((n: string) => n !== name);
-    localStorage.setItem('streetnetwork_saved_names', JSON.stringify(updated));
+    localStorage.setItem('halcondev_saved_names', JSON.stringify(updated));
   };
 
   return (

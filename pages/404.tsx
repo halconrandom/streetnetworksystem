@@ -2,7 +2,7 @@ export default function NotFoundPage() {
   return (
     <html lang="en">
       <head>
-        <title>404 - Street Network Hub</title>
+        <title>404 - Halcon.dev</title>
         <style dangerouslySetInnerHTML={{
           __html: `
             body {
