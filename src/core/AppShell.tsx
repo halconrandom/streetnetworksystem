@@ -42,25 +42,39 @@ function AppShell({ currentView, title, children }: AppShellProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // DB-sourced user profile (flags + role come from sn_users / sn_user_flags)
-  const [dbUser, setDbUser] = useState<DBUserProfile | null>(null);
-  const [dbUserLoading, setDbUserLoading] = useState(false);
+  // DB-sourced user profile
+  const [dbUser, setDbUser] = useState<DBUserProfile | null>(() => {
+    // Try to load from cache for instant feel
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('sn_user_profile');
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (e) {
+          return null;
+        }
+      }
+    }
+    return null;
+  });
+  const [dbUserLoading, setDbUserLoading] = useState(!dbUser); // Only load if not cached
   const [dbUserError, setDbUserError] = useState(false);
 
-  // Fetch DB user profile from /api/auth/me (source of truth for flags & role)
+  // Fetch DB user profile
   const fetchDbUser = useCallback(async () => {
-    setDbUserLoading(true);
     setDbUserError(false);
     try {
       const res = await fetch('/api/auth/me', { credentials: 'include' });
       if (!res.ok) {
-        console.error('[AppShell] /api/auth/me returned', res.status);
         setDbUserError(true);
         return;
       }
       const data: DBUserProfile = await res.json();
       setDbUser(data);
+      // Persist to cache
+      localStorage.setItem('sn_user_profile', JSON.stringify(data));
     } catch (err) {
       console.error('[AppShell] Failed to fetch DB user:', err);
       setDbUserError(true);
@@ -145,11 +159,17 @@ function AppShell({ currentView, title, children }: AppShellProps) {
     );
   }
 
+  
   // ── Main layout ─────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-screen bg-terminal-dark text-terminal-text font-sans overflow-hidden">
-      <Sidebar currentView={currentView} flags={userFlags} />
+      <Sidebar 
+        currentView={currentView} 
+        flags={userFlags} 
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-terminal-panel/50 backdrop-blur-sm border-b border-terminal-border flex items-center justify-between px-6 z-20">

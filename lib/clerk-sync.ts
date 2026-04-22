@@ -79,7 +79,11 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
   );
 
   if (user) {
-    await execute('UPDATE sn_users SET last_login_at = NOW() WHERE id = $1', [user.id]);
+    // Solo actualizar last_login_at si ha pasado más de 1 hora
+    const lastLogin = user.last_login_at ? new Date(user.last_login_at).getTime() : 0;
+    if (Date.now() - lastLogin > 3600000) {
+      execute('UPDATE sn_users SET last_login_at = NOW() WHERE id = $1', [user.id]).catch(() => {});
+    }
     return user;
   }
 

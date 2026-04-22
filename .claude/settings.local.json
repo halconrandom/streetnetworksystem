@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(git add *)",
+      "Bash(npm run *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

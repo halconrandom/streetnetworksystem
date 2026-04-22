@@ -6,9 +6,9 @@ export default function Document() {
       <Head>
         <title>halcon.dev</title>
         <meta name="description" content="halcon.dev - Panel de Administración" />
-        <link rel="icon" type="image/png" href="https://i.imgur.com/jJgEFWS.png" />
-        <link rel="shortcut icon" href="https://i.imgur.com/jJgEFWS.png" />
-        <link rel="apple-touch-icon" href="https://i.imgur.com/jJgEFWS.png" />
+        <link rel="icon" type="image/png" href="https://i.imgur.com/WznCLue.png" />
+        <link rel="shortcut icon" href="https://i.imgur.com/WznCLue.png" />
+        <link rel="apple-touch-icon" href="https://i.imgur.com/WznCLue.png" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600;700&display=swap"
