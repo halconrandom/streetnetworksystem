@@ -8,19 +8,11 @@ import { OnboardingModal } from './OnboardingModal';
 import { RecurringPrompt } from './RecurringPrompt';
 import { MonthNavigator } from './MonthNavigator';
 import { OverviewTab } from './overview/OverviewTab';
-import { TransactionsTab } from './transactions/TransactionsTab';
-import { BudgetsTab } from './budgets/BudgetsTab';
-import { GoalsTab } from './goals/GoalsTab';
-import { DebtsTab } from './debts/DebtsTab';
 import { MarketTab } from './market/MarketTab';
 import { FinanceTab, TransactionCategory, formatCurrency } from '../types';
 
 const TABS: { id: FinanceTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'transactions', label: 'Transactions' },
-  { id: 'budgets', label: 'Budgets' },
-  { id: 'goals', label: 'Goals' },
-  { id: 'debts', label: 'Debts' },
   { id: 'market', label: 'Market' },
 ];
 
@@ -175,16 +167,16 @@ export function FinanceShell() {
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
         {activeTab === 'overview' && (
-          <OverviewTab data={overviewData} loading={overviewLoading} currency={currency} salary={salary} />
+          <OverviewTab
+            data={overviewData}
+            loading={overviewLoading}
+            currency={currency}
+            salary={salary}
+            month={month}
+            year={year}
+            categories={categories}
+          />
         )}
-        {activeTab === 'transactions' && (
-          <TransactionsTab month={month} year={year} currency={currency} categories={categories} />
-        )}
-        {activeTab === 'budgets' && (
-          <BudgetsTab month={month} year={year} currency={currency} categories={categories} />
-        )}
-        {activeTab === 'goals' && <GoalsTab currency={currency} />}
-        {activeTab === 'debts' && <DebtsTab currency={currency} />}
         {activeTab === 'market' && <MarketTab currency={currency} />}
       </div>
     </div>
