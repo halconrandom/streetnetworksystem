@@ -22,6 +22,7 @@ const ROUTE_FLAG_MAP: Record<string, string> = {
   '/users': 'users',
   '/audit': 'audit_logs',
   '/vault': 'vault',
+  '/finance': 'finance',
 };
 
 interface DBUserProfile {

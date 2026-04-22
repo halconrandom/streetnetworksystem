@@ -21,6 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       'dashboard', 'transcripts', 'message_builder', 'screenshot_editor',
       'nexus', 'users', 'audit_logs', 'vault',
       'review_channels', 'comic_maker', 'cache_drafts', 'premium_access',
+      'finance',
     ];
     const flags = user.role === 'admin' ? ALL_FLAGS : await getUserFlags(user.id);
 

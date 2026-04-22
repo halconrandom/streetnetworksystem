@@ -16,6 +16,7 @@ import {
   Search,
   ChevronLeft,
   Menu as MenuIcon,
+  TrendingUp,
 } from '@shared/icons';
 
 interface SidebarProps {
@@ -40,13 +41,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags, isCollapse
   }, []);
 
   const menuItems = [
-    { id: 'home', label: 'COMMAND NODE', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
-    { id: 'nexus', label: 'NETWORK UPLINK', icon: Database, path: '/nexus', flag: 'nexus' },
-    { id: 'tickets', label: 'DATA STREAMS', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
-    { id: 'vault', label: 'CIPHER CHAMBER', icon: Shield, path: '/vault', flag: 'vault' },
-    { id: 'message_builder', label: 'SIGNAL MODULATOR', icon: Code, path: '/message-builder', flag: 'message_builder' },
-    { id: 'screenshot_editor', label: 'OPTIC ENGINE', icon: ImageIcon, path: '/screenshot-editor', flag: 'screenshot_editor' },
-    { id: 'users', label: 'IDENTITY MATRIX', icon: Users, path: '/users', flag: 'users' },
+    { id: 'home', label: 'DASHBOARD', icon: LayoutDashboard, path: '/', flag: 'dashboard' },
+    { id: 'finance', label: 'FINANCE', icon: TrendingUp, path: '/finance', flag: 'finance' },
+    { id: 'nexus', label: 'NEXUS', icon: Database, path: '/nexus', flag: 'nexus' },
+    { id: 'tickets', label: 'DISCORD TICKETS', icon: MessageSquare, path: '/tickets', flag: 'transcripts' },
+    { id: 'vault', label: 'VAULT', icon: Shield, path: '/vault', flag: 'vault' },
+    { id: 'message_builder', label: 'MESSAGE BUILDER', icon: Code, path: '/message-builder', flag: 'message_builder' },
+    { id: 'screenshot_editor', label: 'IMAGE EDITOR', icon: ImageIcon, path: '/screenshot-editor', flag: 'screenshot_editor' },
+    { id: 'users', label: 'USERS', icon: Users, path: '/users', flag: 'users' },
   ];
 
   const filteredItems = menuItems.filter((item) => flags.includes(item.flag));
@@ -56,6 +58,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, flags, isCollapse
     if (itemId === 'tickets' && currentPath.startsWith('/tickets')) return true;
     if (itemId === 'message_builder' && currentPath.startsWith('/message-builder')) return true;
     if (itemId === 'screenshot_editor' && currentPath.startsWith('/screenshot-editor')) return true;
+    if (itemId === 'finance' && currentPath.startsWith('/finance')) return true;
     return currentPath === path;
   };
 
