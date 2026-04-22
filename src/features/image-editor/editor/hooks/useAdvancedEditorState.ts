@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useHistory } from '@features/screenshot-editor/editor/hooks/useHistory';
 import type {
-  AdvancedLayer, BrushLayerData, BrushStroke, EditorSnapshot,
-  ImageLayerData, LayerType, Selection, ShapeLayerData,
-  TextLayerData, ToolOptions, ToolType,
+  AdvancedLayer, DrawItem, DrawLayerData,
+  EditorSnapshot, ImageLayerData, LayerType,
+  Selection, TextLayerData, ToolOptions, ToolType,
 } from '../../types';
 import { defaultToolOptions } from '../../types';
 
@@ -18,7 +18,7 @@ const defaultSnapshot: EditorSnapshot = {
 export function useAdvancedEditorState() {
   const history = useHistory<EditorSnapshot>(defaultSnapshot);
 
-  const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const [activeTool, setActiveTool] = useState<ToolType>('brush');
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [zoom, setZoom] = useState(0.5);
@@ -28,9 +28,7 @@ export function useAdvancedEditorState() {
   const { layers, canvasWidth, canvasHeight } = history.state;
 
   const pushSnapshot = useCallback(
-    (next: Partial<EditorSnapshot>) => {
-      history.push({ ...history.state, ...next });
-    },
+    (next: Partial<EditorSnapshot>) => history.push({ ...history.state, ...next }),
     [history]
   );
 
@@ -48,55 +46,55 @@ export function useAdvancedEditorState() {
     []
   );
 
-  const addImageLayer = useCallback(
+  // ── Layer creation (manual) ──────────────────────────────────────────────────
+
+  const createDrawLayer = useCallback(() => {
+    const count = layers.filter(l => l.type === 'draw').length + 1;
+    const layer = makeLayer('draw', `Layer ${count}`, { items: [] } as DrawLayerData);
+    const next = [...layers, layer];
+    pushSnapshot({ layers: next });
+    setActiveLayerId(layer.id);
+    return layer.id;
+  }, [layers, makeLayer, pushSnapshot]);
+
+  const createImageLayer = useCallback(
     (dataUrl: string, name: string, width: number, height: number) => {
       const data: ImageLayerData = { dataUrl, x: 0, y: 0, width, height, scale: 1, rotation: 0 };
       const layer = makeLayer('image', name, data);
-      pushSnapshot({ layers: [...layers, layer] });
-      setActiveLayerId(layer.id);
-    },
-    [layers, makeLayer, pushSnapshot]
-  );
-
-  const addBrushLayer = useCallback(
-    (stroke: BrushStroke) => {
-      const data: BrushLayerData = { strokes: [stroke] };
-      const layer = makeLayer('brush', `Brush ${layers.filter(l => l.type === 'brush').length + 1}`, data);
-      pushSnapshot({ layers: [...layers, layer] });
-      setActiveLayerId(layer.id);
-    },
-    [layers, makeLayer, pushSnapshot]
-  );
-
-  const appendStrokeToLayer = useCallback(
-    (layerId: string, stroke: BrushStroke) => {
-      const next = layers.map(l => {
-        if (l.id !== layerId || l.type !== 'brush') return l;
-        const brushData = l.data as BrushLayerData;
-        return { ...l, data: { strokes: [...brushData.strokes, stroke] } };
-      });
+      const next = [...layers, layer];
       pushSnapshot({ layers: next });
-    },
-    [layers, pushSnapshot]
-  );
-
-  const addShapeLayer = useCallback(
-    (shape: ShapeLayerData) => {
-      const layer = makeLayer('shape', `Shape ${layers.filter(l => l.type === 'shape').length + 1}`, shape);
-      pushSnapshot({ layers: [...layers, layer] });
       setActiveLayerId(layer.id);
     },
     [layers, makeLayer, pushSnapshot]
   );
 
-  const addTextLayer = useCallback(
+  const createTextLayer = useCallback(
     (data: TextLayerData) => {
-      const layer = makeLayer('text', `Text ${layers.filter(l => l.type === 'text').length + 1}`, data);
-      pushSnapshot({ layers: [...layers, layer] });
+      const count = layers.filter(l => l.type === 'text').length + 1;
+      const layer = makeLayer('text', `Text ${count}`, data);
+      const next = [...layers, layer];
+      pushSnapshot({ layers: next });
       setActiveLayerId(layer.id);
     },
     [layers, makeLayer, pushSnapshot]
   );
+
+  // ── Drawing into the active layer ───────────────────────────────────────────
+
+  const activeDrawLayer = layers.find(l => l.id === activeLayerId && l.type === 'draw') ?? null;
+
+  const addItemToActiveLayer = useCallback(
+    (item: DrawItem) => {
+      const target = layers.find(l => l.id === activeLayerId && l.type === 'draw');
+      if (!target) return;
+      const data = target.data as DrawLayerData;
+      const updated = { ...target, data: { items: [...data.items, item] } };
+      pushSnapshot({ layers: layers.map(l => l.id === target.id ? updated : l) });
+    },
+    [activeLayerId, layers, pushSnapshot]
+  );
+
+  // ── Layer management ─────────────────────────────────────────────────────────
 
   const removeLayer = useCallback(
     (id: string) => {
@@ -117,7 +115,9 @@ export function useAdvancedEditorState() {
     (id: string, dataUpdate: Partial<AdvancedLayer['data']>) => {
       pushSnapshot({
         layers: layers.map(l =>
-          l.id === id ? { ...l, data: { ...l.data, ...dataUpdate } as AdvancedLayer['data'] } : l
+          l.id === id
+            ? { ...l, data: { ...l.data, ...dataUpdate } as AdvancedLayer['data'] }
+            : l
         ),
       });
     },
@@ -147,40 +147,52 @@ export function useAdvancedEditorState() {
   );
 
   const toggleVisible = useCallback(
-    (id: string) => {
-      pushSnapshot({ layers: layers.map(l => l.id === id ? { ...l, visible: !l.visible } : l) });
-    },
+    (id: string) =>
+      pushSnapshot({ layers: layers.map(l => l.id === id ? { ...l, visible: !l.visible } : l) }),
     [layers, pushSnapshot]
   );
 
   const toggleLocked = useCallback(
+    (id: string) =>
+      pushSnapshot({ layers: layers.map(l => l.id === id ? { ...l, locked: !l.locked } : l) }),
+    [layers, pushSnapshot]
+  );
+
+  const duplicateLayer = useCallback(
     (id: string) => {
-      pushSnapshot({ layers: layers.map(l => l.id === id ? { ...l, locked: !l.locked } : l) });
+      const src = layers.find(l => l.id === id);
+      if (!src) return;
+      const copy = { ...src, id: generateId(), name: `${src.name} copy` };
+      const idx = layers.findIndex(l => l.id === id);
+      const next = [...layers.slice(0, idx + 1), copy, ...layers.slice(idx + 1)];
+      pushSnapshot({ layers: next });
+      setActiveLayerId(copy.id);
     },
     [layers, pushSnapshot]
   );
 
+  // ── Tool options ─────────────────────────────────────────────────────────────
+
   const updateToolOptions = useCallback(
-    (opts: Partial<ToolOptions>) => {
-      setToolOptions(prev => ({ ...prev, ...opts }));
-    },
+    (opts: Partial<ToolOptions>) => setToolOptions(prev => ({ ...prev, ...opts })),
     []
   );
 
+  // ── Canvas ───────────────────────────────────────────────────────────────────
+
   const setCanvasSize = useCallback(
-    (w: number, h: number) => {
-      pushSnapshot({ canvasWidth: w, canvasHeight: h });
-    },
+    (w: number, h: number) => pushSnapshot({ canvasWidth: w, canvasHeight: h }),
     [pushSnapshot]
   );
+
+  // ── Selection operations ─────────────────────────────────────────────────────
 
   const cropToSelection = useCallback(
     (canvasEl: HTMLCanvasElement) => {
       if (!selection || selection.type !== 'rect') return;
       const { x, y, width, height } = selection;
       const temp = document.createElement('canvas');
-      temp.width = width;
-      temp.height = height;
+      temp.width = width; temp.height = height;
       const ctx = temp.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(canvasEl, x, y, width, height, 0, 0, width, height);
@@ -200,8 +212,7 @@ export function useAdvancedEditorState() {
       if (!selection || selection.type !== 'rect') return;
       const { x, y, width, height } = selection;
       const temp = document.createElement('canvas');
-      temp.width = width;
-      temp.height = height;
+      temp.width = width; temp.height = height;
       const ctx = temp.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(canvasEl, x, y, width, height, 0, 0, width, height);
@@ -214,6 +225,8 @@ export function useAdvancedEditorState() {
     },
     [layers, makeLayer, pushSnapshot, selection]
   );
+
+  // ── Export / reset ───────────────────────────────────────────────────────────
 
   const exportCanvas = useCallback((canvasEl: HTMLCanvasElement) => {
     const dataUrl = canvasEl.toDataURL('image/png');
@@ -235,6 +248,7 @@ export function useAdvancedEditorState() {
     canvasHeight,
     activeTool,
     activeLayerId,
+    activeDrawLayer,
     selection,
     zoom,
     toolOptions,
@@ -251,11 +265,10 @@ export function useAdvancedEditorState() {
     updateToolOptions,
     setCanvasSize,
 
-    addImageLayer,
-    addBrushLayer,
-    appendStrokeToLayer,
-    addShapeLayer,
-    addTextLayer,
+    createDrawLayer,
+    createImageLayer,
+    createTextLayer,
+    addItemToActiveLayer,
     removeLayer,
     updateLayer,
     updateLayerData,
@@ -263,6 +276,7 @@ export function useAdvancedEditorState() {
     moveLayerDown,
     toggleVisible,
     toggleLocked,
+    duplicateLayer,
 
     cropToSelection,
     copySelectionAsLayer,

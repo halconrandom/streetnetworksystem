@@ -3,29 +3,30 @@ export type BlendMode =
   | 'darken' | 'lighten' | 'color-dodge' | 'color-burn'
   | 'hard-light' | 'soft-light' | 'difference' | 'exclusion';
 
-export type LayerType = 'image' | 'shape' | 'brush' | 'text';
+export type LayerType = 'draw' | 'image' | 'text';
 export type ShapeType = 'rect' | 'ellipse' | 'line' | 'arrow' | 'triangle';
 export type ToolType = 'select' | 'brush' | 'shape' | 'marquee' | 'text';
 
-export type BrushStroke = {
-  points: { x: number; y: number }[];
-  color: string;
-  size: number;
-  opacity: number;
-};
+// A draw layer holds strokes AND shapes — you draw on it freely
+export type DrawItem =
+  | {
+      kind: 'stroke';
+      points: { x: number; y: number }[];
+      color: string;
+      size: number;
+      opacity: number;
+    }
+  | {
+      kind: 'shape';
+      shapeType: ShapeType;
+      x: number; y: number;
+      width: number; height: number;
+      fill: string; fillEnabled: boolean;
+      stroke: string; strokeWidth: number; strokeEnabled: boolean;
+      rotation: number;
+    };
 
-export type BrushLayerData = {
-  strokes: BrushStroke[];
-};
-
-export type ShapeLayerData = {
-  shapeType: ShapeType;
-  x: number; y: number;
-  width: number; height: number;
-  fill: string; fillEnabled: boolean;
-  stroke: string; strokeWidth: number; strokeEnabled: boolean;
-  rotation: number;
-};
+export type DrawLayerData = { items: DrawItem[] };
 
 export type ImageLayerData = {
   dataUrl: string;
@@ -44,7 +45,7 @@ export type TextLayerData = {
   rotation: number;
 };
 
-export type LayerData = ImageLayerData | ShapeLayerData | BrushLayerData | TextLayerData;
+export type LayerData = DrawLayerData | ImageLayerData | TextLayerData;
 
 export type AdvancedLayer = {
   id: string;
@@ -64,6 +65,23 @@ export type RectSelection = {
 };
 
 export type Selection = RectSelection | null;
+
+// Live preview state (not committed to history)
+export type LiveStroke = {
+  points: { x: number; y: number }[];
+  color: string;
+  size: number;
+  opacity: number;
+};
+
+export type LiveShape = {
+  shapeType: ShapeType;
+  x: number; y: number;
+  width: number; height: number;
+  fill: string; fillEnabled: boolean;
+  stroke: string; strokeWidth: number; strokeEnabled: boolean;
+  rotation: number;
+};
 
 export type ToolOptions = {
   brushColor: string;

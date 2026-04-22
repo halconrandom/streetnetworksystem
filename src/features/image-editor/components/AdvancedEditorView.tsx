@@ -2,20 +2,20 @@
 
 import React, { useCallback, useRef } from 'react';
 import { useAdvancedEditorState } from '../editor/hooks/useAdvancedEditorState';
-import { useAdvancedCanvasPainter } from '../editor/hooks/useAdvancedCanvasPainter';
 import { ToolBar } from '../editor/ToolBar';
 import { OptionsBar } from '../editor/OptionsBar';
 import { CanvasArea } from '../editor/CanvasArea';
 import { RightPanel } from '../editor/RightPanel';
-import type { ImageLayerData, ShapeLayerData } from '../types';
+import type { ImageLayerData } from '../types';
 
 export const AdvancedEditorView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editor = useAdvancedEditorState();
 
-  const handleMoveLayer = useCallback(
-    (id: string, newX: number, newY: number) => {
-      editor.updateLayerData(id, { x: newX, y: newY } as any);
+  const handleMoveActiveLayer = useCallback(
+    (newX: number, newY: number) => {
+      if (!editor.activeLayerId) return;
+      editor.updateLayerData(editor.activeLayerId, { x: newX, y: newY } as Partial<ImageLayerData>);
     },
     [editor]
   );
@@ -43,16 +43,16 @@ export const AdvancedEditorView: React.FC = () => {
           <button
             onClick={editor.undo}
             disabled={!editor.canUndo}
-            className="px-2 py-1 text-[11px] font-mono text-terminal-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed border border-transparent hover:border-white/10 rounded transition-all"
             title="Undo (Ctrl+Z)"
+            className="px-2 py-1 text-[11px] font-mono text-terminal-muted hover:text-white disabled:opacity-25 disabled:cursor-not-allowed border border-transparent hover:border-white/10 rounded transition-all"
           >
             ↩ Undo
           </button>
           <button
             onClick={editor.redo}
             disabled={!editor.canRedo}
-            className="px-2 py-1 text-[11px] font-mono text-terminal-muted hover:text-white disabled:opacity-30 disabled:cursor-not-allowed border border-transparent hover:border-white/10 rounded transition-all"
             title="Redo (Ctrl+Y)"
+            className="px-2 py-1 text-[11px] font-mono text-terminal-muted hover:text-white disabled:opacity-25 disabled:cursor-not-allowed border border-transparent hover:border-white/10 rounded transition-all"
           >
             ↪ Redo
           </button>
@@ -67,21 +67,22 @@ export const AdvancedEditorView: React.FC = () => {
           ↓ Export PNG
         </button>
 
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-3 text-[10px] font-mono text-terminal-muted/30">
+          <span>{editor.layers.length} layer{editor.layers.length !== 1 ? 's' : ''}</span>
+          <span>{editor.canvasWidth} × {editor.canvasHeight}</span>
+        </div>
+
         <button
           onClick={editor.clearAll}
-          className="px-2 py-1 text-[11px] font-mono text-terminal-muted/50 hover:text-red-400 border border-transparent hover:border-red-500/20 rounded transition-all ml-auto"
+          className="px-2 py-1 text-[11px] font-mono text-terminal-muted/40 hover:text-red-400 border border-transparent hover:border-red-500/20 rounded transition-all"
         >
           Clear All
         </button>
-
-        <div className="flex items-center gap-2 text-[10px] font-mono text-terminal-muted/30">
-          <span>{editor.layers.length} layer{editor.layers.length !== 1 ? 's' : ''}</span>
-          <span>·</span>
-          <span>{editor.canvasWidth} × {editor.canvasHeight}</span>
-        </div>
       </div>
 
-      {/* Options bar (contextual per tool) */}
+      {/* Options bar */}
       <OptionsBar
         activeTool={editor.activeTool}
         toolOptions={editor.toolOptions}
@@ -94,10 +95,8 @@ export const AdvancedEditorView: React.FC = () => {
 
       {/* Main area */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left tool bar */}
         <ToolBar activeTool={editor.activeTool} onSetTool={editor.setActiveTool} />
 
-        {/* Canvas */}
         <CanvasArea
           canvasRef={canvasRef}
           layers={editor.layers}
@@ -106,32 +105,33 @@ export const AdvancedEditorView: React.FC = () => {
           zoom={editor.zoom}
           activeTool={editor.activeTool}
           activeLayerId={editor.activeLayerId}
+          activeDrawLayer={editor.activeDrawLayer}
           toolOptions={editor.toolOptions}
           selection={editor.selection}
           isDragging={editor.isDragging}
           onSetZoom={editor.setZoom}
           onSetActiveLayerId={editor.setActiveLayerId}
           onSetSelection={editor.setSelection}
-          onAddImageLayer={editor.addImageLayer}
-          onAddBrushLayer={editor.addBrushLayer}
-          onAddShapeLayer={editor.addShapeLayer}
-          onAddTextLayer={editor.addTextLayer}
-          onMoveLayer={handleMoveLayer}
+          onCreateImageLayer={editor.createImageLayer}
+          onCreateTextLayer={editor.createTextLayer}
+          onAddItemToActiveLayer={editor.addItemToActiveLayer}
+          onMoveActiveLayer={handleMoveActiveLayer}
           onSetIsDragging={editor.setIsDragging}
-          onCropToSelection={handleCropToSelection}
         />
 
-        {/* Right panel (layers + properties) */}
         <RightPanel
           layers={editor.layers}
           activeLayerId={editor.activeLayerId}
           onSelectLayer={editor.setActiveLayerId}
           onRemoveLayer={editor.removeLayer}
+          onDuplicateLayer={editor.duplicateLayer}
           onToggleVisible={editor.toggleVisible}
           onToggleLocked={editor.toggleLocked}
           onMoveUp={editor.moveLayerUp}
           onMoveDown={editor.moveLayerDown}
           onUpdateLayer={editor.updateLayer}
+          onCreateDrawLayer={editor.createDrawLayer}
+          onCreateImageLayer={editor.createImageLayer}
         />
       </div>
     </div>
