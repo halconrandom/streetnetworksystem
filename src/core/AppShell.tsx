@@ -215,10 +215,11 @@ function AppShell({ currentView, title, children }: AppShellProps) {
         position="top-right"
         toastOptions={{
           style: {
-            background: '#0a0a0a',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: '#1f1f1f',
+            border: '1px solid rgba(255,255,255,0.15)',
             color: '#fff',
             fontFamily: 'inherit',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
           },
         }}
       />

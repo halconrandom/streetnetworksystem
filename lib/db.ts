@@ -1,40 +1,26 @@
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
-// Database connection pool
-const connectionString = process.env.DATABASE_URL || 
-  `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME}`;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-export const pool = new Pool({
-  connectionString,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-});
-
-// Helper for queries
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(sql, params);
-    return result.rows;
-  } finally {
-    client.release();
-  }
+  const { data, error } = await supabase.rpc('run_query', {
+    query_text: sql,
+    query_params: params ? params.map(String) : [],
+  });
+  if (error) throw new Error(error.message);
+  return (data as T[]) ?? [];
 }
 
-// Helper for single row
 export async function queryOne<T = any>(sql: string, params?: any[]): Promise<T | null> {
   const rows = await query<T>(sql, params);
-  return rows[0] || null;
+  return rows[0] ?? null;
 }
 
-// Helper for mutations - returns affected rows
 export async function execute<T = any>(sql: string, params?: any[]): Promise<T[]> {
-  const client = await pool.connect();
-  try {
-    const result = await client.query(sql, params);
-    return result.rows;
-  } finally {
-    client.release();
-  }
+  return query<T>(sql, params);
 }
 
 // Types

@@ -46,12 +46,7 @@ function extractDiscordFromExternalAccounts(externalAccounts: any[]): {
         account.image_url ||
         null;
 
-      console.log('[extractDiscord] Found Discord account:', {
-        provider,
-        discordId,
-        discordUsername,
-        discordAvatar: discordAvatar ? '(set)' : null,
-      });
+      console.log('[extractDiscord] Found:', discordUsername);
 
       return { discordId, discordUsername, discordAvatar, found: true };
     }
@@ -75,10 +70,7 @@ function extractDiscordFromExternalAccounts(externalAccounts: any[]): {
 export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null> {
   const { userId } = getAuth(req);
 
-  if (!userId) {
-    console.log('[getOrCreateUserByClerkId] No userId found in session');
-    return null;
-  }
+  if (!userId) return null;
 
   // Fast path: buscar por clerk_id (después de que el webhook vinculó la cuenta)
   let user = await queryOne<DBUser>(
@@ -91,7 +83,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
     return user;
   }
 
-  console.log('[getOrCreateUserByClerkId] User not found by clerk_id, fetching from Clerk API...');
+  console.log('[getOrCreateUserByClerkId] Fetching from Clerk...');
 
   // Fallback: obtener datos desde Clerk API
   try {
@@ -104,11 +96,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       extractDiscordFromExternalAccounts(externalAccounts);
 
     if (!hasDiscord) {
-      console.warn(
-        `[getOrCreateUserByClerkId] ⚠️  No Discord account found for Clerk user ${userId}. ` +
-        `External accounts: ${externalAccounts.length}. ` +
-        `This platform requires Discord OAuth — ensure the user signed in via Discord.`
-      );
+      console.warn('[getOrCreateUserByClerkId] No Discord account (ext accounts:', externalAccounts.length, ')');
     }
 
     // ── Email ─────────────────────────────────────────────────────────────────
@@ -120,10 +108,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       clerkUser.emailAddresses[0]?.emailAddress ||
       null;
 
-    if (!email) {
-      console.error('[getOrCreateUserByClerkId] No email found for user:', userId);
-      return null;
-    }
+    if (!email) return null;
 
     // ── Full name ─────────────────────────────────────────────────────────────
     const fullName =
@@ -135,13 +120,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
     // ── Avatar: prefer Discord's, fall back to Clerk's ───────────────────────
     const avatarUrl = discordAvatar || clerkUser.imageUrl || null;
 
-    console.log('[getOrCreateUserByClerkId] Resolved data:', {
-      email,
-      fullName,
-      discordId,
-      discordUsername,
-      hasDiscord,
-    });
+    console.log('[getOrCreateUserByClerkId] User:', email);
 
     // ── Try to find existing user by discord_id first, then email ─────────────
     if (discordId) {
@@ -150,7 +129,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
         [discordId]
       );
       if (user) {
-        console.log('[getOrCreateUserByClerkId] Found existing user by discord_id:', user.id);
+        console.log('[getOrCreateUserByClerkId] Found by discord_id:', user.id);
       }
     }
 
@@ -160,16 +139,14 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
         [email.toLowerCase()]
       );
       if (user) {
-        console.log('[getOrCreateUserByClerkId] Found existing user by email:', user.id);
+        console.log('[getOrCreateUserByClerkId] Found by email:', user.id);
       }
     }
 
     if (user) {
       // Vincular usuario existente al clerk_id y actualizar datos de Discord
       // IMPORTANTE: Siempre actualizar clerk_id si es null
-      if (!user.clerk_id) {
-        console.log(`[getOrCreateUserByClerkId] Linking existing user ${user.id} to clerk_id ${userId}`);
-      }
+      
       await execute(
         `UPDATE sn_users SET
           clerk_id = COALESCE($1, clerk_id),
@@ -183,7 +160,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       );
 
       user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE id = $1', [user.id]);
-      console.log(`[getOrCreateUserByClerkId] Linked existing user to Clerk: ${userId} (${email}), clerk_id is now: ${user?.clerk_id}`);
+      console.log('[getOrCreateUserByClerkId] Linked to Clerk:', email);
     } else {
       // Crear nuevo usuario
       const id = crypto.randomUUID();
@@ -202,9 +179,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       }
 
       user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE id = $1', [id]);
-      console.log(
-        `[getOrCreateUserByClerkId] Created new user: ${userId} (${email}) — discord: ${discordId ?? 'none'} — flags: [${DEFAULT_FLAGS.join(', ')}]`
-      );
+      console.log('[getOrCreateUserByClerkId] Created new user:', email);
     }
 
     if (user) {
@@ -213,8 +188,7 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
 
     return user;
   } catch (err) {
-    console.error('[getOrCreateUserByClerkId] Error fetching from Clerk:', err);
-    console.error('[getOrCreateUserByClerkId] Error stack:', (err as Error).stack);
+    console.error('[getOrCreateUserByClerkId] Error:', err);
     return null;
   }
 }
@@ -245,8 +219,11 @@ export async function setUserFlags(userId: string, flags: string[], grantedBy: s
   }
 }
 
-// Check if user has specific flag
+// Check if user has specific flag (admins have all flags)
 export async function hasFlag(userId: string, flag: string): Promise<boolean> {
+  const admin = await isAdmin(userId);
+  if (admin) return true;
+
   const result = await queryOne<{ exists: boolean }>(
     'SELECT EXISTS(SELECT 1 FROM sn_user_flags WHERE user_id = $1 AND flag = $2) as exists',
     [userId, flag]

@@ -80,6 +80,10 @@ import {
   Italic,
   List,
   ListOrdered,
+  Cloud,
+  Wind,
+  Play,
+  Database,
 } from 'lucide-react';
 
 export {
@@ -164,4 +168,8 @@ export {
   Italic,
   List,
   ListOrdered,
+  Cloud,
+  Wind,
+  Play,
+  Database,
 };

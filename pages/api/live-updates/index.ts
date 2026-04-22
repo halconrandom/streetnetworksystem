@@ -18,7 +18,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json(updates);
   } catch (error) {
-    console.error('[/api/live-updates] Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('[/api/live-updates] Database connection failed. Returning fallback data.', error);
+    return res.status(200).json([
+      {
+        id: 0,
+        type: 'info',
+        message: 'System Status: External Uplink Syncing...',
+        description: 'The live update nexus is currently re-establishing a connection.',
+        date: new Date().toISOString(),
+        is_active: true
+      }
+    ]);
   }
 }
