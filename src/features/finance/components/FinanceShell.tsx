@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, PiggyBank } from '@shared/icons';
 import { useFinanceProfile } from '../hooks/useFinanceProfile';
 import { useRecurring } from '../hooks/useRecurring';
+import { useOverview } from '../hooks/useOverview';
 import { OnboardingModal } from './OnboardingModal';
 import { RecurringPrompt } from './RecurringPrompt';
 import { MonthNavigator } from './MonthNavigator';
@@ -11,7 +13,7 @@ import { BudgetsTab } from './budgets/BudgetsTab';
 import { GoalsTab } from './goals/GoalsTab';
 import { DebtsTab } from './debts/DebtsTab';
 import { MarketTab } from './market/MarketTab';
-import { FinanceTab, TransactionCategory } from '../types';
+import { FinanceTab, TransactionCategory, formatCurrency } from '../types';
 
 const TABS: { id: FinanceTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -33,6 +35,7 @@ export function FinanceShell() {
   const [recurringDismissed, setRecurringDismissed] = useState(false);
 
   const { pending, refetch: refetchRecurring } = useRecurring();
+  const { data: overviewData, loading: overviewLoading } = useOverview(month, year);
 
   // Load categories once profile exists
   React.useEffect(() => {
@@ -112,10 +115,67 @@ export function FinanceShell() {
         )}
       </div>
 
+      {/* Metrics strip — always visible, hidden on market tab */}
+      {activeTab !== 'market' && (
+        <div className="flex items-center gap-0 border-b border-white/5 bg-white/[0.015] px-6 py-2.5 overflow-x-auto">
+          {overviewLoading ? (
+            <span className="text-[10px] font-mono text-terminal-muted animate-pulse">Loading stats...</span>
+          ) : (
+            <>
+              {/* Income */}
+              <div className="flex items-center gap-2 pr-5">
+                <ArrowUpCircle size={13} className="text-green-400 shrink-0" />
+                <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Income</span>
+                <span className="text-[11px] font-mono font-bold text-green-400 whitespace-nowrap">
+                  {formatCurrency(overviewData?.total_income ?? 0, currency)}
+                </span>
+              </div>
+              <div className="w-px h-3 bg-white/10 shrink-0" />
+              {/* Expenses */}
+              <div className="flex items-center gap-2 px-5">
+                <ArrowDownCircle size={13} className="text-terminal-accent shrink-0" />
+                <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Expenses</span>
+                <span className="text-[11px] font-mono font-bold text-terminal-accent whitespace-nowrap">
+                  {formatCurrency(overviewData?.total_expenses ?? 0, currency)}
+                </span>
+              </div>
+              <div className="w-px h-3 bg-white/10 shrink-0" />
+              {/* Net Balance */}
+              {(() => {
+                const bal = overviewData?.net_balance ?? 0;
+                const balColor = bal >= 0 ? 'text-green-400' : 'text-terminal-accent';
+                return (
+                  <div className="flex items-center gap-2 px-5">
+                    <Wallet size={13} className={`${balColor} shrink-0`} />
+                    <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Balance</span>
+                    <span className={`text-[11px] font-mono font-bold ${balColor} whitespace-nowrap`}>
+                      {formatCurrency(bal, currency)}
+                    </span>
+                  </div>
+                );
+              })()}
+              <div className="w-px h-3 bg-white/10 shrink-0" />
+              {/* Savings Rate */}
+              {(() => {
+                const rate = overviewData?.savings_rate ?? 0;
+                const rateColor = rate >= 20 ? 'text-green-400' : rate >= 0 ? 'text-yellow-400' : 'text-terminal-accent';
+                return (
+                  <div className="flex items-center gap-2 pl-5">
+                    <PiggyBank size={13} className={`${rateColor} shrink-0`} />
+                    <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Savings</span>
+                    <span className={`text-[11px] font-mono font-bold ${rateColor} whitespace-nowrap`}>{rate}%</span>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </div>
+      )}
+
       {/* Tab content */}
       <div className="flex-1 overflow-auto">
         {activeTab === 'overview' && (
-          <OverviewTab month={month} year={year} currency={currency} salary={salary} />
+          <OverviewTab data={overviewData} loading={overviewLoading} currency={currency} salary={salary} />
         )}
         {activeTab === 'transactions' && (
           <TransactionsTab month={month} year={year} currency={currency} categories={categories} />
