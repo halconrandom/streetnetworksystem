@@ -11,9 +11,10 @@ interface Props {
   onSaved: () => void;
 }
 
-const labelCls = 'text-[10px] font-mono text-white/40 uppercase tracking-widest block mb-1.5';
-const btnCancel = 'flex-1 py-2.5 border border-white/[0.08] text-white/40 text-[10px] font-mono font-bold rounded-lg uppercase tracking-widest hover:border-white/[0.15] hover:text-white/60 transition-all active:scale-[0.98]';
-const btnSubmit = 'flex-1 py-2.5 bg-[#ff003c] text-white text-[10px] font-mono font-bold rounded-lg uppercase tracking-widest shadow-[0_0_14px_rgba(255,0,60,0.2)] hover:shadow-[0_0_22px_rgba(255,0,60,0.4)] transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
+const labelCls = 'text-[10px] font-mono text-terminal-muted uppercase tracking-widest block mb-1.5';
+const inputCls = 'w-full bg-black/40 border border-white/5 rounded px-4 py-2.5 text-sm text-white font-mono outline-none transition-all focus:border-terminal-accent/50 focus:ring-1 focus:ring-terminal-accent/20 placeholder:text-white/10';
+const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted text-[10px] font-mono font-bold rounded uppercase tracking-widest hover:border-white/10 hover:text-white transition-all active:scale-[0.98]';
+const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function ContributionModal({ goal, currency, onClose, onSaved }: Props) {
   const [amount, setAmount] = useState('');
@@ -46,55 +47,74 @@ export function ContributionModal({ goal, currency, onClose, onSaved }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-3xl" onClick={onClose}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.15 }}
-        className="w-full max-w-sm mx-4"
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-xl mx-4"
         onClick={e => e.stopPropagation()}
       >
-        <div className="rounded-xl border border-white/[0.07] bg-[#0f0f0f] overflow-hidden shadow-2xl shadow-black/60">
+        <div className="relative rounded-xl border border-white/[0.1] bg-[#111111]/95 backdrop-blur-xl overflow-hidden shadow-[0_48px_96px_-24px_rgba(0,0,0,0.9)]">
+          {/* Subtle accent line at top */}
+          <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-right from-transparent via-terminal-accent/50 to-transparent" />
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-            <div>
-              <span className="text-[11px] font-mono font-bold text-white uppercase tracking-widest">Add Funds</span>
-              <p className="text-[10px] font-mono text-white/30 mt-0.5">{goal.name}</p>
+          <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
+            <div className="flex flex-col">
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">Add Contribution</span>
+              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">Savings Update // Goal: {goal.name}</span>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/[0.06] transition-all">
-              <X size={15} />
+            <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
+              <X size={18} />
             </button>
           </div>
 
           {/* Progress snapshot */}
-          <div className="px-6 pt-4 pb-0 flex items-center justify-between">
-            <div className="text-[10px] font-mono text-white/30">Current</div>
-            <div className="text-[10px] font-mono text-white/30">Remaining</div>
-          </div>
-          <div className="px-6 pb-4 flex items-center justify-between">
-            <span className="text-sm font-mono font-bold text-white">{formatCurrency(current, currency)}</span>
-            <span className="text-sm font-mono font-bold text-[#ff003c]">{formatCurrency(remaining, currency)}</span>
+          <div className="px-12 py-8 bg-white/[0.02] border-b border-white/[0.04]">
+            <div className="flex justify-between items-end mb-2">
+                <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-[0.2em]">Saved So Far</span>
+                <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-[0.2em]">Remaining</span>
+            </div>
+            <div className="flex justify-between items-baseline">
+                <span className="text-xl font-mono font-bold text-white tracking-tight">{formatCurrency(current, currency)}</span>
+                <span className="text-xl font-mono font-bold text-terminal-accent tracking-tight">{formatCurrency(remaining, currency)}</span>
+            </div>
           </div>
 
           {/* Body */}
           <form onSubmit={handleSubmit}>
-            <div className="px-6 py-4 space-y-4 border-t border-white/[0.04]">
+            <div className="px-12 py-12 space-y-10">
               <div>
-                <label className={labelCls}>Amount ({currency})</label>
-                <input type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required autoFocus className="settings-input w-full" placeholder="100.00" />
+                <label className={labelCls}>Allocation Amount ({currency})</label>
+                <input 
+                  type="number" 
+                  min="0" 
+                  step="0.01" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)} 
+                  required 
+                  autoFocus 
+                  className={inputCls} 
+                  placeholder="0.00" 
+                />
               </div>
               <div>
-                <label className={labelCls}>Note <span className="normal-case text-white/20">(optional)</span></label>
-                <input value={note} onChange={e => setNote(e.target.value)} className="settings-input w-full" placeholder="Bonus, monthly transfer..." />
+                <label className={labelCls}>Reference Note <span className="normal-case text-white/10">(optional)</span></label>
+                <input 
+                  value={note} 
+                  onChange={e => setNote(e.target.value)} 
+                  className={inputCls} 
+                  placeholder="Bonus, transfer, etc..." 
+                />
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-white/[0.06] flex gap-3">
+            <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
               <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : 'Contribute'}
+                {loading ? 'Saving...' : 'Add Contribution'}
               </button>
             </div>
           </form>
@@ -103,3 +123,4 @@ export function ContributionModal({ goal, currency, onClose, onSaved }: Props) {
     </div>
   );
 }
+

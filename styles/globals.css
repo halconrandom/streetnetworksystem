@@ -51,11 +51,17 @@
   --cyber-black: #0a0a0a;
   --cyber-gray: #141414;
   --cyber-red: #ff003c;
+  --terminal-accent: #ff003c;
+  --terminal-muted: rgba(255, 255, 255, 0.4);
   --cyber-border: rgba(255, 255, 255, 0.05);
 }
 
 .bg-cyber-black { background-color: var(--cyber-black); }
 .text-cyber-red { color: var(--cyber-red); }
+.text-terminal-accent { color: var(--terminal-accent); }
+.bg-terminal-accent { background-color: var(--terminal-accent); }
+.text-terminal-muted { color: var(--terminal-muted); }
+.border-terminal-accent { border-color: var(--terminal-accent); }
 
 .settings-card {
   @apply bg-[#141414] border border-white/5 rounded-lg overflow-hidden;

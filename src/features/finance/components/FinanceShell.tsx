@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, PiggyBank } from '@shared/icons';
+import { ArrowUpCircle, ArrowDownCircle, Wallet, PiggyBank, HelpCircle } from '@shared/icons';
 import { useFinanceProfile } from '../hooks/useFinanceProfile';
 import { useRecurring } from '../hooks/useRecurring';
 import { useOverview } from '../hooks/useOverview';
@@ -9,6 +9,7 @@ import { RecurringPrompt } from './RecurringPrompt';
 import { MonthNavigator } from './MonthNavigator';
 import { OverviewTab } from './overview/OverviewTab';
 import { MarketTab } from './market/MarketTab';
+import { FinanceHelpModal, HelpTopic } from './FinanceHelpModal';
 import { FinanceTab, TransactionCategory, formatCurrency } from '../types';
 
 const TABS: { id: FinanceTab; label: string }[] = [
@@ -25,6 +26,7 @@ export function FinanceShell() {
   const [year, setYear] = useState(now.getFullYear());
   const [categories, setCategories] = useState<TransactionCategory[]>([]);
   const [recurringDismissed, setRecurringDismissed] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null);
 
   const { pending, refetch: refetchRecurring } = useRecurring();
   const { data: overviewData, loading: overviewLoading } = useOverview(month, year);
@@ -54,7 +56,7 @@ export function FinanceShell() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="animate-pulse font-mono text-xs text-terminal-muted uppercase tracking-widest">Initializing Finance...</span>
+        <span className="animate-pulse font-mono text-xs text-terminal-muted uppercase tracking-widest">Loading Finance...</span>
       </div>
     );
   }
@@ -69,7 +71,13 @@ export function FinanceShell() {
   const showRecurringPrompt = pending.length > 0 && !recurringDismissed;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      <AnimatePresence>
+        {helpTopic && (
+          <FinanceHelpModal topic={helpTopic} onClose={() => setHelpTopic(null)} />
+        )}
+      </AnimatePresence>
+
       {/* Recurring prompt */}
       <AnimatePresence>
         {showRecurringPrompt && (
@@ -84,88 +92,40 @@ export function FinanceShell() {
 
       {/* Tab bar + month navigator */}
       <div className="flex items-center justify-between px-6 pt-5 pb-0 border-b border-white/5">
-        <div className="flex gap-1">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest rounded-t transition-all relative ${
-                activeTab === tab.id
-                  ? 'text-white bg-white/5'
-                  : 'text-terminal-muted hover:text-white hover:bg-white/[0.02]'
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-accent" />
-              )}
-            </button>
-          ))}
+        <div className="flex items-center gap-4">
+          <div className="flex gap-1">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-2.5 text-[11px] font-mono font-bold uppercase tracking-widest rounded-t transition-all relative ${
+                  activeTab === tab.id
+                    ? 'text-white bg-white/5'
+                    : 'text-terminal-muted hover:text-white hover:bg-white/[0.02]'
+                }`}
+              >
+                {tab.label}
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-accent" />
+                )}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => setHelpTopic('general')}
+            className="p-2 rounded text-terminal-muted hover:text-terminal-accent transition-all"
+            title="System Documentation"
+          >
+            <HelpCircle size={16} />
+          </button>
         </div>
         {activeTab !== 'market' && (
           <MonthNavigator month={month} year={year} onPrev={prevMonth} onNext={nextMonth} />
         )}
       </div>
 
-      {/* Metrics strip — always visible, hidden on market tab */}
-      {activeTab !== 'market' && (
-        <div className="flex items-center gap-0 border-b border-white/5 bg-white/[0.015] px-6 py-2.5 overflow-x-auto">
-          {overviewLoading ? (
-            <span className="text-[10px] font-mono text-terminal-muted animate-pulse">Loading stats...</span>
-          ) : (
-            <>
-              {/* Income */}
-              <div className="flex items-center gap-2 pr-5">
-                <ArrowUpCircle size={13} className="text-green-400 shrink-0" />
-                <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Income</span>
-                <span className="text-[11px] font-mono font-bold text-green-400 whitespace-nowrap">
-                  {formatCurrency(overviewData?.total_income ?? 0, currency)}
-                </span>
-              </div>
-              <div className="w-px h-3 bg-white/10 shrink-0" />
-              {/* Expenses */}
-              <div className="flex items-center gap-2 px-5">
-                <ArrowDownCircle size={13} className="text-terminal-accent shrink-0" />
-                <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Expenses</span>
-                <span className="text-[11px] font-mono font-bold text-terminal-accent whitespace-nowrap">
-                  {formatCurrency(overviewData?.total_expenses ?? 0, currency)}
-                </span>
-              </div>
-              <div className="w-px h-3 bg-white/10 shrink-0" />
-              {/* Net Balance */}
-              {(() => {
-                const bal = overviewData?.net_balance ?? 0;
-                const balColor = bal >= 0 ? 'text-green-400' : 'text-terminal-accent';
-                return (
-                  <div className="flex items-center gap-2 px-5">
-                    <Wallet size={13} className={`${balColor} shrink-0`} />
-                    <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Balance</span>
-                    <span className={`text-[11px] font-mono font-bold ${balColor} whitespace-nowrap`}>
-                      {formatCurrency(bal, currency)}
-                    </span>
-                  </div>
-                );
-              })()}
-              <div className="w-px h-3 bg-white/10 shrink-0" />
-              {/* Savings Rate */}
-              {(() => {
-                const rate = overviewData?.savings_rate ?? 0;
-                const rateColor = rate >= 20 ? 'text-green-400' : rate >= 0 ? 'text-yellow-400' : 'text-terminal-accent';
-                return (
-                  <div className="flex items-center gap-2 pl-5">
-                    <PiggyBank size={13} className={`${rateColor} shrink-0`} />
-                    <span className="text-[10px] font-mono text-terminal-muted uppercase tracking-wider whitespace-nowrap">Savings</span>
-                    <span className={`text-[11px] font-mono font-bold ${rateColor} whitespace-nowrap`}>{rate}%</span>
-                  </div>
-                );
-              })()}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Tab content */}
-      <div className="flex-1 overflow-auto">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-black/20">
         {activeTab === 'overview' && (
           <OverviewTab
             data={overviewData}
@@ -175,9 +135,15 @@ export function FinanceShell() {
             month={month}
             year={year}
             categories={categories}
+            onHelp={setHelpTopic}
           />
         )}
-        {activeTab === 'market' && <MarketTab currency={currency} />}
+        {activeTab === 'market' && (
+          <MarketTab 
+            currency={currency} 
+            onHelp={setHelpTopic}
+          />
+        )}
       </div>
     </div>
   );

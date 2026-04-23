@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { useMarketList } from '../../hooks/useMarketList';
 import { Currency, formatCurrency } from '../../types';
 import { toast } from 'sonner';
+import { HelpCircle } from '@shared/icons';
+import { HelpTopic } from '../FinanceHelpModal';
 
 interface Props {
   currency: Currency;
+  onHelp: (topic: HelpTopic) => void;
 }
 
-export function MarketTab({ currency }: Props) {
+export function MarketTab({ currency, onHelp }: Props) {
   const { items, loading, refetch } = useMarketList();
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
@@ -69,7 +72,12 @@ export function MarketTab({ currency }: Props) {
         <div className="settings-card overflow-hidden">
           {/* Terminal header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
-            <span className="font-mono text-[10px] text-terminal-accent uppercase tracking-widest">MARKET_LIST.sh</span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-terminal-accent uppercase tracking-widest">WISH_LIST.txt</span>
+              <button onClick={() => onHelp('market')} className="text-white/10 hover:text-terminal-accent transition-all">
+                <HelpCircle size={10} />
+              </button>
+            </div>
             <div className="flex items-center gap-3">
               {checkedCount > 0 && (
                 <button

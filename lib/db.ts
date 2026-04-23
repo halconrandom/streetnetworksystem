@@ -8,7 +8,7 @@ const supabase = createClient(
 export async function query<T = any>(sql: string, params?: any[]): Promise<T[]> {
   const { data, error } = await supabase.rpc('run_query', {
     query_text: sql,
-    query_params: params ? params.map(String) : [],
+    query_params: params ? params.map(p => (p === null || p === undefined ? null : String(p))) : [],
   });
   if (error) throw new Error(error.message);
   return (data as T[]) ?? [];

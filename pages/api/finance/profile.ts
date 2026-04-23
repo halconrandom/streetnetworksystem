@@ -31,15 +31,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Valid currency (USD or COP) is required' });
       }
 
-      const existing = await queryOne<any>(
-        'SELECT id FROM fn_finance_profiles WHERE clerk_id = $1',
-        [user.clerk_id]
-      );
-      if (existing) return res.status(409).json({ error: 'Profile already exists' });
-
+      // Upsert profile
       const profile = await queryOne<any>(
         `INSERT INTO fn_finance_profiles (clerk_id, currency, monthly_salary, onboarding_completed)
-         VALUES ($1, $2, $3, TRUE) RETURNING *`,
+         VALUES ($1, $2, $3, TRUE)
+         ON CONFLICT (clerk_id) 
+         DO UPDATE SET 
+            currency = EXCLUDED.currency,
+            monthly_salary = EXCLUDED.monthly_salary,
+            onboarding_completed = TRUE,
+            updated_at = NOW()
+         RETURNING *`,
         [user.clerk_id, currency, parseFloat(monthly_salary) || 0]
       );
 
@@ -52,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
       }
 
-      return res.status(201).json({ exists: true, ...profile });
+      return res.status(200).json({ exists: true, ...profile });
     }
 
     if (req.method === 'PUT') {
