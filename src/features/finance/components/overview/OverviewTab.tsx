@@ -25,13 +25,13 @@ import { DebtCard } from '../debts/DebtCard';
 import { DebtModal } from '../debts/DebtModal';
 import { PaymentModal } from '../debts/PaymentModal';
 import { toast } from 'sonner';
+import { HelpTopic } from '../FinanceHelpModal';
+import { IncomeModal } from '../income/IncomeModal';
+import { useFinanceI18n } from '../../i18n';
 
 const CategoryPieChart = dynamic(() => import('./CategoryPieChart').then(m => ({ default: m.CategoryPieChart })), { ssr: false });
 const MonthlyBarChart  = dynamic(() => import('./MonthlyBarChart').then(m => ({ default: m.MonthlyBarChart })),  { ssr: false });
 const BurnRateLineChart = dynamic(() => import('./BurnRateLineChart').then(m => ({ default: m.BurnRateLineChart })), { ssr: false });
-
-import { HelpTopic } from '../FinanceHelpModal';
-import { IncomeModal } from '../income/IncomeModal';
 
 interface Props {
   data: OverviewData | null;
@@ -89,6 +89,7 @@ function Empty({ text }: { text: string }) {
 }
 
 export function OverviewTab({ data, loading, currency, salary, month, year, categories, onHelp, refetchOverview }: Props) {
+  const { t } = useFinanceI18n();
   const { transactions, loading: txLoading, refetch: refetchTx } = useTransactions(month, year);
   const [showTxModal, setShowTxModal]   = useState(false);
   const [editTx, setEditTx]             = useState<Transaction | null>(null);
@@ -111,25 +112,25 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
   const handleDeleteBudget = async (id: string) => {
     try {
       await fetch(`/api/finance/budgets?id=${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success('Budget removed');
+      toast.success(t('budgetRemoved'));
       refetchBudgets();
-    } catch { toast.error('Failed to remove budget'); }
+    } catch { toast.error(t('failedToRemoveBudget')); }
   };
 
   const handleDeleteGoal = async (id: string) => {
     try {
       await fetch(`/api/finance/goals?id=${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success('Goal deleted');
+      toast.success(t('goalDeleted'));
       refetchGoals();
-    } catch { toast.error('Failed to delete goal'); }
+    } catch { toast.error(t('failedToDeleteGoal')); }
   };
 
   const handleDeleteDebt = async (id: string) => {
     try {
       await fetch(`/api/finance/debts?id=${id}`, { method: 'DELETE', credentials: 'include' });
-      toast.success('Debt removed');
+      toast.success(t('debtRemoved'));
       refetchDebts();
-    } catch { toast.error('Failed to remove debt'); }
+    } catch { toast.error(t('failedToRemoveDebt')); }
   };
 
   const visibleTx = showAllTx ? transactions : transactions.slice(0, TX_LIMIT);
@@ -147,7 +148,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-mono text-green-500/70 uppercase tracking-[0.2em]">Available Balance</span>
+                  <span className="text-[10px] font-mono text-green-500/70 uppercase tracking-[0.2em]">{t('availableBalance')}</span>
                   <button onClick={() => onHelp('overview')} className="text-white/5 hover:text-green-500 transition-all">
                     <HelpCircle size={10} />
                   </button>
@@ -158,14 +159,14 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
               </div>
               <div className="mt-8 flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">Total Income</span>
+                  <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">{t('totalIncome')}</span>
                   <span className="text-sm font-mono font-bold text-white/70">{formatCurrency(data.total_income, currency)}</span>
                 </div>
                 <button 
                   onClick={() => setShowIncomeModal(true)}
                   className="px-4 py-2 bg-green-500/10 border border-green-500/20 text-green-500 text-[10px] font-mono font-bold uppercase tracking-widest rounded-lg hover:bg-green-500/20 transition-all"
                 >
-                  <Plus size={12} className="inline mr-1" /> Add Income
+                  <Plus size={12} className="inline mr-1" /> {t('addIncome')}
                 </button>
               </div>
             </div>
@@ -179,7 +180,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-mono text-red-500/70 uppercase tracking-[0.2em]">Total Expenses</span>
+                  <span className="text-[10px] font-mono text-red-500/70 uppercase tracking-[0.2em]">{t('totalExpenses')}</span>
                   <button onClick={() => onHelp('transactions')} className="text-white/5 hover:text-red-500 transition-all">
                     <HelpCircle size={10} />
                   </button>
@@ -190,7 +191,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
               </div>
               <div className="mt-8">
                 <div className="flex justify-between items-end mb-1.5">
-                  <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">Budget Utilization</span>
+                  <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">{t('budgetUtilization')}</span>
                   <span className="text-[10px] font-mono font-bold text-red-500/70">{Math.round((data.total_expenses / (data.total_income || 1)) * 100)}%</span>
                 </div>
                 <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
@@ -211,20 +212,20 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
             <div className="relative z-10 flex flex-col h-full justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-mono text-blue-500/70 uppercase tracking-[0.2em]">Monthly Savings</span>
+                  <span className="text-[10px] font-mono text-blue-500/70 uppercase tracking-[0.2em]">{t('monthlySavings')}</span>
                   <button onClick={() => onHelp('goals')} className="text-white/5 hover:text-blue-500 transition-all">
                     <HelpCircle size={10} />
                   </button>
                 </div>
                 <div className="text-3xl font-mono font-bold text-white tracking-tight">
-                  {data.savings_rate}% <span className="text-sm text-white/20 ml-1">Rate</span>
+                  {data.savings_rate}% <span className="text-sm text-white/20 ml-1">{t('rate')}</span>
                 </div>
               </div>
               <div className="mt-8 flex flex-col gap-1">
-                <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">Calculated from Net Balance</span>
+                <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">{t('calculatedFromNetBalance')}</span>
                 <div className="flex items-baseline gap-1.5">
                    <span className="text-lg font-mono font-bold text-blue-500/80">{formatCurrency(data.net_balance > 0 ? data.net_balance : 0, currency)}</span>
-                   <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Potential Reserve</span>
+                   <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest">{t('potentialReserve')}</span>
                 </div>
               </div>
             </div>
@@ -234,14 +235,14 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
 
       {/* ── Charts row ────────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="text-white/20 font-mono text-xs animate-pulse">Loading...</div>
+        <div className="text-white/20 font-mono text-xs animate-pulse">{t('loading')}</div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="rounded-xl border border-white/[0.07] bg-[#0c0c0c] overflow-hidden">
             <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.015] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <Grid size={12} className="text-[#ff003c]" />
-                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">By Category</span>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t('byCategory')}</span>
               </div>
             </div>
             <div className="p-4"><CategoryPieChart data={data?.by_category ?? []} currency={currency} /></div>
@@ -251,7 +252,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
             <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.015] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <BarChart2 size={12} className="text-[#ff003c]" />
-                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Monthly History</span>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t('monthlyHistory')}</span>
               </div>
             </div>
             <div className="p-4"><MonthlyBarChart data={data?.monthly_history ?? []} currency={currency} /></div>
@@ -261,7 +262,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
             <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.015] flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <TrendingUp size={12} className="text-[#ff003c]" />
-                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">Spending Rate</span>
+                <span className="text-[10px] font-mono text-white/40 uppercase tracking-widest">{t('spendingRate')}</span>
               </div>
             </div>
             <div className="p-4"><BurnRateLineChart data={data?.daily_burn ?? []} salary={salary} currency={currency} /></div>
@@ -272,31 +273,31 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
       {/* ── Transactions ──────────────────────────────────────────────────────── */}
       <Panel
         icon={List}
-        title="Transactions"
+        title={t('transactions')}
         meta={txLoading ? '' : `· ${transactions.length}`}
         onHelp={() => onHelp('transactions')}
         action={
           <button onClick={() => { setEditTx(null); setShowTxModal(true); }} className={btnPrimary}>
-            <Plus size={11} /> Add
+            <Plus size={11} /> {t('add')}
           </button>
         }
       >
         {txLoading ? (
-          <div className="text-white/20 font-mono text-xs animate-pulse py-8 text-center">Loading...</div>
+          <div className="text-white/20 font-mono text-xs animate-pulse py-8 text-center">{t('loading')}</div>
         ) : (
           <>
             <TransactionTable
               transactions={visibleTx}
               currency={currency}
               onEdit={(tx) => { setEditTx(tx); setShowTxModal(true); }}
-              onDeleted={refetchTx}
+              onDeleted={() => { refetchTx(); refetchOverview(); refetchBudgets(); }}
             />
             {transactions.length > TX_LIMIT && (
               <button
                 onClick={() => setShowAllTx(v => !v)}
                 className="mt-4 w-full py-2 text-[10px] font-mono text-white/20 hover:text-white/50 uppercase tracking-widest transition-colors border-t border-white/[0.04]"
               >
-                {showAllTx ? 'Show less' : `Show all ${transactions.length} transactions ↓`}
+                {showAllTx ? t('showLess') : t('showAllTransactions', { count: transactions.length })}
               </button>
             )}
           </>
@@ -307,19 +308,19 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-6">
         <Panel
           icon={Target}
-          title="Budgets"
+          title={t('budgets')}
           meta={budgetsLoading ? '' : `· ${budgets.length}`}
           onHelp={() => onHelp('budgets')}
           action={
             <button onClick={() => setShowBudgetModal(true)} className={btnGhost}>
-              <Plus size={11} /> Add
+              <Plus size={11} /> {t('add')}
             </button>
           }
         >
           {budgetsLoading ? (
-            <div className="text-white/20 font-mono text-xs animate-pulse">Loading...</div>
+            <div className="text-white/20 font-mono text-xs animate-pulse">{t('loading')}</div>
           ) : budgets.length === 0 ? (
-            <Empty text="No budgets this month." />
+            <Empty text={t('noBudgetsThisMonth')} />
           ) : (
             <div className="space-y-3">
               {budgets.map(b => (
@@ -331,19 +332,19 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
 
         <Panel
           icon={PiggyBank}
-          title="Goals"
+          title={t('goals')}
           meta={goalsLoading ? '' : `· ${goals.length}`}
           onHelp={() => onHelp('goals')}
           action={
             <button onClick={() => setShowGoalModal(true)} className={btnGhost}>
-              <Plus size={11} /> New
+              <Plus size={11} /> {t('new')}
             </button>
           }
         >
           {goalsLoading ? (
-            <div className="text-white/20 font-mono text-xs animate-pulse">Loading...</div>
+            <div className="text-white/20 font-mono text-xs animate-pulse">{t('loading')}</div>
           ) : goals.length === 0 ? (
-            <Empty text="No savings goals yet." />
+            <Empty text={t('noSavingsGoalsYet')} />
           ) : (
             <div className="space-y-3">
               {goals.map(g => (
@@ -355,19 +356,19 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
 
         <Panel
           icon={CreditCard}
-          title="Debts"
-          meta={debtsLoading ? '' : `· ${activeDebts} active`}
+          title={t('debts')}
+          meta={debtsLoading ? '' : `· ${activeDebts} ${t(activeDebts === 1 ? 'activeSingular' : 'active')}`}
           onHelp={() => onHelp('debts')}
           action={
             <button onClick={() => setShowDebtModal(true)} className={btnGhost}>
-              <Plus size={11} /> Add
+              <Plus size={11} /> {t('add')}
             </button>
           }
         >
           {debtsLoading ? (
-            <div className="text-white/20 font-mono text-xs animate-pulse">Loading...</div>
+            <div className="text-white/20 font-mono text-xs animate-pulse">{t('loading')}</div>
           ) : debts.length === 0 ? (
-            <Empty text="No debts tracked." />
+            <Empty text={t('noDebtsTracked')} />
           ) : (
             <div className="space-y-3">
               {debts.map(d => (
