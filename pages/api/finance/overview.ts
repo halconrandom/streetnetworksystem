@@ -77,8 +77,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ),
     ]);
 
-    const totalIncome = parseFloat(totals?.total_income ?? 0);
-    const totalExpenses = parseFloat(totals?.total_expenses ?? 0);
+    const totalIncome = parseFloat(totals?.total_income ?? '0') || 0;
+    const totalExpenses = parseFloat(totals?.total_expenses ?? '0') || 0;
     const netBalance = totalIncome - totalExpenses;
     const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
 
