@@ -21,10 +21,7 @@ const labelCls = "block text-[10px] font-mono text-terminal-muted uppercase trac
 export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   
-  // Filter unique categories by name to avoid duplicates
-  const incomeCategories = Array.from(new Map(
-    categories.filter(c => c.type === 'income').map(c => [c.name, c])
-  ).values());
+  const incomeCategories = categories.filter(c => c.type === 'income');
   
   // Default entry
   const [entries, setEntries] = useState([

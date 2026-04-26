@@ -36,7 +36,14 @@ export function FinanceShell() {
     if (!exists) return;
     fetch('/api/finance/categories', { credentials: 'include' })
       .then(r => r.json())
-      .then(data => setCategories(Array.isArray(data) ? data : []))
+      .then(data => {
+        if (!Array.isArray(data)) { setCategories([]); return; }
+        const seen = new Set<string>();
+        setCategories(data.filter(c => {
+          const key = `${c.type}:${c.name}`;
+          return seen.has(key) ? false : (seen.add(key), true);
+        }));
+      })
       .catch(() => {});
   }, [exists]);
 
