@@ -1,10 +1,9 @@
-'use client';
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, DollarSign, Plus, Trash2, Calendar } from '@shared/icons';
 import { Currency, TransactionCategory, formatCurrency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   categories: TransactionCategory[];
@@ -19,6 +18,7 @@ const inputCls = "w-full bg-black/60 border border-white/10 rounded-lg px-6 py-4
 const labelCls = "block text-[10px] font-mono text-terminal-muted uppercase tracking-[0.2em] mb-2 ml-1";
 
 export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
+  const { t, categoryName } = useFinanceI18n();
   const [loading, setLoading] = useState(false);
   
   const incomeCategories = categories.filter(c => c.type === 'income');
@@ -71,14 +71,14 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
             category_id: entry.category_id,
             type: 'income',
             amount: parseFloat(entry.amount),
-            description: entry.description || 'Income Entry',
+            description: entry.description || t('incomeEntry'),
             date: entry.date,
           }),
         });
       }).filter(Boolean);
 
       if (promises.length === 0) {
-        toast.error('Please enter at least one valid amount');
+        toast.error(t('validAmountRequired'));
         setLoading(false);
         return;
       }
@@ -86,16 +86,16 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
       const responses = await Promise.all(promises);
       for (const res of responses) {
         if (res && !res.ok) {
-          if (res.status === 401) throw new Error('Session expired. Please refresh the page.');
-          throw new Error('Server error');
+          if (res.status === 401) throw new Error(t('sessionExpired'));
+          throw new Error(t('serverError'));
         }
       }
 
-      toast.success('Income recorded successfully');
+      toast.success(t('incomeRecorded'));
       onSaved();
       onClose();
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to record income');
+      toast.error(err?.message || t('failedToRecordIncome'));
     } finally {
       setLoading(false);
     }
@@ -116,8 +116,8 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
-              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">Record Income</span>
-              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">Add salary, bonuses or extra revenue</span>
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">{t('recordIncome')}</span>
+              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">{t('incomeSubtitle')}</span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
               <X size={18} />
@@ -129,7 +129,7 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
               {entries.map((entry, idx) => (
                 <div key={idx} className="relative p-8 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-6 group">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-mono text-terminal-accent uppercase tracking-[0.2em]">Source #{idx + 1}</span>
+                    <span className="text-[10px] font-mono text-terminal-accent uppercase tracking-[0.2em]">{t('source')} #{idx + 1}</span>
                     {entries.length > 1 && (
                       <button 
                         type="button" 
@@ -143,7 +143,7 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
 
                   <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label className={labelCls}>Category</label>
+                      <label className={labelCls}>{t('category')}</label>
                       <select
                         value={entry.category_id}
                         onChange={e => updateEntry(idx, 'category_id', e.target.value)}
@@ -151,12 +151,12 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
                         required
                       >
                         {incomeCategories.map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
+                          <option key={c.id} value={c.id}>{categoryName(c.name)}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className={labelCls}>Amount ({currency})</label>
+                      <label className={labelCls}>{t('amount')} ({currency})</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -177,17 +177,17 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
 
                   <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label className={labelCls}>Description</label>
+                      <label className={labelCls}>{t('description')}</label>
                       <input
                         type="text"
                         value={entry.description}
                         onChange={e => updateEntry(idx, 'description', e.target.value)}
                         className={inputCls}
-                        placeholder="Source description..."
+                        placeholder={t('sourceDescription')}
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Date</label>
+                      <label className={labelCls}>{t('date')}</label>
                       <div className="relative group/date">
                         <input
                           type="date"
@@ -219,14 +219,14 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
                 onClick={addEntry}
                 className="w-full py-4 border border-dashed border-white/10 rounded-xl text-[11px] font-mono text-terminal-muted hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-2"
               >
-                <Plus size={14} /> Add Another Source
+                <Plus size={14} /> {t('addAnotherSource')}
               </button>
             </div>
 
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnSecondary}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnSecondary}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnPrimary}>
-                {loading ? 'Recording...' : 'Register All Income'}
+                {loading ? t('recording') : t('registerAllIncome')}
               </button>
             </div>
           </form>
