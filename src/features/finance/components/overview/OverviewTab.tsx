@@ -385,7 +385,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
           categories={categories}
           currency={currency}
           onClose={() => setShowTxModal(false)}
-          onSaved={() => { refetchTx(); refetchOverview(); }}
+          onSaved={() => { refetchTx(); refetchOverview(); refetchBudgets(); }}
         />
       )}
       {showBudgetModal && (
@@ -425,7 +425,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
           categories={categories}
           currency={currency}
           onClose={() => setShowIncomeModal(false)}
-          onSaved={() => { refetchTx(); refetchOverview(); }}
+          onSaved={() => { refetchTx(); refetchOverview(); refetchBudgets(); }}
         />
       )}
     </div>
