@@ -21,21 +21,28 @@ const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mo
 
 export function BudgetModal({ categories, currency, month, year, onClose, onSaved }: Props) {
   const expenseCategories = categories.filter(c => c.type === 'expense');
-  const [categoryId, setCategoryId]       = useState('');
-  const [limitAmount, setLimitAmount]     = useState('');
+  const [categoryId, setCategoryId]         = useState('');
+  const [limitRaw, setLimitRaw]             = useState('');
+  const [limitDisplay, setLimitDisplay]     = useState('');
   const [alertThreshold, setAlertThreshold] = useState(80);
-  const [loading, setLoading]             = useState(false);
+  const [loading, setLoading]               = useState(false);
+
+  const handleLimitChange = (val: string) => {
+    const raw = val.replace(/\D/g, '');
+    setLimitRaw(raw);
+    setLimitDisplay(raw === '' ? '' : parseInt(raw, 10).toLocaleString('de-DE'));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryId || !limitAmount) return;
+    if (!categoryId || !limitRaw) return;
     setLoading(true);
     try {
       const res = await fetch('/api/finance/budgets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ category_id: categoryId, month, year, limit_amount: parseFloat(limitAmount), alert_threshold: alertThreshold }),
+        body: JSON.stringify({ category_id: categoryId, month, year, limit_amount: parseFloat(limitRaw), alert_threshold: alertThreshold }),
       });
       if (!res.ok) throw new Error();
       toast.success('Budget created');
@@ -102,16 +109,15 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
 
               <div>
                 <label className={labelCls}>Monthly Limit ({currency})</label>
-                <input 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  value={limitAmount} 
-                  onChange={e => setLimitAmount(e.target.value)} 
-                  required 
-                  className={inputCls} 
-                  placeholder="0.00" 
-                  autoFocus 
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={limitDisplay}
+                  onChange={e => handleLimitChange(e.target.value)}
+                  required
+                  className={inputCls}
+                  placeholder="0"
+                  autoFocus
                 />
               </div>
 
