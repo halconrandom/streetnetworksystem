@@ -18,7 +18,8 @@ BEGIN
   -- Substitute $1, $2, ... with quoted values
   n := coalesce(array_length(query_params, 1), 0);
   FOR i IN 1..n LOOP
-    query_text := replace(query_text, '$' || i, quote_literal(query_params[i]));
+    -- COALESCE handles NULL params: quote_literal(NULL) = NULL, which would wipe query_text via replace()
+    query_text := replace(query_text, '$' || i, COALESCE(quote_literal(query_params[i]), 'NULL'));
   END LOOP;
 
   upper_q := upper(trim(regexp_replace(query_text, '\s+', ' ', 'g')));
