@@ -20,7 +20,10 @@ export function useTransactions(month: number, year: number): TxState {
     setError(null);
 
     fetch(`/api/finance/transactions?month=${month}&year=${year}`, { credentials: 'include' })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(r.status === 401 ? 'Session expired' : 'Server error');
+        return r.json();
+      })
       .then(data => {
         if (cancelled) return;
         setTransactions(Array.isArray(data) ? data : []);

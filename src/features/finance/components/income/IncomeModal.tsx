@@ -64,7 +64,6 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
     setLoading(true);
 
     try {
-      // Send each entry as a transaction
       const promises = entries.map(entry => {
         if (!entry.amount || parseFloat(entry.amount) <= 0) return null;
         return fetch('/api/finance/transactions', {
@@ -87,12 +86,19 @@ export function IncomeModal({ categories, currency, onClose, onSaved }: Props) {
         return;
       }
 
-      await Promise.all(promises);
+      const responses = await Promise.all(promises);
+      for (const res of responses) {
+        if (res && !res.ok) {
+          if (res.status === 401) throw new Error('Session expired. Please refresh the page.');
+          throw new Error('Server error');
+        }
+      }
+
       toast.success('Income recorded successfully');
       onSaved();
       onClose();
-    } catch (err) {
-      toast.error('Failed to record income');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to record income');
     } finally {
       setLoading(false);
     }
