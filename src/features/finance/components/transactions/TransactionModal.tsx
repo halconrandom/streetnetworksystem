@@ -21,8 +21,10 @@ const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mo
 export function TransactionModal({ transaction, categories, currency, onClose, onSaved }: Props) {
   const isEdit = !!transaction;
   const [type, setType]               = useState<TransactionType>(transaction?.type ?? 'expense');
-  const [amount, setAmount]           = useState(transaction?.amount?.toString() ?? '');
-  const [description, setDescription] = useState(transaction?.description ?? '');
+  const initRaw = transaction?.amount ? String(Math.round(transaction.amount)) : '';
+  const [amountRaw, setAmountRaw]         = useState(initRaw);
+  const [amountDisplay, setAmountDisplay] = useState(initRaw === '' ? '' : parseInt(initRaw, 10).toLocaleString('de-DE'));
+  const [description, setDescription]    = useState(transaction?.description ?? '');
   const [categoryId, setCategoryId]   = useState(transaction?.category_id ?? '');
   const [date, setDate]               = useState(transaction?.date ?? new Date().toISOString().split('T')[0]);
   const [loading, setLoading]         = useState(false);
@@ -31,10 +33,10 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return toast.error('Amount must be positive');
+    if (!amountRaw || parseFloat(amountRaw) <= 0) return toast.error('Amount must be positive');
     setLoading(true);
     try {
-      const body = { category_id: categoryId || null, type, amount: parseFloat(amount), description, date };
+      const body = { category_id: categoryId || null, type, amount: parseFloat(amountRaw), description, date };
       const res = isEdit
         ? await fetch(`/api/finance/transactions/${transaction!.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
         : await fetch('/api/finance/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
@@ -104,16 +106,19 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
               {/* Amount */}
               <div>
                 <label className={labelCls}>Amount ({currency})</label>
-                <input 
-                  type="number" 
-                  min="0" 
-                  step="0.01" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  required 
-                  className={`${inputCls} text-lg font-bold ${type === 'income' ? 'text-green-400' : 'text-white'}`} 
-                  placeholder="0.00" 
-                  autoFocus={!isEdit} 
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={amountDisplay}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setAmountRaw(raw);
+                    setAmountDisplay(raw === '' ? '' : parseInt(raw, 10).toLocaleString('de-DE'));
+                  }}
+                  required
+                  className={`${inputCls} text-lg font-bold ${type === 'income' ? 'text-green-400' : 'text-white'}`}
+                  placeholder="0"
+                  autoFocus={!isEdit}
                 />
               </div>
 
