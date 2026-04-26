@@ -29,7 +29,7 @@ export function FinanceShell() {
   const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null);
 
   const { pending, refetch: refetchRecurring } = useRecurring();
-  const { data: overviewData, loading: overviewLoading } = useOverview(month, year);
+  const { data: overviewData, loading: overviewLoading, refetch: refetchOverview } = useOverview(month, year);
 
   // Load categories once profile exists
   React.useEffect(() => {
@@ -143,6 +143,7 @@ export function FinanceShell() {
             year={year}
             categories={categories}
             onHelp={setHelpTopic}
+            refetchOverview={refetchOverview}
           />
         )}
         {activeTab === 'market' && (

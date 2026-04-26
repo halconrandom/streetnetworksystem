@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS total_income,
           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expenses
          FROM fn_transactions
-         WHERE clerk_id = $1 AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+         WHERE clerk_id = $1 AND EXTRACT(MONTH FROM date) = $2::int AND EXTRACT(YEAR FROM date) = $3::int`,
         [user.clerk_id, month, year]
       ),
 
@@ -56,8 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expenses
          FROM fn_transactions
          WHERE clerk_id = $1
-           AND date >= (DATE_TRUNC('month', MAKE_DATE($3, $2, 1)) - INTERVAL '5 months')
-           AND date < DATE_TRUNC('month', MAKE_DATE($3, $2, 1)) + INTERVAL '1 month'
+           AND date >= (DATE_TRUNC('month', MAKE_DATE($3::int, $2::int, 1)) - INTERVAL '5 months')
+           AND date < DATE_TRUNC('month', MAKE_DATE($3::int, $2::int, 1)) + INTERVAL '1 month'
          GROUP BY EXTRACT(MONTH FROM date), EXTRACT(YEAR FROM date)
          ORDER BY year ASC, month ASC`,
         [user.clerk_id, month, year]
@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           SUM(SUM(amount)) OVER (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_expense
          FROM fn_transactions
          WHERE clerk_id = $1 AND type = 'expense'
-           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3
+           AND EXTRACT(MONTH FROM date) = $2::int AND EXTRACT(YEAR FROM date) = $3::int
          GROUP BY date
          ORDER BY date ASC`,
         [user.clerk_id, month, year]

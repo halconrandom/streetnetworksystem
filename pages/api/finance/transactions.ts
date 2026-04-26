@@ -23,8 +23,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                  FROM fn_transactions t
                  LEFT JOIN fn_transaction_categories c ON t.category_id = c.id
                  WHERE t.clerk_id = $1
-                   AND EXTRACT(MONTH FROM t.date) = $2
-                   AND EXTRACT(YEAR FROM t.date) = $3`;
+                   AND EXTRACT(MONTH FROM t.date) = $2::int
+                   AND EXTRACT(YEAR FROM t.date) = $3::int`;
       const params: any[] = [user.clerk_id, parseInt(month as string), parseInt(year as string)];
 
       if (type && ['income', 'expense'].includes(type as string)) {

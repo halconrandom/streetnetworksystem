@@ -42,6 +42,7 @@ interface Props {
   year: number;
   categories: TransactionCategory[];
   onHelp: (topic: HelpTopic) => void;
+  refetchOverview: () => void;
 }
 
 const TX_LIMIT = 10;
@@ -87,7 +88,7 @@ function Empty({ text }: { text: string }) {
   );
 }
 
-export function OverviewTab({ data, loading, currency, salary, month, year, categories, onHelp }: Props) {
+export function OverviewTab({ data, loading, currency, salary, month, year, categories, onHelp, refetchOverview }: Props) {
   const { transactions, loading: txLoading, refetch: refetchTx } = useTransactions(month, year);
   const [showTxModal, setShowTxModal]   = useState(false);
   const [editTx, setEditTx]             = useState<Transaction | null>(null);
@@ -384,7 +385,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
           categories={categories}
           currency={currency}
           onClose={() => setShowTxModal(false)}
-          onSaved={refetchTx}
+          onSaved={() => { refetchTx(); refetchOverview(); }}
         />
       )}
       {showBudgetModal && (
@@ -394,7 +395,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
           month={month}
           year={year}
           onClose={() => setShowBudgetModal(false)}
-          onSaved={refetchBudgets}
+          onSaved={() => { refetchBudgets(); refetchOverview(); }}
         />
       )}
       {showGoalModal && (
@@ -424,7 +425,7 @@ export function OverviewTab({ data, loading, currency, salary, month, year, cate
           categories={categories}
           currency={currency}
           onClose={() => setShowIncomeModal(false)}
-          onSaved={refetchTx}
+          onSaved={() => { refetchTx(); refetchOverview(); }}
         />
       )}
     </div>
