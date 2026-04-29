@@ -140,10 +140,28 @@ function AppShell({ currentView, title, children }: AppShellProps) {
   }
 
   // DB user still loading
-  if (dbUserLoading || !dbUser) {
+  if (dbUserLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-terminal-dark text-terminal-muted">
         <span className="animate-pulse font-mono text-xs uppercase tracking-widest">Cargando perfil...</span>
+      </div>
+    );
+  }
+
+  // DB user failed to load
+  if (dbUserError || !dbUser) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-terminal-dark">
+        <div className="text-center space-y-4 max-w-sm px-6">
+          <p className="text-red-400 font-mono text-sm uppercase tracking-widest">Error al cargar perfil</p>
+          <p className="text-terminal-muted text-xs">No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.</p>
+          <button
+            onClick={() => { setDbUserLoading(true); fetchDbUser(); }}
+            className="mt-2 px-4 py-2 border border-white/10 text-white/50 hover:text-white hover:border-white/30 font-mono text-xs uppercase tracking-widest rounded transition-all"
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }
