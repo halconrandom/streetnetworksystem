@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trash2 } from '@shared/icons';
 import { Budget, Currency, formatCurrency } from '../../types';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   budget: Budget;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function BudgetCard({ budget, currency, onDelete }: Props) {
+  const { t, categoryName } = useFinanceI18n();
   const spent = parseFloat(budget.spent_amount as any ?? 0);
   const limit = budget.limit_amount;
   const pct = limit > 0 ? Math.min((spent / limit) * 100, 999) : 0;
@@ -29,12 +31,12 @@ export function BudgetCard({ budget, currency, onDelete }: Props) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: budget.category_color || '#64748b' }} />
-          <span className="text-xs font-semibold text-white">{budget.category_name}</span>
+          <span className="text-xs font-semibold text-white">{categoryName(budget.category_name)}</span>
           {isOver && (
-            <span className="text-[9px] font-mono bg-terminal-accent/10 text-terminal-accent border border-terminal-accent/30 px-1.5 py-0.5 rounded uppercase">Over</span>
+            <span className="text-[9px] font-mono bg-terminal-accent/10 text-terminal-accent border border-terminal-accent/30 px-1.5 py-0.5 rounded uppercase">{t('over')}</span>
           )}
           {isWarning && (
-            <span className="text-[9px] font-mono bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 px-1.5 py-0.5 rounded uppercase">Alert</span>
+            <span className="text-[9px] font-mono bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 px-1.5 py-0.5 rounded uppercase">{t('alert')}</span>
           )}
         </div>
         <button

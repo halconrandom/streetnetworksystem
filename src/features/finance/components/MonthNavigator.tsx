@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from '@shared/icons';
-import { MONTH_NAMES } from '../types';
+import { financeMonthNames, useFinanceI18n } from '../i18n';
 
 interface Props {
   month: number;
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export function MonthNavigator({ month, year, onPrev, onNext }: Props) {
+  const { language } = useFinanceI18n();
   const now = new Date();
   const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
 
@@ -22,7 +23,7 @@ export function MonthNavigator({ month, year, onPrev, onNext }: Props) {
         <ChevronLeft size={14} />
       </button>
       <span className="font-mono text-xs tracking-widest text-white uppercase min-w-[120px] text-center">
-        {MONTH_NAMES[month - 1]} {year}
+        {financeMonthNames[language][month - 1]} {year}
       </span>
       <button
         onClick={onNext}

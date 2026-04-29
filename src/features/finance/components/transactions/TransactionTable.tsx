@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trash2 } from '@shared/icons';
 import { Transaction, Currency, formatCurrency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   transactions: Transaction[];
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function TransactionTable({ transactions, currency, onEdit, onDeleted }: Props) {
+  const { t, categoryName } = useFinanceI18n();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -18,10 +20,10 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
     try {
       const res = await fetch(`/api/finance/transactions/${id}`, { method: 'DELETE', credentials: 'include' });
       if (!res.ok) throw new Error();
-      toast.success('Transaction deleted');
+      toast.success(t('transactionDeleted'));
       onDeleted();
     } catch {
-      toast.error('Failed to delete transaction');
+      toast.error(t('failedToDeleteTransaction'));
     } finally {
       setDeletingId(null);
     }
@@ -30,7 +32,7 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
   if (!transactions.length) {
     return (
       <div className="text-center py-12 text-terminal-muted font-mono text-xs">
-        No transactions this month. Add one to get started.
+        {t('noTransactionsThisMonth')}
       </div>
     );
   }
@@ -40,10 +42,10 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-white/5">
-            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">Date</th>
-            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">Description</th>
-            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">Category</th>
-            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest text-right">Amount</th>
+            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">{t('date')}</th>
+            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">{t('description')}</th>
+            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">{t('category')}</th>
+            <th className="pb-3 pr-4 text-[10px] font-mono text-terminal-muted uppercase tracking-widest text-right">{t('amount')}</th>
             <th className="pb-3 text-[10px] font-mono text-terminal-muted uppercase tracking-widest w-8"></th>
           </tr>
         </thead>
@@ -56,7 +58,7 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
             >
               <td className="py-3 pr-4 font-mono text-[11px] text-terminal-muted">{tx.date}</td>
               <td className="py-3 pr-4 text-sm text-white">
-                {tx.description || <span className="text-terminal-muted italic text-xs">No description</span>}
+                {tx.description || <span className="text-terminal-muted italic text-xs">{t('noDescription')}</span>}
                 {tx.is_recurring && (
                   <span className="ml-2 text-[9px] font-mono bg-terminal-accent/10 text-terminal-accent border border-terminal-accent/20 px-1.5 py-0.5 rounded uppercase">rec</span>
                 )}
@@ -67,7 +69,7 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
                     className="inline-block text-[10px] font-mono px-2 py-0.5 rounded border"
                     style={{ color: tx.category_color || '#64748b', borderColor: `${tx.category_color || '#64748b'}33`, background: `${tx.category_color || '#64748b'}0d` }}
                   >
-                    {tx.category_name}
+                    {categoryName(tx.category_name)}
                   </span>
                 ) : (
                   <span className="text-[10px] text-terminal-muted font-mono">—</span>
@@ -75,7 +77,7 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
               </td>
               <td className="py-3 pr-4 font-mono text-sm font-bold text-right">
                 <span className={tx.type === 'income' ? 'text-green-400' : 'text-terminal-accent'}>
-                  {tx.type === 'income' ? '+' : '−'}{formatCurrency(tx.amount, currency)}
+                  {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount, currency)}
                 </span>
               </td>
               <td className="py-3" onClick={e => e.stopPropagation()}>
@@ -93,7 +95,7 @@ export function TransactionTable({ transactions, currency, onEdit, onDeleted }: 
         <tfoot>
           <tr className="border-t border-white/10">
             <td colSpan={3} className="pt-3 text-[10px] font-mono text-terminal-muted uppercase tracking-widest">
-              Total Expenses
+              {t('totalExpensesFooter')}
             </td>
             <td className="pt-3 font-mono text-sm font-bold text-terminal-accent text-right">
               {formatCurrency(

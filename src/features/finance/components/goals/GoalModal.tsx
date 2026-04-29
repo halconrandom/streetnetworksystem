@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@shared/icons';
 import { Currency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   currency: Currency;
@@ -17,6 +18,7 @@ const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted te
 const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function GoalModal({ currency, onClose, onSaved }: Props) {
+  const { t } = useFinanceI18n();
   const [name, setName]               = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [deadline, setDeadline]       = useState('');
@@ -34,11 +36,11 @@ export function GoalModal({ currency, onClose, onSaved }: Props) {
         body: JSON.stringify({ name, target_amount: parseFloat(targetAmount), deadline: deadline || null, notes: notes || null }),
       });
       if (!res.ok) throw new Error();
-      toast.success('Goal created');
+      toast.success(t('goalCreated'));
       onSaved();
       onClose();
     } catch {
-      toast.error('Failed to create goal');
+      toast.error(t('failedToCreateGoal'));
     } finally {
       setLoading(false);
     }
@@ -60,8 +62,8 @@ export function GoalModal({ currency, onClose, onSaved }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
-              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">New Savings Goal</span>
-              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">Financial Objectives // Goal Tracking</span>
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">{t('newSavingsGoal')}</span>
+              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">{t('goalSubtitle')}</span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
               <X size={18} />
@@ -73,32 +75,32 @@ export function GoalModal({ currency, onClose, onSaved }: Props) {
             <div className="px-12 py-12 space-y-10">
 
               <div>
-                <label className={labelCls}>Goal Identifier</label>
-                <input value={name} onChange={e => setName(e.target.value)} required className={inputCls} placeholder="Emergency Fund, New Laptop..." autoFocus />
+                <label className={labelCls}>{t('goalIdentifier')}</label>
+                <input value={name} onChange={e => setName(e.target.value)} required className={inputCls} placeholder={t('goalPlaceholder')} autoFocus />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Target ({currency})</label>
+                  <label className={labelCls}>{t('target')} ({currency})</label>
                   <input type="number" min="0" step="0.01" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} required className={inputCls} placeholder="0.00" />
                 </div>
                 <div>
-                  <label className={labelCls}>Deadline <span className="normal-case text-white/10">(optional)</span></label>
+                  <label className={labelCls}>{t('deadline')} <span className="normal-case text-white/10">({t('optional')})</span></label>
                   <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} className={inputCls} />
                 </div>
               </div>
 
               <div>
-                <label className={labelCls}>Operational Notes <span className="normal-case text-white/10">(optional)</span></label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={textareaCls} placeholder="Purpose and strategic value..." />
+                <label className={labelCls}>{t('operationalNotes')} <span className="normal-case text-white/10">({t('optional')})</span></label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={textareaCls} placeholder={t('goalNotesPlaceholder')} />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnCancel}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : 'Set Goal'}
+                {loading ? t('saving') : t('setGoal')}
               </button>
             </div>
           </form>
@@ -107,4 +109,3 @@ export function GoalModal({ currency, onClose, onSaved }: Props) {
     </div>
   );
 }
-

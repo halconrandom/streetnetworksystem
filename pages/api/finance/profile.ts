@@ -49,7 +49,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       for (const cat of DEFAULT_CATEGORIES) {
         await execute(
           `INSERT INTO fn_transaction_categories (clerk_id, name, type, color, icon, is_default)
-           VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
+           SELECT $1, $2, $3, $4, $5, $6
+           WHERE NOT EXISTS (
+             SELECT 1 FROM fn_transaction_categories
+             WHERE clerk_id = $1 AND name = $2 AND type = $3
+           )
+           ON CONFLICT DO NOTHING`,
           [user.clerk_id, cat.name, cat.type, cat.color, cat.icon || null, cat.is_default]
         );
       }

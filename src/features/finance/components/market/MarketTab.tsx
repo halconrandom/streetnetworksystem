@@ -4,6 +4,7 @@ import { Currency, formatCurrency } from '../../types';
 import { toast } from 'sonner';
 import { HelpCircle } from '@shared/icons';
 import { HelpTopic } from '../FinanceHelpModal';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   currency: Currency;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function MarketTab({ currency, onHelp }: Props) {
+  const { t } = useFinanceI18n();
   const { items, loading, refetch } = useMarketList();
   const [newName, setNewName] = useState('');
   const [newQty, setNewQty] = useState('');
@@ -33,7 +35,7 @@ export function MarketTab({ currency, onHelp }: Props) {
       setNewPrice('');
       refetch();
     } catch {
-      toast.error('Failed to add item');
+      toast.error(t('failedToAddItem'));
     } finally {
       setAdding(false);
     }
@@ -56,7 +58,7 @@ export function MarketTab({ currency, onHelp }: Props) {
 
   const handleClearChecked = async () => {
     await fetch('/api/finance/market?checked=true', { method: 'DELETE', credentials: 'include' });
-    toast.success('Cleared checked items');
+    toast.success(t('clearedCheckedItems'));
     refetch();
   };
 
@@ -73,7 +75,7 @@ export function MarketTab({ currency, onHelp }: Props) {
           {/* Terminal header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-white/[0.02]">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-terminal-accent uppercase tracking-widest">WISH_LIST.txt</span>
+              <span className="font-mono text-[10px] text-terminal-accent uppercase tracking-widest">{t('marketFileName')}</span>
               <button onClick={() => onHelp('market')} className="text-white/10 hover:text-terminal-accent transition-all">
                 <HelpCircle size={10} />
               </button>
@@ -84,19 +86,19 @@ export function MarketTab({ currency, onHelp }: Props) {
                   onClick={handleClearChecked}
                   className="text-[10px] font-mono text-terminal-muted hover:text-terminal-accent transition-colors uppercase tracking-wider"
                 >
-                  Clear Checked ({checkedCount})
+                  {t('clearChecked', { count: checkedCount })}
                 </button>
               )}
-              <span className="text-[10px] font-mono text-terminal-muted">{items.length} items</span>
+              <span className="text-[10px] font-mono text-terminal-muted">{t('items', { count: items.length })}</span>
             </div>
           </div>
 
           {/* Items list */}
           <div className="divide-y divide-white/[0.03] min-h-[120px]">
             {loading ? (
-              <div className="p-8 text-center font-mono text-xs text-terminal-muted animate-pulse">Loading...</div>
+              <div className="p-8 text-center font-mono text-xs text-terminal-muted animate-pulse">{t('loading')}</div>
             ) : items.length === 0 ? (
-              <div className="p-8 text-center font-mono text-xs text-terminal-muted">Empty list. Add your first item below.</div>
+              <div className="p-8 text-center font-mono text-xs text-terminal-muted">{t('emptyMarketList')}</div>
             ) : (
               items.map(item => (
                 <div
@@ -146,13 +148,13 @@ export function MarketTab({ currency, onHelp }: Props) {
               <input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder="Add item..."
+                placeholder={t('addItemPlaceholder')}
                 className="flex-1 bg-transparent font-mono text-sm text-white placeholder-terminal-muted/50 outline-none border-none"
               />
               <input
                 value={newQty}
                 onChange={e => setNewQty(e.target.value)}
-                placeholder="qty"
+                placeholder={t('qtyPlaceholder')}
                 className="w-16 bg-transparent font-mono text-xs text-terminal-muted placeholder-terminal-muted/30 outline-none border-none text-right"
               />
               <input
@@ -161,7 +163,7 @@ export function MarketTab({ currency, onHelp }: Props) {
                 step="0.01"
                 value={newPrice}
                 onChange={e => setNewPrice(e.target.value)}
-                placeholder="price"
+                placeholder={t('pricePlaceholder')}
                 className="w-20 bg-transparent font-mono text-xs text-terminal-muted placeholder-terminal-muted/30 outline-none border-none text-right"
               />
               <button
@@ -169,7 +171,7 @@ export function MarketTab({ currency, onHelp }: Props) {
                 disabled={adding || !newName.trim()}
                 className="px-3 py-1 bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent font-mono text-[10px] rounded hover:bg-terminal-accent/20 transition-colors disabled:opacity-30 uppercase tracking-wider"
               >
-                Add
+                {t('add')}
               </button>
             </form>
           </div>
@@ -177,7 +179,7 @@ export function MarketTab({ currency, onHelp }: Props) {
           {/* Footer total */}
           {estimatedTotal > 0 && (
             <div className="border-t border-white/5 px-4 py-2 flex justify-between items-center">
-              <span className="font-mono text-[10px] text-terminal-muted uppercase tracking-widest">Estimated Total</span>
+              <span className="font-mono text-[10px] text-terminal-muted uppercase tracking-widest">{t('estimatedTotal')}</span>
               <span className="font-mono text-sm font-bold text-white">{formatCurrency(estimatedTotal, currency)}</span>
             </div>
           )}

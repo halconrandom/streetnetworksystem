@@ -1,6 +1,7 @@
 import React from 'react';
 import { Target, Plus, Trash2 } from '@shared/icons';
 import { SavingsGoal, Currency, formatCurrency } from '../../types';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   goal: SavingsGoal;
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function GoalCard({ goal, currency, onContribute, onDelete }: Props) {
+  const { t } = useFinanceI18n();
   const current = parseFloat(goal.current_amount as any ?? 0);
   const target = goal.target_amount;
   const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
@@ -29,11 +31,11 @@ export function GoalCard({ goal, currency, onContribute, onDelete }: Props) {
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-semibold text-white truncate">{goal.name}</h4>
           {goal.is_completed && (
-            <span className="text-[9px] font-mono bg-green-400/10 text-green-400 border border-green-400/20 px-1.5 py-0.5 rounded uppercase">Completed</span>
+            <span className="text-[9px] font-mono bg-green-400/10 text-green-400 border border-green-400/20 px-1.5 py-0.5 rounded uppercase">{t('completed')}</span>
           )}
           {daysLeft !== null && !goal.is_completed && (
             <p className="text-[10px] font-mono text-terminal-muted mt-0.5">
-              {daysLeft > 0 ? `${daysLeft}d remaining` : daysLeft === 0 ? 'Due today' : 'Overdue'}
+              {daysLeft > 0 ? t('daysRemaining', { days: daysLeft }) : daysLeft === 0 ? t('dueToday') : t('overdue')}
             </p>
           )}
         </div>
@@ -66,7 +68,7 @@ export function GoalCard({ goal, currency, onContribute, onDelete }: Props) {
         </svg>
         <div>
           <p className="font-mono text-sm font-bold text-white">{formatCurrency(current, currency)}</p>
-          <p className="font-mono text-[10px] text-terminal-muted">of {formatCurrency(target, currency)}</p>
+          <p className="font-mono text-[10px] text-terminal-muted">{t('ofAmount', { amount: formatCurrency(target, currency) })}</p>
           {goal.notes && <p className="text-[10px] text-terminal-muted mt-1 line-clamp-2">{goal.notes}</p>}
         </div>
       </div>
@@ -77,7 +79,7 @@ export function GoalCard({ goal, currency, onContribute, onDelete }: Props) {
           className="w-full py-2 text-[11px] font-mono font-bold border border-terminal-accent/30 text-terminal-accent rounded hover:bg-terminal-accent/10 transition-colors flex items-center justify-center gap-1.5 uppercase tracking-wider"
         >
           <Plus size={12} />
-          Add Funds
+          {t('addFunds')}
         </button>
       )}
     </div>

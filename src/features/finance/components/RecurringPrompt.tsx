@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Repeat, AlertTriangle } from '@shared/icons';
 import { RecurringTemplate, formatCurrency, Currency } from '../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../i18n';
 
 interface Props {
   pending: RecurringTemplate[];
@@ -12,7 +13,14 @@ interface Props {
 }
 
 export function RecurringPrompt({ pending, currency, onApplied, onDismiss }: Props) {
+  const { language, t } = useFinanceI18n();
   const [loading, setLoading] = useState(false);
+
+  const pluralValues = (count: number) => ({
+    count,
+    suffix: count !== 1 ? (language === 'es' ? 'es' : 's') : '',
+    pluralS: count !== 1 ? 's' : '',
+  });
 
   const applyAll = async () => {
     setLoading(true);
@@ -28,10 +36,10 @@ export function RecurringPrompt({ pending, currency, onApplied, onDismiss }: Pro
       });
       if (!res.ok) throw new Error('Failed to apply');
       const data = await res.json();
-      toast.success(`Applied ${data.applied} recurring transaction${data.applied !== 1 ? 's' : ''}`);
+      toast.success(t('recurringApplied', pluralValues(data.applied)));
       onApplied();
     } catch {
-      toast.error('Failed to apply recurring transactions');
+      toast.error(t('failedToApplyRecurring'));
     } finally {
       setLoading(false);
     }
@@ -51,19 +59,19 @@ export function RecurringPrompt({ pending, currency, onApplied, onDismiss }: Pro
           </div>
           <div>
             <p className="text-sm font-semibold text-white mb-1">
-              {pending.length} recurring transaction{pending.length !== 1 ? 's' : ''} pending
+              {t('recurringPending', pluralValues(pending.length))}
             </p>
             <div className="space-y-0.5">
-              {pending.slice(0, 3).map(t => (
-                <p key={t.id} className="text-[11px] font-mono text-terminal-muted">
-                  <span className={t.type === 'income' ? 'text-green-400' : 'text-terminal-accent'}>
-                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount, currency)}
+              {pending.slice(0, 3).map(template => (
+                <p key={template.id} className="text-[11px] font-mono text-terminal-muted">
+                  <span className={template.type === 'income' ? 'text-green-400' : 'text-terminal-accent'}>
+                    {template.type === 'income' ? '+' : '-'}{formatCurrency(template.amount, currency)}
                   </span>
-                  {' '}{t.description || 'Unnamed'} · {t.frequency}
+                  {' '}{template.description || t('unnamed')} · {template.frequency}
                 </p>
               ))}
               {pending.length > 3 && (
-                <p className="text-[10px] text-terminal-muted">+{pending.length - 3} more</p>
+                <p className="text-[10px] text-terminal-muted">+{pending.length - 3} {t('more')}</p>
               )}
             </div>
           </div>
@@ -73,14 +81,14 @@ export function RecurringPrompt({ pending, currency, onApplied, onDismiss }: Pro
             onClick={onDismiss}
             className="px-3 py-1.5 text-[11px] font-mono font-bold text-terminal-muted hover:text-white border border-white/10 rounded transition-colors uppercase tracking-wider"
           >
-            Dismiss
+            {t('dismiss')}
           </button>
           <button
             onClick={applyAll}
             disabled={loading}
             className="px-3 py-1.5 text-[11px] font-mono font-bold bg-terminal-accent text-white rounded hover:bg-terminal-accent/80 transition-colors uppercase tracking-wider disabled:opacity-50"
           >
-            {loading ? '...' : 'Apply All'}
+            {loading ? '...' : t('applyAll')}
           </button>
         </div>
       </div>

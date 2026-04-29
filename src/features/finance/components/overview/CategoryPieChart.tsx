@@ -2,6 +2,7 @@ import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { OverviewData, Currency, formatCurrency } from '../../types';
 import { CHART_THEME } from './chartTheme';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   data: OverviewData['by_category'];
@@ -23,16 +24,18 @@ const CyberTooltip = ({ active, payload, currency }: any) => {
 };
 
 export function CategoryPieChart({ data, currency }: Props) {
+  const { categoryName, t } = useFinanceI18n();
+
   if (!data?.length) {
     return (
       <div className="flex items-center justify-center h-48 text-terminal-muted font-mono text-xs">
-        No expense data this month
+        {t('noExpenseDataThisMonth')}
       </div>
     );
   }
 
   const chartData = data.map((d, i) => ({
-    name: d.name || 'Uncategorized',
+    name: categoryName(d.name),
     value: parseFloat(d.total as any),
     color: d.color || CHART_THEME.categoryColors[i % CHART_THEME.categoryColors.length],
   }));

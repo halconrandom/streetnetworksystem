@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowUpCircle, ArrowDownCircle, Wallet, PiggyBank, HelpCircle } from '@shared/icons';
+import { Globe, HelpCircle } from '@shared/icons';
 import { useFinanceProfile } from '../hooks/useFinanceProfile';
 import { useRecurring } from '../hooks/useRecurring';
 import { useOverview } from '../hooks/useOverview';
@@ -10,14 +10,52 @@ import { MonthNavigator } from './MonthNavigator';
 import { OverviewTab } from './overview/OverviewTab';
 import { MarketTab } from './market/MarketTab';
 import { FinanceHelpModal, HelpTopic } from './FinanceHelpModal';
-import { FinanceTab, TransactionCategory, formatCurrency } from '../types';
+import { FinanceTab, TransactionCategory } from '../types';
+import { FinanceI18nProvider, FinanceTranslationKey, useFinanceI18n } from '../i18n';
 
-const TABS: { id: FinanceTab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'market', label: 'Market' },
+const TABS: { id: FinanceTab; labelKey: FinanceTranslationKey }[] = [
+  { id: 'overview', labelKey: 'overview' },
+  { id: 'market', labelKey: 'market' },
 ];
 
 export function FinanceShell() {
+  return (
+    <FinanceI18nProvider>
+      <FinanceShellContent />
+    </FinanceI18nProvider>
+  );
+}
+
+function FinanceLanguageSwitch() {
+  const { language, setLanguage, t } = useFinanceI18n();
+
+  return (
+    <div
+      className="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.02] p-1 shrink-0"
+      aria-label={t('languageSwitchLabel')}
+    >
+      <Globe size={13} className="mx-1 text-white/25" />
+      {(['en', 'es'] as const).map(lang => (
+        <button
+          key={lang}
+          type="button"
+          onClick={() => setLanguage(lang)}
+          title={lang === 'en' ? t('english') : t('spanish')}
+          className={`min-w-8 rounded px-2 py-1 text-[10px] font-mono font-bold uppercase tracking-widest transition-all ${
+            language === lang
+              ? 'bg-terminal-accent/15 text-terminal-accent border border-terminal-accent/25'
+              : 'border border-transparent text-white/30 hover:text-white/70 hover:bg-white/[0.04]'
+          }`}
+        >
+          {lang}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FinanceShellContent() {
+  const { t } = useFinanceI18n();
   const { profile, exists, loading, refetch: refetchProfile } = useFinanceProfile();
 
   const now = new Date();
@@ -63,7 +101,7 @@ export function FinanceShell() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="animate-pulse font-mono text-xs text-terminal-muted uppercase tracking-widest">Loading Finance...</span>
+        <span className="animate-pulse font-mono text-xs text-terminal-muted uppercase tracking-widest">{t('loadingFinance')}</span>
       </div>
     );
   }
@@ -111,7 +149,7 @@ export function FinanceShell() {
                     : 'text-terminal-muted hover:text-white hover:bg-white/[0.02]'
                 }`}
               >
-                {tab.label}
+                {t(tab.labelKey)}
                 {activeTab === tab.id && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-terminal-accent" />
                 )}
@@ -126,9 +164,12 @@ export function FinanceShell() {
             <HelpCircle size={16} />
           </button>
         </div>
-        {activeTab !== 'market' && (
-          <MonthNavigator month={month} year={year} onPrev={prevMonth} onNext={nextMonth} />
-        )}
+        <div className="flex items-center gap-3">
+          {activeTab !== 'market' && (
+            <MonthNavigator month={month} year={year} onPrev={prevMonth} onNext={nextMonth} />
+          )}
+          <FinanceLanguageSwitch />
+        </div>
       </div>
 
       {/* Main Content Area */}

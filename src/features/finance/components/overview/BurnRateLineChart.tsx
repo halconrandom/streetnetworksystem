@@ -2,6 +2,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { OverviewData, Currency, formatCurrency } from '../../types';
 import { CHART_THEME } from './chartTheme';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   data: OverviewData['daily_burn'];
@@ -9,23 +10,25 @@ interface Props {
   currency: Currency;
 }
 
-const CyberTooltip = ({ active, payload, label, currency }: any) => {
+const CyberTooltip = ({ active, payload, label, currency, labels }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div style={{ background: CHART_THEME.tooltipBg, border: `1px solid ${CHART_THEME.tooltipBorder}`, borderRadius: 6, padding: '8px 12px' }}>
-      <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: CHART_THEME.fontFamily, fontSize: 10, margin: '0 0 4px' }}>Day {label}</p>
+      <p style={{ color: 'rgba(255,255,255,0.5)', fontFamily: CHART_THEME.fontFamily, fontSize: 10, margin: '0 0 4px' }}>{labels.day} {label}</p>
       <p style={{ color: CHART_THEME.expenseColor, fontFamily: CHART_THEME.fontFamily, fontSize: 11, margin: 0, fontWeight: 'bold' }}>
-        Spent: {formatCurrency(payload[0]?.value ?? 0, currency)}
+        {labels.spent}: {formatCurrency(payload[0]?.value ?? 0, currency)}
       </p>
     </div>
   );
 };
 
 export function BurnRateLineChart({ data, salary, currency }: Props) {
+  const { t } = useFinanceI18n();
+
   if (!data?.length) {
     return (
       <div className="flex items-center justify-center h-48 text-terminal-muted font-mono text-xs">
-        No spending data this month
+        {t('noSpendingDataThisMonth')}
       </div>
     );
   }
@@ -44,7 +47,7 @@ export function BurnRateLineChart({ data, salary, currency }: Props) {
           tick={{ fontFamily: CHART_THEME.fontFamily, fontSize: CHART_THEME.fontSize, fill: CHART_THEME.axisColor }}
           axisLine={false}
           tickLine={false}
-          label={{ value: 'Day', position: 'insideBottomRight', offset: -5, style: { fontFamily: CHART_THEME.fontFamily, fontSize: 9, fill: CHART_THEME.axisColor } }}
+          label={{ value: t('day'), position: 'insideBottomRight', offset: -5, style: { fontFamily: CHART_THEME.fontFamily, fontSize: 9, fill: CHART_THEME.axisColor } }}
         />
         <YAxis
           tick={{ fontFamily: CHART_THEME.fontFamily, fontSize: CHART_THEME.fontSize, fill: CHART_THEME.axisColor }}
@@ -52,13 +55,13 @@ export function BurnRateLineChart({ data, salary, currency }: Props) {
           tickLine={false}
           tickFormatter={v => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)}
         />
-        <Tooltip content={<CyberTooltip currency={currency} />} />
+        <Tooltip content={<CyberTooltip currency={currency} labels={{ day: t('day'), spent: t('spent') }} />} />
         {salary > 0 && (
           <ReferenceLine
             y={salary}
             stroke="rgba(34, 197, 94, 0.3)"
             strokeDasharray="4 2"
-            label={{ value: 'Salary', position: 'right', style: { fontFamily: CHART_THEME.fontFamily, fontSize: 9, fill: 'rgba(34,197,94,0.5)' } }}
+            label={{ value: t('salary'), position: 'right', style: { fontFamily: CHART_THEME.fontFamily, fontSize: 9, fill: 'rgba(34,197,94,0.5)' } }}
           />
         )}
         <Line

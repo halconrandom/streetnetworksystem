@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, HelpCircle, TrendingUp, DollarSign, Target, CreditCard, Activity } from '@shared/icons';
+import { FinanceTranslationKey, useFinanceI18n } from '../i18n';
 
 export type HelpTopic = 'overview' | 'transactions' | 'budgets' | 'debts' | 'goals' | 'market' | 'general';
 
@@ -9,74 +10,48 @@ interface Props {
   onClose: () => void;
 }
 
-const HELP_CONTENT: Record<HelpTopic, { title: string; icon: any; content: string[] }> = {
+const HELP_CONTENT: Record<HelpTopic, { titleKey: FinanceTranslationKey; icon: any; contentKeys: FinanceTranslationKey[] }> = {
   general: {
-    title: 'Finance Overview',
+    titleKey: 'helpGeneralTitle',
     icon: HelpCircle,
-    content: [
-      'Welcome to your financial dashboard. Here you can track all your money movements.',
-      'Use the tabs to switch between transactions, budgets, debts, and goals.',
-      'All your data is securely saved and synced with your account.'
-    ]
+    contentKeys: ['helpGeneral1', 'helpGeneral2', 'helpGeneral3']
   },
   overview: {
-    title: 'Dashboard Summary',
+    titleKey: 'helpOverviewTitle',
     icon: Activity,
-    content: [
-      'The summary gives you a quick look at your monthly spending and income.',
-      'Spending Rate: See how much you are spending relative to your income.',
-      'Charts: Visualize your spending patterns and trends throughout the month.'
-    ]
+    contentKeys: ['helpOverview1', 'helpOverview2', 'helpOverview3']
   },
   transactions: {
-    title: 'Transaction History',
+    titleKey: 'helpTransactionsTitle',
     icon: DollarSign,
-    content: [
-      'Record every income and expense to keep your history accurate.',
-      'Categories: Group your spending to see where your money goes.',
-      'Filters: Use search and filters to find specific transactions quickly.'
-    ]
+    contentKeys: ['helpTransactions1', 'helpTransactions2', 'helpTransactions3']
   },
   budgets: {
-    title: 'Monthly Budgets',
+    titleKey: 'helpBudgetsTitle',
     icon: TrendingUp,
-    content: [
-      'Set spending limits for different categories like Food, Rent, or Entertainment.',
-      'Alerts: Set limits (like 80%) to get notified before you overspend.',
-      'Discipline: Budgets help you stick to your financial plan.'
-    ]
+    contentKeys: ['helpBudgets1', 'helpBudgets2', 'helpBudgets3']
   },
   debts: {
-    title: 'Debt Tracking',
+    titleKey: 'helpDebtsTitle',
     icon: CreditCard,
-    content: [
-      'Keep track of what you owe and your payment progress.',
-      'Payments: Log each payment to update your remaining balance.',
-      'Progress: See how your debt decreases over time with every payment.'
-    ]
+    contentKeys: ['helpDebts1', 'helpDebts2', 'helpDebts3']
   },
   goals: {
-    title: 'Savings Goals',
+    titleKey: 'helpGoalsTitle',
     icon: Target,
-    content: [
-      'Set targets for things you want to save for, like a vacation or a new car.',
-      'Contributions: Add money to your goals to track your progress.',
-      'Estimates: See how close you are to reaching your target based on your savings.'
-    ]
+    contentKeys: ['helpGoals1', 'helpGoals2', 'helpGoals3']
   },
   market: {
-    title: 'Market List',
+    titleKey: 'helpMarketTitle',
     icon: Activity,
-    content: [
-      'Keep a list of things you want to buy or monitor.',
-      'Prices: Track estimated prices for items you are interested in.',
-      'Planning: Use this list to plan your future purchases.'
-    ]
+    contentKeys: ['helpMarket1', 'helpMarket2', 'helpMarket3']
   }
 };
 
 export function FinanceHelpModal({ topic = 'general', onClose }: Props) {
+  const { t } = useFinanceI18n();
   const data = HELP_CONTENT[topic];
+  const title = t(data.titleKey);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-3xl" onClick={onClose}>
@@ -98,8 +73,8 @@ export function FinanceHelpModal({ topic = 'general', onClose }: Props) {
               <data.icon size={28} className="text-terminal-accent" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[16px] font-mono font-bold text-white uppercase tracking-[0.4em]">Help // {data.title}</p>
-              <p className="text-[11px] font-mono text-terminal-muted uppercase tracking-[0.2em] mt-1.5">Documentation & Instructions</p>
+              <p className="text-[16px] font-mono font-bold text-white uppercase tracking-[0.4em]">{t('help')} // {title}</p>
+              <p className="text-[11px] font-mono text-terminal-muted uppercase tracking-[0.2em] mt-1.5">{t('documentationInstructions')}</p>
             </div>
             <button onClick={onClose} className="p-3 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
               <X size={20} />
@@ -108,11 +83,11 @@ export function FinanceHelpModal({ topic = 'general', onClose }: Props) {
 
           {/* Body */}
           <div className="px-14 py-12 space-y-8">
-            {data.content.map((item, i) => (
+            {data.contentKeys.map((itemKey, i) => (
               <div key={i} className="flex gap-6 items-start group">
                 <div className="mt-1.5 w-2 h-2 rounded-full bg-terminal-accent/40 group-hover:bg-terminal-accent group-hover:shadow-[0_0_10px_#ff003c] transition-all" />
                 <p className="text-[14px] font-mono text-white/70 leading-relaxed uppercase tracking-wider group-hover:text-white transition-colors">
-                  {item}
+                  {t(itemKey)}
                 </p>
               </div>
             ))}
@@ -124,7 +99,7 @@ export function FinanceHelpModal({ topic = 'general', onClose }: Props) {
               onClick={onClose}
               className="px-10 py-4 bg-terminal-accent text-white text-[11px] font-mono font-bold rounded-lg uppercase tracking-[0.3em] shadow-[0_0_30px_rgba(255,0,60,0.2)] hover:shadow-[0_0_45px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98]"
             >
-              Close
+              {t('close')}
             </button>
           </div>
         </div>

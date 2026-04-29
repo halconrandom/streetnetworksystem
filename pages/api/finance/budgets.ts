@@ -22,8 +22,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const budgets = await query<any>(
         `SELECT b.*, c.name AS category_name, c.color AS category_color,
           COALESCE((
-            SELECT SUM(t.amount) FROM fn_transactions t
-            WHERE t.clerk_id = b.clerk_id AND t.category_id = b.category_id
+            SELECT SUM(t.amount)
+            FROM fn_transactions t
+            JOIN fn_transaction_categories tc ON t.category_id = tc.id
+            WHERE t.clerk_id = b.clerk_id
+              AND tc.clerk_id = b.clerk_id
+              AND tc.name = c.name
+              AND tc.type = c.type
               AND t.type = 'expense'
               AND EXTRACT(MONTH FROM t.date) = b.month
               AND EXTRACT(YEAR FROM t.date) = b.year

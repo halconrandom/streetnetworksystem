@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@shared/icons';
 import { Transaction, TransactionCategory, Currency, TransactionType } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   transaction?: Transaction | null;
@@ -19,6 +20,7 @@ const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted te
 const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function TransactionModal({ transaction, categories, currency, onClose, onSaved }: Props) {
+  const { t, categoryName } = useFinanceI18n();
   const isEdit = !!transaction;
   const [type, setType]               = useState<TransactionType>(transaction?.type ?? 'expense');
   const initRaw = transaction?.amount ? String(Math.round(transaction.amount)) : '';
@@ -33,7 +35,7 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amountRaw || parseFloat(amountRaw) <= 0) return toast.error('Amount must be positive');
+    if (!amountRaw || parseFloat(amountRaw) <= 0) return toast.error(t('amountMustBePositive'));
     setLoading(true);
     try {
       const body = { category_id: categoryId || null, type, amount: parseFloat(amountRaw), description, date };
@@ -41,11 +43,11 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
         ? await fetch(`/api/finance/transactions/${transaction!.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) })
         : await fetch('/api/finance/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
       if (!res.ok) throw new Error();
-      toast.success(isEdit ? 'Transaction updated' : 'Transaction added');
+      toast.success(isEdit ? t('transactionUpdated') : t('transactionAdded'));
       onSaved();
       onClose();
     } catch {
-      toast.error('Failed to save transaction');
+      toast.error(t('failedToSaveTransaction'));
     } finally {
       setLoading(false);
     }
@@ -68,10 +70,10 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
               <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">
-                {isEdit ? 'Edit Transaction' : 'New Transaction'}
+                {isEdit ? t('editTransaction') : t('newTransaction')}
               </span>
               <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">
-                Financial Record // {isEdit ? `ID: ${transaction?.id.slice(0,8)}` : 'Enter details below'}
+                {t('financialRecord')} // {isEdit ? `ID: ${transaction?.id.slice(0,8)}` : t('enterDetailsBelow')}
               </span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
@@ -85,27 +87,27 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
 
               {/* Type toggle */}
               <div className="flex gap-2 p-1 bg-white/[0.01] rounded border border-white/[0.05]">
-                {(['expense', 'income'] as TransactionType[]).map(t => (
+                {(['expense', 'income'] as TransactionType[]).map(txType => (
                   <button
-                    key={t}
+                    key={txType}
                     type="button"
-                    onClick={() => { setType(t); setCategoryId(''); }}
+                    onClick={() => { setType(txType); setCategoryId(''); }}
                     className={`flex-1 py-2 text-[10px] font-mono font-bold rounded uppercase tracking-widest transition-all ${
-                      type === t
-                        ? t === 'expense'
+                      type === txType
+                        ? txType === 'expense'
                           ? 'bg-terminal-accent/10 border border-terminal-accent/30 text-terminal-accent'
                           : 'bg-green-400/10 border border-green-400/30 text-green-400'
                         : 'text-white/20 hover:text-white/40 border border-transparent'
                     }`}
                   >
-                    {t === 'expense' ? '− Expense' : '+ Income'}
+                    {txType === 'expense' ? `- ${t('expense')}` : `+ ${t('income')}`}
                   </button>
                 ))}
               </div>
 
               {/* Amount */}
               <div>
-                <label className={labelCls}>Amount ({currency})</label>
+                <label className={labelCls}>{t('amount')} ({currency})</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -124,7 +126,7 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
 
               {/* Description */}
               <div>
-                <label className={labelCls}>Description</label>
+                <label className={labelCls}>{t('description')}</label>
                 <input 
                   type="text" 
                   value={description} 
@@ -137,16 +139,16 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
               {/* Category + Date side by side */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Category</label>
+                  <label className={labelCls}>{t('category')}</label>
                   <div className="relative">
                     <select 
                       value={categoryId} 
                       onChange={e => setCategoryId(e.target.value)} 
                       className={selectCls}
                     >
-                      <option value="" className="bg-[#0f0f0f]">Uncategorized</option>
+                      <option value="" className="bg-[#0f0f0f]">{t('uncategorized')}</option>
                       {filteredCategories.map(c => (
-                        <option key={c.id} value={c.id} className="bg-[#0f0f0f]">{c.name}</option>
+                        <option key={c.id} value={c.id} className="bg-[#0f0f0f]">{categoryName(c.name)}</option>
                       ))}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
@@ -157,7 +159,7 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
                   </div>
                 </div>
                 <div>
-                  <label className={labelCls}>Date</label>
+                  <label className={labelCls}>{t('date')}</label>
                   <input 
                     type="date" 
                     value={date} 
@@ -171,9 +173,9 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
 
             {/* Footer */}
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnCancel}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Transaction'}
+                {loading ? t('saving') : isEdit ? t('saveChanges') : t('addTransaction')}
               </button>
             </div>
           </form>
@@ -182,4 +184,3 @@ export function TransactionModal({ transaction, categories, currency, onClose, o
     </div>
   );
 }
-

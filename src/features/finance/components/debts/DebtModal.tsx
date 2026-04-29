@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@shared/icons';
 import { Currency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   currency: Currency;
@@ -17,6 +18,7 @@ const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted te
 const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function DebtModal({ currency, onClose, onSaved }: Props) {
+  const { t } = useFinanceI18n();
   const [creditorName, setCreditorName]       = useState('');
   const [originalAmount, setOriginalAmount]   = useState('');
   const [currentBalance, setCurrentBalance]   = useState('');
@@ -45,11 +47,11 @@ export function DebtModal({ currency, onClose, onSaved }: Props) {
         }),
       });
       if (!res.ok) throw new Error();
-      toast.success('Debt added');
+      toast.success(t('debtAdded'));
       onSaved();
       onClose();
     } catch {
-      toast.error('Failed to add debt');
+      toast.error(t('failedToAddDebt'));
     } finally {
       setLoading(false);
     }
@@ -71,8 +73,8 @@ export function DebtModal({ currency, onClose, onSaved }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
-              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">Track New Debt</span>
-              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">Loans & Liabilities // Financial Management</span>
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">{t('trackNewDebt')}</span>
+              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">{t('debtSubtitle')}</span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
               <X size={18} />
@@ -84,47 +86,47 @@ export function DebtModal({ currency, onClose, onSaved }: Props) {
             <div className="px-12 py-12 space-y-10">
 
               <div>
-                <label className={labelCls}>Creditor / Entity</label>
-                <input value={creditorName} onChange={e => setCreditorName(e.target.value)} required className={inputCls} placeholder="Credit Card, Bank Loan..." autoFocus />
+                <label className={labelCls}>{t('creditorEntity')}</label>
+                <input value={creditorName} onChange={e => setCreditorName(e.target.value)} required className={inputCls} placeholder={t('creditorPlaceholder')} autoFocus />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Original Amount ({currency})</label>
+                  <label className={labelCls}>{t('originalAmount')} ({currency})</label>
                   <input type="number" min="0" step="0.01" value={originalAmount} onChange={e => setOriginalAmount(e.target.value)} required className={inputCls} placeholder="0.00" />
                 </div>
                 <div>
-                  <label className={labelCls}>Current Balance</label>
-                  <input type="number" min="0" step="0.01" value={currentBalance} onChange={e => setCurrentBalance(e.target.value)} className={inputCls} placeholder="Auto-sync" />
+                  <label className={labelCls}>{t('currentBalance')}</label>
+                  <input type="number" min="0" step="0.01" value={currentBalance} onChange={e => setCurrentBalance(e.target.value)} className={inputCls} placeholder={t('autoSync')} />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className={labelCls}>Interest %/yr</label>
+                  <label className={labelCls}>{t('interestYear')}</label>
                   <input type="number" min="0" step="0.01" value={interestRate} onChange={e => setInterestRate(e.target.value)} className={inputCls} placeholder="18.5" />
                 </div>
                 <div>
-                  <label className={labelCls}>Min. Payment</label>
+                  <label className={labelCls}>{t('minPayment')}</label>
                   <input type="number" min="0" step="0.01" value={minimumPayment} onChange={e => setMinimumPayment(e.target.value)} className={inputCls} placeholder="0" />
                 </div>
                 <div>
-                  <label className={labelCls}>Due Day</label>
+                  <label className={labelCls}>{t('dueDay')}</label>
                   <input type="number" min="1" max="31" value={dueDay} onChange={e => setDueDay(e.target.value)} className={inputCls} placeholder="15" />
                 </div>
               </div>
 
               <div>
-                <label className={labelCls}>Notes <span className="normal-case text-white/10">(optional)</span></label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={textareaCls} placeholder="Additional details or terms..." />
+                <label className={labelCls}>{t('notes')} <span className="normal-case text-white/10">({t('optional')})</span></label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={textareaCls} placeholder={t('debtNotesPlaceholder')} />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnCancel}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : 'Add Debt'}
+                {loading ? t('saving') : t('addDebt')}
               </button>
             </div>
           </form>
@@ -133,4 +135,3 @@ export function DebtModal({ currency, onClose, onSaved }: Props) {
     </div>
   );
 }
-

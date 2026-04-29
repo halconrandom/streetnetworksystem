@@ -1,7 +1,8 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { OverviewData, Currency, formatCurrency, MONTH_NAMES } from '../../types';
+import { OverviewData, Currency, formatCurrency } from '../../types';
 import { CHART_THEME } from './chartTheme';
+import { financeMonthNames, useFinanceI18n } from '../../i18n';
 
 interface Props {
   data: OverviewData['monthly_history'];
@@ -23,18 +24,20 @@ const CyberTooltip = ({ active, payload, label, currency }: any) => {
 };
 
 export function MonthlyBarChart({ data, currency }: Props) {
+  const { language, t } = useFinanceI18n();
+
   if (!data?.length) {
     return (
       <div className="flex items-center justify-center h-48 text-terminal-muted font-mono text-xs">
-        No historical data yet
+        {t('noHistoricalDataYet')}
       </div>
     );
   }
 
   const chartData = data.map(d => ({
-    name: MONTH_NAMES[d.month - 1].slice(0, 3).toUpperCase(),
-    Income: parseFloat(d.income as any),
-    Expenses: parseFloat(d.expenses as any),
+    name: financeMonthNames[language][d.month - 1].slice(0, 3).toUpperCase(),
+    income: parseFloat(d.income as any),
+    expenses: parseFloat(d.expenses as any),
   }));
 
   return (
@@ -59,8 +62,8 @@ export function MonthlyBarChart({ data, currency }: Props) {
             <span style={{ fontFamily: CHART_THEME.fontFamily, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{v}</span>
           )}
         />
-        <Bar dataKey="Income" fill={CHART_THEME.incomeColor} radius={[2, 2, 0, 0]} maxBarSize={24} />
-        <Bar dataKey="Expenses" fill={CHART_THEME.expenseColor} radius={[2, 2, 0, 0]} maxBarSize={24} />
+        <Bar dataKey="income" name={t('income')} fill={CHART_THEME.incomeColor} radius={[2, 2, 0, 0]} maxBarSize={24} />
+        <Bar dataKey="expenses" name={t('expenses')} fill={CHART_THEME.expenseColor} radius={[2, 2, 0, 0]} maxBarSize={24} />
       </BarChart>
     </ResponsiveContainer>
   );

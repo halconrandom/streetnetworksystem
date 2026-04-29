@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@shared/icons';
 import { TransactionCategory, Currency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   categories: TransactionCategory[];
@@ -20,6 +21,7 @@ const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted te
 const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function BudgetModal({ categories, currency, month, year, onClose, onSaved }: Props) {
+  const { t, categoryName } = useFinanceI18n();
   const expenseCategories = categories.filter(c => c.type === 'expense');
   const [categoryId, setCategoryId]         = useState('');
   const [limitRaw, setLimitRaw]             = useState('');
@@ -45,11 +47,11 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
         body: JSON.stringify({ category_id: categoryId, month, year, limit_amount: parseFloat(limitRaw), alert_threshold: alertThreshold }),
       });
       if (!res.ok) throw new Error();
-      toast.success('Budget created');
+      toast.success(t('budgetCreated'));
       onSaved();
       onClose();
     } catch {
-      toast.error('Failed to create budget');
+      toast.error(t('failedToCreateBudget'));
     } finally {
       setLoading(false);
     }
@@ -73,8 +75,8 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
           {/* Header */}
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
-              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">New Budget Category</span>
-              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">Monthly Planning // {month}/{year}</span>
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">{t('newBudgetCategory')}</span>
+              <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">{t('monthlyPlanning')} // {month}/{year}</span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
               <X size={18} />
@@ -86,7 +88,7 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
             <div className="px-12 py-12 space-y-10">
 
               <div>
-                <label className={labelCls}>Category</label>
+                <label className={labelCls}>{t('category')}</label>
                 <div className="relative">
                   <select 
                     value={categoryId} 
@@ -94,9 +96,9 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
                     required 
                     className={selectCls}
                   >
-                    <option value="" disabled className="bg-[#0f0f0f]">Select category...</option>
+                    <option value="" disabled className="bg-[#0f0f0f]">{t('selectCategory')}</option>
                     {expenseCategories.map(c => (
-                      <option key={c.id} value={c.id} className="bg-[#0f0f0f] py-2">{c.name}</option>
+                      <option key={c.id} value={c.id} className="bg-[#0f0f0f] py-2">{categoryName(c.name)}</option>
                     ))}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
@@ -108,7 +110,7 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
               </div>
 
               <div>
-                <label className={labelCls}>Monthly Limit ({currency})</label>
+                <label className={labelCls}>{t('monthlyLimit')} ({currency})</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -123,7 +125,7 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-[10px] font-mono text-terminal-muted uppercase tracking-widest">Alert threshold</label>
+                  <label className="text-[10px] font-mono text-terminal-muted uppercase tracking-widest">{t('alertThreshold')}</label>
                   <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-white/[0.03]" style={{ color: thresholdColor }}>
                     {alertThreshold}%
                   </span>
@@ -148,9 +150,9 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
 
             {/* Footer */}
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnCancel}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : 'Create Budget'}
+                {loading ? t('saving') : t('createBudget')}
               </button>
             </div>
           </form>
@@ -159,4 +161,3 @@ export function BudgetModal({ categories, currency, month, year, onClose, onSave
     </div>
   );
 }
-

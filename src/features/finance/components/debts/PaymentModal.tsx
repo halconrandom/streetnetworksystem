@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { X } from '@shared/icons';
 import { Debt, Currency, formatCurrency } from '../../types';
 import { toast } from 'sonner';
+import { useFinanceI18n } from '../../i18n';
 
 interface Props {
   debt: Debt;
@@ -17,6 +18,7 @@ const btnCancel = 'flex-1 py-3 border border-white/[0.05] text-terminal-muted te
 const btnSubmit = 'flex-1 py-3 bg-terminal-accent text-white text-[10px] font-mono font-bold rounded uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,60,0.2)] hover:shadow-[0_0_30px_rgba(255,0,60,0.4)] hover:brightness-110 transition-all active:scale-[0.98] disabled:opacity-40 disabled:shadow-none';
 
 export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
+  const { t } = useFinanceI18n();
   const [amount, setAmount]           = useState(debt.minimum_payment?.toString() ?? '');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote]               = useState('');
@@ -33,11 +35,11 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
         body: JSON.stringify({ amount: parseFloat(amount), payment_date: paymentDate, note: note || null }),
       });
       if (!res.ok) throw new Error();
-      toast.success('Payment logged');
+      toast.success(t('paymentLogged'));
       onSaved();
       onClose();
     } catch {
-      toast.error('Failed to log payment');
+      toast.error(t('failedToLogPayment'));
     } finally {
       setLoading(false);
     }
@@ -59,9 +61,9 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
           {/* Header */}
           <div className="flex items-center justify-between px-12 py-8 border-b border-white/[0.04] bg-white/[0.02]">
             <div className="flex flex-col">
-              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">Make a Payment</span>
+              <span className="text-[14px] font-mono font-bold text-white uppercase tracking-[0.3em]">{t('makePayment')}</span>
               <span className="text-[11px] font-mono text-terminal-muted uppercase tracking-widest mt-1.5">
-                {debt.creditor_name} // {formatCurrency(debt.current_balance, currency)} Remaining
+                {t('paymentRemaining', { creditor: debt.creditor_name, amount: formatCurrency(debt.current_balance, currency) })}
               </span>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full text-white/20 hover:text-white hover:bg-white/[0.08] transition-all">
@@ -75,7 +77,7 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={labelCls}>Amount ({currency})</label>
+                  <label className={labelCls}>{t('amount')} ({currency})</label>
                   <input 
                     type="number" 
                     min="0" 
@@ -89,7 +91,7 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Payment Date</label>
+                  <label className={labelCls}>{t('paymentDate')}</label>
                   <input 
                     type="date" 
                     value={paymentDate} 
@@ -101,21 +103,21 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
               </div>
 
               <div>
-                <label className={labelCls}>Reference / Note <span className="normal-case text-white/10">(optional)</span></label>
+                <label className={labelCls}>{t('referenceNote')} <span className="normal-case text-white/10">({t('optional')})</span></label>
                 <input 
                   value={note} 
                   onChange={e => setNote(e.target.value)} 
                   className={inputCls} 
-                  placeholder="Monthly installment, extra payoff..." 
+                  placeholder={t('paymentNotePlaceholder')} 
                 />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-12 py-10 border-t border-white/[0.04] bg-white/[0.02] flex gap-8">
-              <button type="button" onClick={onClose} className={btnCancel}>Cancel</button>
+              <button type="button" onClick={onClose} className={btnCancel}>{t('cancel')}</button>
               <button type="submit" disabled={loading} className={btnSubmit}>
-                {loading ? 'Saving...' : 'Register Payment'}
+                {loading ? t('saving') : t('registerPayment')}
               </button>
             </div>
           </form>
@@ -124,4 +126,3 @@ export function PaymentModal({ debt, currency, onClose, onSaved }: Props) {
     </div>
   );
 }
-

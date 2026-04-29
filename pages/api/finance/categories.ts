@@ -17,7 +17,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (req.method === 'GET') {
       const cats = await query<any>(
-        'SELECT * FROM fn_transaction_categories WHERE clerk_id = $1 ORDER BY type ASC, name ASC',
+        `SELECT DISTINCT ON (type, name) *
+         FROM fn_transaction_categories
+         WHERE clerk_id = $1
+         ORDER BY type ASC, name ASC, created_at ASC, id ASC`,
         [user.clerk_id]
       );
       return res.json(cats);
