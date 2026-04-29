@@ -166,24 +166,34 @@ export async function getOrCreateUserByClerkId(req: any): Promise<DBUser | null>
       user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE id = $1', [user.id]);
       console.log('[getOrCreateUserByClerkId] Linked to Clerk:', email);
     } else {
-      // Crear nuevo usuario
+      // Crear nuevo usuario — ON CONFLICT (email) vincula si ya existe
       const id = crypto.randomUUID();
       await execute(
         `INSERT INTO sn_users (id, clerk_id, email, name, role, is_active, is_verified, discord_id, discord_username, discord_avatar, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'user', true, true, $5, $6, $7, NOW(), NOW())`,
+         VALUES ($1, $2, $3, $4, 'user', true, true, $5, $6, $7, NOW(), NOW())
+         ON CONFLICT (email) DO UPDATE SET
+           clerk_id = EXCLUDED.clerk_id,
+           discord_id = COALESCE(EXCLUDED.discord_id, sn_users.discord_id),
+           discord_username = COALESCE(EXCLUDED.discord_username, sn_users.discord_username),
+           discord_avatar = COALESCE(EXCLUDED.discord_avatar, sn_users.discord_avatar),
+           name = COALESCE(EXCLUDED.name, sn_users.name),
+           updated_at = NOW()`,
         [id, userId, email.toLowerCase(), fullName, discordId, discordUsername, avatarUrl]
       );
 
-      // Insertar flags por defecto
-      for (const flag of DEFAULT_FLAGS) {
-        await execute(
-          'INSERT INTO sn_user_flags (user_id, flag, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
-          [id, flag]
-        );
+      user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE email = $1', [email.toLowerCase()]);
+
+      // Insertar flags por defecto solo si el usuario es nuevo
+      if (user) {
+        for (const flag of DEFAULT_FLAGS) {
+          await execute(
+            'INSERT INTO sn_user_flags (user_id, flag, created_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING',
+            [user.id, flag]
+          );
+        }
       }
 
-      user = await queryOne<DBUser>('SELECT * FROM sn_users WHERE id = $1', [id]);
-      console.log('[getOrCreateUserByClerkId] Created new user:', email);
+      console.log('[getOrCreateUserByClerkId] Created or re-linked user:', email);
     }
 
     if (user) {
